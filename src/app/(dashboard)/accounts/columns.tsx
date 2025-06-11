@@ -14,10 +14,18 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { IAccount } from "@/models/account.model"
 import { useEditAccount } from "@/hooks/use-edit-account"
+import { useDeleteAccount } from "@/hooks/use-delete-account"
 import { formatCurrency } from "@/lib/utils"
 
 const AccountActions = ({ account }: { account: IAccount }) => {
   const { onOpen } = useEditAccount()
+  const deleteMutation = useDeleteAccount(account._id.toString())
+  
+  const handleDelete = () => {
+    if (confirm('Are you sure you want to delete this account? This will also delete all related transactions.')) {
+      deleteMutation.mutate()
+    }
+  }
   
   return (
     <DropdownMenu>
@@ -40,7 +48,9 @@ const AccountActions = ({ account }: { account: IAccount }) => {
         >
           <Edit className="mr-2 h-4 w-4" /> Edit
         </DropdownMenuItem>
-        <DropdownMenuItem className="text-red-500">Delete</DropdownMenuItem>
+        <DropdownMenuItem className="text-red-500" onClick={handleDelete}>
+          Delete
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -82,7 +92,7 @@ export const columns: ColumnDef<IAccount>[] = [
       const amount = parseFloat(row.getValue("balance"))
       const currency = row.original.currency
       
-      return <div className="font-medium">{formatCurrency(amount, currency)}</div>
+      return <div className="font-medium">{formatCurrency(amount / 100, currency)}</div>
     },
   },
   {

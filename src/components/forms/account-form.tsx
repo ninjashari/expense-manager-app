@@ -167,17 +167,6 @@ export function AccountForm({
                 <Button className="w-full" disabled={disabled}>
                     {id ? "Save changes" : "Create account"}
                 </Button>
-                {!!id && (
-                    <Button
-                        type="button"
-                        disabled={disabled}
-                        onClick={handleDelete}
-                        className="w-full"
-                        variant="outline"
-                    >
-                        Delete account
-                    </Button>
-                )}
             </form>
         </Form>
     );

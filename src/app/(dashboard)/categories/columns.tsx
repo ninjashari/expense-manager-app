@@ -14,9 +14,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ICategory } from "@/models/category.model"
 import { useEditCategory } from "@/hooks/use-edit-category"
+import { useDeleteCategory } from "@/hooks/use-delete-category"
 
 const CategoryActions = ({ category }: { category: ICategory }) => {
   const { onOpen } = useEditCategory()
+  const deleteMutation = useDeleteCategory(category._id.toString())
+  
+  const handleDelete = () => {
+    if (confirm('Are you sure you want to delete this category? This will also delete all related transactions.')) {
+      deleteMutation.mutate()
+    }
+  }
   
   return (
     <DropdownMenu>
@@ -37,7 +45,9 @@ const CategoryActions = ({ category }: { category: ICategory }) => {
         <DropdownMenuItem onClick={() => onOpen(category._id.toString())}>
           Edit
         </DropdownMenuItem>
-        <DropdownMenuItem className="text-red-500">Delete</DropdownMenuItem>
+        <DropdownMenuItem className="text-red-500" onClick={handleDelete}>
+          Delete
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -64,7 +64,7 @@ export const columns: ColumnDef<PopulatedTransaction>[] = [
 
             return (
                 <div className="font-medium">
-                    {formatCurrency(amount, currency)}
+                    {formatCurrency(amount / 100, currency)}
                 </div>
             )
         }

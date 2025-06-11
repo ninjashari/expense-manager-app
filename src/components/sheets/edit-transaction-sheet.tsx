@@ -29,7 +29,14 @@ export function EditTransactionSheet() {
   const isPending = editMutation.isPending || deleteMutation.isPending || transactionQuery.isLoading || isLoadingCategories || isLoadingAccounts;
 
   const onSubmit = (values: FormValues) => {
-    editMutation.mutate(values, {
+    const { accountId, categoryId, amount, ...rest } = values;
+    const amountInCents = Math.round(parseFloat(amount) * 100);
+    editMutation.mutate({ 
+      ...rest, 
+      account: accountId,
+      category: categoryId || undefined,
+      amount: amountInCents.toString()
+    }, {
       onSuccess: () => {
         onClose();
       },

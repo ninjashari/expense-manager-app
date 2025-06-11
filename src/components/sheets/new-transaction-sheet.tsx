@@ -28,7 +28,7 @@ export function NewTransactionSheet() {
   const isPending = createMutation.isPending || isLoadingCategories || isLoadingAccounts;
 
   const mutation = useMutation({
-    mutationFn: async (values: Omit<FormValues, 'accountId'> & { account: string }) => {
+    mutationFn: async (values: Omit<FormValues, 'accountId' | 'categoryId'> & { account: string; category?: string }) => {
         const response = await fetch('/api/transactions', {
             method: 'POST',
             headers: {
@@ -55,11 +55,12 @@ export function NewTransactionSheet() {
   });
   
   const handleSubmit = (values: FormValues) => {
-    const { accountId, amount, ...rest } = values;
+    const { accountId, categoryId, amount, ...rest } = values;
     const amountInCents = Math.round(parseFloat(amount) * 100);
     mutation.mutate({ 
       ...rest, 
       account: accountId,
+      category: categoryId || undefined,
       amount: amountInCents.toString()
     });
   };

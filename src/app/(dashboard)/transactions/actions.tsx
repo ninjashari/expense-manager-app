@@ -8,11 +8,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useEditTransaction } from "@/hooks/use-edit-transaction"
+import { useDeleteTransaction } from "@/hooks/use-delete-transaction"
 import { PopulatedTransaction } from "@/models/transaction.model"
 import { MoreHorizontal } from "lucide-react"
 
 export const Actions = ({ transaction }: { transaction: PopulatedTransaction }) => {
     const { onOpen } = useEditTransaction();
+    const deleteMutation = useDeleteTransaction(transaction._id.toString());
+
+    const handleDelete = () => {
+        if (confirm('Are you sure you want to delete this transaction?')) {
+            deleteMutation.mutate();
+        }
+    };
 
     return (
         <DropdownMenu>
@@ -25,6 +33,9 @@ export const Actions = ({ transaction }: { transaction: PopulatedTransaction }) 
             <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onOpen(transaction._id.toString())}>
                     Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDelete} className="text-red-600">
+                    Delete
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
