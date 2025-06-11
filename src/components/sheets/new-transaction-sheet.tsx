@@ -15,14 +15,19 @@ import { useGetCategories } from '@/hooks/use-get-categories';
 import { IAccount } from '@/models/account.model';
 import { ICategory } from '@/models/category.model';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCreateTransaction } from '@/hooks/use-create-transaction';
+import { Loader2 } from 'lucide-react';
 
-export const NewTransactionSheet = () => {
+export function NewTransactionSheet() {
   const { isOpen, onClose } = useNewTransaction();
   
   const queryClient = useQueryClient();
 
-  const { accounts } = useGetAccounts();
-  const { categories } = useGetCategories();
+  const createMutation = useCreateTransaction();
+  const { categories, isLoading: isLoadingCategories } = useGetCategories();
+  const { accounts, isLoading: isLoadingAccounts } = useGetAccounts();
+
+  const isPending = createMutation.isPending || isLoadingCategories || isLoadingAccounts;
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -55,15 +60,15 @@ export const NewTransactionSheet = () => {
     mutation.mutate(values);
   };
 
-  const accountOptions = accounts.map((account: IAccount) => ({
+  const accountOptions = accounts?.map((account: IAccount) => ({
     label: account.name,
     value: account._id.toString(),
-  }));
+  })) || [];
 
-  const categoryOptions = categories.map((category: ICategory) => ({
+  const categoryOptions = categories?.map((category: ICategory) => ({
     label: category.name,
     value: category._id.toString(),
-  }));
+  })) || [];
   
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -74,22 +79,23 @@ export const NewTransactionSheet = () => {
             Add a new transaction to track your spending.
           </SheetDescription>
         </SheetHeader>
-        <TransactionForm 
-          onSubmit={handleSubmit} 
-          disabled={mutation.isPending}
-          accountOptions={accountOptions}
-          categoryOptions={categoryOptions}
-          defaultValues={{
-            date: new Date(),
-            type: 'Expense',
-            account: '',
-            category: '',
-            payee: '',
-            amount: '0',
-            notes: '',
-          }}
-        />
+        {isPending ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <TransactionForm 
+            onSubmit={handleSubmit} 
+            disabled={isPending}
+            accounts={accounts || []}
+            categories={categories || []}
+            defaultValues={{
+              date: new Date(),
+              type: 'Expense',
+            }}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );
-}; 
+} 

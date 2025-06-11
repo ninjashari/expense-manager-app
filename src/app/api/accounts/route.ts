@@ -5,11 +5,12 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db";
 import Account from "@/models/account.model";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getAuth } from '@/lib/auth';
 
 const accountSchema = z.object({
-  name: z.string().min(1, "Name is required."),
+  name: z.string().min(1, { message: "Name is required." }),
   type: z.enum(["Checking", "Savings", "Credit Card", "Cash", "Investment"]),
-  balance: z.coerce.number().optional().default(0),
+  currency: z.string().min(2, { message: "Please select a currency." }),
 });
 
 export async function GET(req: NextRequest) {
@@ -39,29 +40,30 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ message: "Not authorized" }, { status: 401 });
-  }
-
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ message: "Not authorized" }, { status: 401 });
+    }
+
     const body = await req.json();
-    const validatedData = accountSchema.safeParse(body);
-    
-    if (!validatedData.success) {
-      return NextResponse.json({ message: "Invalid data", errors: validatedData.error.errors }, { status: 400 });
+    const parsedBody = accountSchema.safeParse(body);
+
+    if (!parsedBody.success) {
+      return NextResponse.json({ message: 'Invalid data', errors: parsedBody.error.errors }, { status: 400 });
     }
 
     await connectDB();
 
-    const newAccount = new Account({
-      ...validatedData.data,
+    const account = new Account({
+      ...parsedBody.data,
       userId: session.user.id,
+      balance: 0, // Initial balance is always 0
     });
 
-    await newAccount.save();
+    await account.save();
 
-    return NextResponse.json(newAccount, { status: 201 });
+    return NextResponse.json(account, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: "Error creating account" }, { status: 500 });
   }

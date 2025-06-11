@@ -39,6 +39,7 @@ export const authOptions: AuthOptions = {
           id: user._id.toString(),
           name: user.name,
           email: user.email,
+          currency: user.currency,
         };
       }
     })
@@ -52,14 +53,17 @@ export const authOptions: AuthOptions = {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
+        // @ts-expect-error - Adding custom property to token
+        token.currency = user.currency;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (token && session.user) {
         session.user.id = token.id as string;
         session.user.name = token.name;
         session.user.email = token.email;
+        session.user.currency = token.currency as string;
       }
       return session;
     }

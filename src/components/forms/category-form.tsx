@@ -20,12 +20,12 @@ export const formSchema = z.object({
   type: z.enum(['Income', 'Expense']),
 });
 
-export type FormValues = z.input<typeof formSchema>;
+export type CategoryFormValues = z.infer<typeof formSchema>;
 
 type Props = {
   id?: string;
-  defaultValues?: FormValues;
-  onSubmit: (values: FormValues) => void;
+  defaultValues?: CategoryFormValues;
+  onSubmit: (values: CategoryFormValues) => void;
   disabled: boolean;
 };
 
@@ -35,12 +35,12 @@ export const CategoryForm = ({
   onSubmit,
   disabled,
 }: Props) => {
-  const form = useForm<FormValues>({
+  const form = useForm<CategoryFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: defaultValues,
   });
 
-  const handleSubmit = (values: FormValues) => {
+  const handleSubmit = (values: CategoryFormValues) => {
     onSubmit(values);
   };
 

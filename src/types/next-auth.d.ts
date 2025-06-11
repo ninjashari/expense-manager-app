@@ -3,11 +3,12 @@ import { DefaultSession } from 'next-auth';
 
 declare module 'next-auth' {
   /**
-   * Extends the built-in session.user type to include the user's ID.
+   * Extends the built-in session.user type to include the user's ID and currency.
    */
   interface Session {
     user: {
       id: string;
+      currency: string;
     } & DefaultSession['user'];
   }
 

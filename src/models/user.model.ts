@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, models } from 'mongoose';
+import mongoose, { Schema, Document, models, Types } from 'mongoose';
 
 export interface IUser extends Document {
   name: string;
@@ -7,6 +7,10 @@ export interface IUser extends Document {
   provider: 'credentials' | 'google' | 'github';
   createdAt: Date;
   updatedAt: Date;
+  emailVerified?: Date;
+  image?: string;
+  accounts: Types.ObjectId[];
+  currency: string;
 }
 
 const UserSchema: Schema = new Schema({
@@ -29,6 +33,14 @@ const UserSchema: Schema = new Schema({
     required: true,
     default: 'credentials',
   },
+  image: {
+    type: String,
+  },
+  currency: {
+    type: String,
+    required: true,
+    default: 'INR',
+  }
 }, { timestamps: true });
 
 const User = models.User || mongoose.model<IUser>('User', UserSchema);

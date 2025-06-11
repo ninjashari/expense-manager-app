@@ -1,16 +1,15 @@
 import { create } from 'zustand';
-import { PopulatedTransaction } from '@/models/transaction.model';
 
 type EditTransactionState = {
-  transaction: PopulatedTransaction | null;
+  id?: string;
   isOpen: boolean;
-  onOpen: (transaction: PopulatedTransaction) => void;
+  onOpen: (id: string) => void;
   onClose: () => void;
 };
 
 export const useEditTransaction = create<EditTransactionState>((set) => ({
-  transaction: null,
+  id: undefined,
   isOpen: false,
-  onOpen: (transaction) => set({ isOpen: true, transaction }),
-  onClose: () => set({ isOpen: false, transaction: null }),
+  onOpen: (id: string) => set({ isOpen: true, id }),
+  onClose: () => set({ isOpen: false, id: undefined }),
 })); 

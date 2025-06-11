@@ -19,78 +19,39 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useEditCategory } from '@/hooks/use-edit-category';
-import { CategoryForm } from '@/components/forms/category-form';
-import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
-import { ICategory } from '@/models/category.model';
+import { CategoryForm, CategoryFormValues } from '@/components/forms/category-form';
+import { useGetCategory } from '@/hooks/use-get-category';
+import { useEditCategoryMutation } from '@/hooks/use-edit-category-mutation';
+import { useDeleteCategory } from '@/hooks/use-delete-category';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Trash } from 'lucide-react';
 
-export const EditCategorySheet = ({ onCategoryUpdated, onCategoryDeleted }: { onCategoryUpdated: () => void, onCategoryDeleted: () => void }) => {
+export const EditCategorySheet = () => {
   const { isOpen, onClose, id } = useEditCategory();
-  const [category, setCategory] = useState<ICategory | null>(null);
-  const [loading, setLoading] = useState(false);
+  
+  const categoryQuery = useGetCategory(id);
+  const editMutation = useEditCategoryMutation(id);
+  const deleteMutation = useDeleteCategory(id);
 
-  useEffect(() => {
-    if (id) {
-      setLoading(true);
-      fetch(`/api/categories/${id}`)
-        .then(res => res.json())
-        .then(data => setCategory(data))
-        .finally(() => setLoading(false));
-    }
-  }, [id]);
+  const isPending = categoryQuery.isLoading || editMutation.isPending || deleteMutation.isPending;
 
-  const handleSubmit = async (values: any) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/categories/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-
-      if (response.ok) {
-        toast.success('Category updated successfully.');
-        onCategoryUpdated();
-        onClose();
-      } else {
-        const data = await response.json();
-        toast.error(data.message || 'Failed to update category.');
-      }
-    } catch (error) {
-      toast.error('An unexpected error occurred.');
-    } finally {
-        setLoading(false);
-    }
+  const handleSubmit = (values: CategoryFormValues) => {
+    editMutation.mutate(values, {
+        onSuccess: () => onClose(),
+    });
   };
 
   const handleDelete = async () => {
-    setLoading(true);
-    try {
-        const response = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
-        if (response.ok) {
-            toast.success('Category deleted successfully.');
-            onCategoryDeleted();
-            onClose();
-        } else {
-            const data = await response.json();
-            toast.error(data.message || 'Failed to delete category.');
-        }
-    } catch (error) {
-        toast.error('An unexpected error occurred.');
-    } finally {
-        setLoading(false);
-    }
+    deleteMutation.mutate(undefined, {
+        onSuccess: () => onClose(),
+    });
   };
   
-  const defaultValues = category ? {
-    name: category.name,
-    type: category.type as 'Income' | 'Expense',
-  } : {
-    name: "",
-    type: "Expense" as 'Income' | 'Expense',
-  };
+  const defaultValues = categoryQuery.data ? {
+    name: categoryQuery.data.name,
+    type: categoryQuery.data.type,
+  } : undefined;
 
   return (
       <Sheet open={isOpen} onOpenChange={onClose}>
@@ -101,42 +62,40 @@ export const EditCategorySheet = ({ onCategoryUpdated, onCategoryDeleted }: { on
               Edit an existing category.
             </SheetDescription>
           </SheetHeader>
-          {loading ? (
+          {isPending ? (
             <div className="absolute inset-0 flex items-center justify-center">
-                <p>Loading...</p>
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <>
-              <CategoryForm
-                id={id}
-                onSubmit={handleSubmit}
-                disabled={loading}
-                defaultValues={defaultValues}
-              />
-              <div className="pt-4">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="w-full">
-                      <Trash className="size-4 mr-2" />
-                      Delete category
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete this category.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-                      <AlertDialogAction disabled={loading} onClick={handleDelete}>
-                        Continue
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+                <CategoryForm
+                    id={id}
+                    onSubmit={handleSubmit}
+                    disabled={isPending}
+                    defaultValues={defaultValues}
+                />
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="w-full" disabled={isPending}>
+                        <Trash className="size-4 mr-2" />
+                        Delete category
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete this category and all related transactions.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction disabled={isPending} onClick={handleDelete}>
+                          Continue
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
             </>
           )}
         </SheetContent>

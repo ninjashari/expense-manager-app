@@ -9,17 +9,19 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { useState } from 'react';
 
 import { IAccount } from '@/models/account.model';
 import { ICategory } from '@/models/category.model';
+import { useSession } from 'next-auth/react';
 
 export const formSchema = z.object({
   date: z.coerce.date(),
-  account: z.string().min(1, 'Please select an account.'),
-  category: z.string().optional(),
+  accountId: z.string().min(1, 'Please select an account.'),
+  categoryId: z.string().optional(),
   payee: z.string().min(1, 'Please enter a payee.'),
   amount: z.string().min(1, 'Please enter an amount.'),
   notes: z.string().optional(),
@@ -32,27 +34,54 @@ type Props = {
   id?: string;
   defaultValues?: FormValues;
   onSubmit: (values: FormValues) => void;
+  onDelete?: () => void;
   disabled: boolean;
-  accountOptions: { label: string; value: string; }[];
-  categoryOptions: { label: string; value: string; }[];
+  accounts: IAccount[];
+  categories: ICategory[];
 };
 
 export const TransactionForm = ({
   id,
   defaultValues,
   onSubmit,
+  onDelete,
   disabled,
-  accountOptions,
-  categoryOptions
+  accounts,
+  categories,
 }: Props) => {
+  const { data: session } = useSession();
+  const [selectedAccount, setSelectedAccount] = useState<IAccount | undefined>(
+    accounts.find(a => a._id === (defaultValues?.accountId as any))
+  );
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: defaultValues,
   });
 
   const handleSubmit = (values: FormValues) => {
-    onSubmit(values);
+    const amount = parseFloat(values.amount);
+    const amountInCents = Math.round(amount * 100);
+
+    onSubmit({
+      ...values,
+      amount: amountInCents.toString(),
+    });
   };
+
+  const handleDelete = () => {
+    onDelete?.();
+  };
+
+  const handleAccountChange = (accountId: string) => {
+    const account = accounts.find(a => a._id.toString() === accountId);
+    setSelectedAccount(account);
+    form.setValue('accountId', accountId);
+  }
+
+  const userCurrency = session?.user?.currency || 'INR';
+  const selectedAccountCurrency = selectedAccount?.currency || userCurrency;
+  const isMultiCurrency = selectedAccountCurrency !== userCurrency;
 
   return (
     <Form {...form}>
@@ -116,30 +145,49 @@ export const TransactionForm = ({
           )}
         />
         <FormField
-          name="account"
+          name="accountId"
           control={form.control}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Account</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select
+                onValueChange={handleAccountChange}
+                defaultValue={field.value}
+                disabled={disabled}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an account" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {accountOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                  {accounts.map((account) => (
+                    <SelectItem key={account._id.toString()} value={account._id.toString()}>
+                      <div className="flex justify-between items-center w-full">
+                        <span>{account.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {account.currency}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {selectedAccount && (
+                <div className="text-sm text-muted-foreground">
+                  Balance: {formatCurrency(selectedAccount.balance / 100, selectedAccount.currency)}
+                  {isMultiCurrency && (
+                    <span className="text-xs text-orange-600 ml-2">
+                      (Different from your default currency: {userCurrency})
+                    </span>
+                  )}
+                </div>
+              )}
             </FormItem>
           )}
         />
         <FormField
-          name="category"
+          name="categoryId"
           control={form.control}
           render={({ field }) => (
             <FormItem>
@@ -151,9 +199,9 @@ export const TransactionForm = ({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {categoryOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                  {categories.map((option) => (
+                    <SelectItem key={option._id.toString()} value={option._id.toString()}>
+                      {option.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -178,10 +226,23 @@ export const TransactionForm = ({
             control={form.control}
             render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Amount</FormLabel>
+                    <FormLabel>
+                      Amount {selectedAccount && `(${selectedAccountCurrency})`}
+                    </FormLabel>
                     <FormControl>
-                        <Input type="number" disabled={disabled} placeholder="0.00" {...field} />
+                        <Input 
+                          disabled={disabled} 
+                          placeholder={`e.g. 100.00`}
+                          type="number" 
+                          step="0.01"
+                          {...field} 
+                        />
                     </FormControl>
+                    {selectedAccount && field.value && !isNaN(parseFloat(field.value)) && (
+                      <div className="text-sm text-muted-foreground">
+                        Preview: {formatCurrency(parseFloat(field.value), selectedAccountCurrency)}
+                      </div>
+                    )}
                 </FormItem>
             )}
         />
@@ -190,16 +251,27 @@ export const TransactionForm = ({
             control={form.control}
             render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Notes</FormLabel>
+                    <FormLabel>Notes (optional)</FormLabel>
                     <FormControl>
-                        <Input disabled={disabled} placeholder="Optional notes..." {...field} />
+                        <Input disabled={disabled} placeholder="Additional notes..." {...field} />
                     </FormControl>
                 </FormItem>
             )}
         />
-        <Button className="w-full" disabled={disabled}>
-          {id ? 'Save changes' : 'Create transaction'}
+        <Button disabled={disabled} className="w-full">
+            {id ? "Update" : "Create"} Transaction
         </Button>
+        {!!id && (
+            <Button
+                type="button"
+                disabled={disabled}
+                onClick={handleDelete}
+                className="w-full"
+                variant="outline"
+            >
+                Delete transaction
+            </Button>
+        )}
       </form>
     </Form>
   );

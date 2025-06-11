@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, Edit } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { IAccount } from "@/models/account.model"
 import { useEditAccount } from "@/hooks/use-edit-account"
+import { formatCurrency } from "@/lib/utils"
 
 export const columns: ColumnDef<IAccount>[] = [
   {
@@ -36,16 +37,27 @@ export const columns: ColumnDef<IAccount>[] = [
   },
   {
     accessorKey: "balance",
-    header: () => <div className="text-right">Balance</div>,
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Current Balance
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("balance"))
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(amount)
-
-      return <div className="text-right font-medium">{formatted}</div>
+      const currency = row.original.currency
+      
+      return <div className="font-medium">{formatCurrency(amount, currency)}</div>
     },
+  },
+  {
+    accessorKey: "currency",
+    header: "Currency",
   },
   {
     accessorKey: "createdAt",
@@ -59,9 +71,9 @@ export const columns: ColumnDef<IAccount>[] = [
   {
     id: "actions",
     cell: ({ row }) => {
-      const account = row.original
       const { onOpen } = useEditAccount()
- 
+      const account = row.original
+
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -78,8 +90,10 @@ export const columns: ColumnDef<IAccount>[] = [
               Copy account ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onOpen(account._id as string)}>
-              Edit
+            <DropdownMenuItem
+              onClick={() => onOpen(account._id.toString())}
+            >
+              <Edit className="mr-2 h-4 w-4" /> Edit
             </DropdownMenuItem>
             <DropdownMenuItem className="text-red-500">Delete</DropdownMenuItem>
           </DropdownMenuContent>

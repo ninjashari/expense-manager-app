@@ -23,7 +23,10 @@ const routes = [
   { href: '/', label: 'Dashboard' },
   { href: '/accounts', label: 'Accounts' },
   { href: '/categories', label: 'Categories' },
-  { href: '/transactions', label: 'Transactions'}
+  { href: '/transactions', label: 'Transactions'},
+  { href: '/budgets', label: 'Budgets' },
+  { href: '/reports', label: 'Reports' },
+  { href: '/settings', label: 'Settings' }
 ];
 
 const Header = () => {
@@ -88,6 +91,10 @@ const Header = () => {
                         </p>
                         </div>
                     </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                        <Link href="/settings">Settings</Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/sign-in' })}>
                         Log out

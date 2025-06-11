@@ -9,116 +9,52 @@ import {
 } from '@/components/ui/sheet';
 import { useEditTransaction } from '@/hooks/use-edit-transaction';
 import { TransactionForm, FormValues } from '@/components/forms/transaction-form';
-import { toast } from 'sonner';
+import { useGetTransaction } from '@/hooks/use-get-transaction';
+import { useEditTransactionMutation } from '@/hooks/use-edit-transaction-mutation';
+import { useDeleteTransaction } from '@/hooks/use-delete-transaction';
 import { useGetAccounts } from '@/hooks/use-get-accounts';
 import { useGetCategories } from '@/hooks/use-get-categories';
-import { IAccount } from '@/models/account.model';
-import { ICategory } from '@/models/category.model';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Trash } from 'lucide-react';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-  } from "@/components/ui/alert-dialog"
+import { Loader2 } from 'lucide-react';
 
-export const EditTransactionSheet = () => {
-  const { isOpen, onClose, transaction } = useEditTransaction();
+export function EditTransactionSheet() {
+  const { isOpen, onClose, id } = useEditTransaction();
+
+  const transactionQuery = useGetTransaction(id);
+  const editMutation = useEditTransactionMutation(id);
+  const deleteMutation = useDeleteTransaction(id);
   
-  const queryClient = useQueryClient();
+  const { categories, isLoading: isLoadingCategories } = useGetCategories();
+  const { accounts, isLoading: isLoadingAccounts } = useGetAccounts();
 
-  const { accounts } = useGetAccounts();
-  const { categories } = useGetCategories();
+  const isPending = editMutation.isPending || deleteMutation.isPending || transactionQuery.isLoading || isLoadingCategories || isLoadingAccounts;
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-        const response = await fetch(`/api/transactions/${transaction?._id}`, {
-            method: 'DELETE',
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Failed to delete transaction');
-        }
-    },
-    onSuccess: () => {
-        toast.success('Transaction deleted successfully.');
-        queryClient.invalidateQueries({ queryKey: ['transactions'] });
-        queryClient.invalidateQueries({ queryKey: ['accounts'] });
+  const onSubmit = (values: FormValues) => {
+    editMutation.mutate(values, {
+      onSuccess: () => {
         onClose();
-    },
-    onError: (error: Error) => {
-        toast.error(error.message || 'An unexpected error occurred.');
-    }
-  });
-
-  const mutation = useMutation({
-    mutationFn: async (values: FormValues) => {
-        const response = await fetch(`/api/transactions/${transaction?._id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(values),
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Failed to edit transaction');
-        }
-        return response.json();
-    },
-    onSuccess: () => {
-        toast.success('Transaction updated successfully.');
-        queryClient.invalidateQueries({ queryKey: ['transactions'] });
-        queryClient.invalidateQueries({ queryKey: ['accounts'] });
-        onClose();
-    },
-    onError: (error: Error) => {
-        toast.error(error.message || 'An unexpected error occurred.');
-    }
-  });
-  
-  const handleSubmit = (values: FormValues) => {
-    mutation.mutate(values);
+      },
+    });
   };
 
-  const accountOptions = accounts.map((account) => ({
-    label: account.name,
-    value: account._id.toString(),
-  }));
-
-  const categoryOptions = categories.map((category) => ({
-    label: category.name,
-    value: category._id.toString(),
-  }));
-
-  const defaultValues = transaction ? {
-    date: new Date(transaction.date),
-    type: transaction.type as "Income" | "Expense",
-    account: transaction.account._id.toString(),
-    category: transaction.category?._id.toString(),
-    payee: transaction.payee,
-    amount: transaction.amount.toString(),
-    notes: transaction.notes || "",
-  } : {
-    date: new Date(),
-    type: 'Expense' as 'Income' | 'Expense',
-    account: '',
-    category: '',
-    payee: '',
-    amount: '0',
-    notes: '',
+  const onDelete = () => {
+    deleteMutation.mutate(undefined, {
+      onSuccess: () => {
+        onClose();
+      },
+    });
   };
-  
-  const isTransfer = transaction?.type === "Transfer";
+
+  const defaultValues = transactionQuery.data ? {
+    date: new Date(transactionQuery.data.date),
+    type: transactionQuery.data.type as "Income" | "Expense",
+    accountId: transactionQuery.data.account._id.toString(),
+    categoryId: transactionQuery.data.category?._id.toString(),
+    payee: transactionQuery.data.payee,
+    amount: (transactionQuery.data.amount / 100).toString(),
+    notes: transactionQuery.data.notes || "",
+  } : undefined;
+
+  const isTransfer = transactionQuery.data?.type === "Transfer";
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -126,48 +62,33 @@ export const EditTransactionSheet = () => {
         <SheetHeader>
           <SheetTitle>Edit Transaction</SheetTitle>
           <SheetDescription>
-            Edit the details of your transaction.
+            Edit an existing transaction. Transfers cannot be edited.
           </SheetDescription>
         </SheetHeader>
-        {transaction && !isTransfer ? (
-            <TransactionForm 
-                id={transaction._id.toString()}
-                onSubmit={handleSubmit} 
-                disabled={mutation.isPending}
-                accountOptions={accountOptions}
-                categoryOptions={categoryOptions}
-                defaultValues={defaultValues}
-            />
+        {isPending ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
         ) : (
-            <div className="flex flex-col items-center justify-center h-full">
-                <p>Editing of transfer is not supported.</p>
-            </div>
-        )}
-        {transaction && (
-            <div className="pt-4">
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="outline" className="w-full" disabled={deleteMutation.isPending}>
-                            <Trash className="size-4 mr-2" />
-                            Delete transaction
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone.
-                        </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteMutation.mutate()}>Confirm</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </div>
+          <>
+            {isTransfer ? (
+              <div className="flex flex-col items-center justify-center h-full">
+                <p>Editing of transfers is not supported.</p>
+              </div>
+            ) : (
+              <TransactionForm
+                id={id}
+                onSubmit={onSubmit}
+                onDelete={onDelete}
+                disabled={isPending}
+                accounts={accounts || []}
+                categories={categories || []}
+                defaultValues={defaultValues}
+              />
+            )}
+          </>
         )}
       </SheetContent>
     </Sheet>
   );
-};
+}

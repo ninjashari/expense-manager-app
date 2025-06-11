@@ -8,6 +8,7 @@ import { PopulatedTransaction } from "@/models/transaction.model"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { Actions } from "./actions"
+import { formatCurrency } from "@/lib/utils"
 
 export const columns: ColumnDef<PopulatedTransaction>[] = [
     {
@@ -59,13 +60,14 @@ export const columns: ColumnDef<PopulatedTransaction>[] = [
         header: "Amount",
         cell: ({ row }) => {
             const amount = parseFloat(row.getValue("amount"))
-            const formatted = new Intl.NumberFormat("en-US", {
-              style: "currency",
-              currency: "USD",
-            }).format(amount)
-       
-            return <span className={row.original.type === 'Income' ? 'text-green-500' : 'text-red-500'}>{formatted}</span>
-          },
+            const currency = row.original.account.currency
+
+            return (
+                <div className="font-medium">
+                    {formatCurrency(amount, currency)}
+                </div>
+            )
+        }
     },
     {
         accessorKey: "account",

@@ -6,6 +6,7 @@ export interface IAccount extends Document {
   name: string;
   type: 'Checking' | 'Savings' | 'Credit Card' | 'Cash' | 'Investment';
   balance: number;
+  currency: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +30,10 @@ const AccountSchema: Schema = new Schema({
     type: Number,
     required: true,
     default: 0,
+  },
+  currency: {
+    type: String,
+    required: true,
   },
 }, { timestamps: true });
 
