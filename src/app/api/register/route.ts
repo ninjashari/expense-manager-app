@@ -26,11 +26,6 @@ export async function POST(req: Request) {
       password: hashedPassword,
     });
 
-    console.log('--- USER REGISTERED SUCCESSFULLY ---');
-    console.log('Name:', newUser.name);
-    console.log('Email:', newUser.email);
-    console.log('------------------------------------');
-
     return NextResponse.json({
       message: 'User registered successfully.',
       user: { id: newUser._id, name: newUser.name, email: newUser.email },
