@@ -3,17 +3,36 @@ import { useSession } from 'next-auth/react';
 import { useEffect, useRef } from 'react';
 import { PopulatedTransaction } from '@/models/transaction.model';
 
+interface AccountWithConversion {
+    _id: string;
+    name: string;
+    type: string;
+    balance: number;
+    currency: string;
+    convertedBalance: number;
+    exchangeRate: number;
+}
+
 interface Summary {
     totalBalance: number;
     totalIncome: number;
     totalExpense: number;
     recentTransactions: PopulatedTransaction[];
+    userCurrency: string;
+    accounts: AccountWithConversion[];
+    exchangeRates: Record<string, number>;
+    lastUpdated: string;
+    conversionStatus: {
+        success: boolean;
+        failedCurrencies: string[];
+        errors: string[];
+    };
 }
 
 export const useGetSummary = () => {
     const { data: session, status } = useSession();
     const queryClient = useQueryClient();
-    const prevCurrencyRef = useRef<string | undefined>();
+    const prevCurrencyRef = useRef<string | undefined>(undefined);
 
     // Invalidate summary when user currency changes
     useEffect(() => {

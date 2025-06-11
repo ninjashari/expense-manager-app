@@ -5,10 +5,35 @@ import Transaction from '@/models/transaction.model';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { subDays } from 'date-fns';
-import mongoose from 'mongoose';
 import { getExchangeRate } from '@/lib/currency-converter';
 
-export async function GET(req: NextRequest) {
+interface AccountWithConversion {
+    _id: string;
+    name: string;
+    type: string;
+    balance: number;
+    currency: string;
+    convertedBalance: number;
+    exchangeRate: number;
+}
+
+interface SummaryResponse {
+    totalBalance: number;
+    totalIncome: number;
+    totalExpense: number;
+    recentTransactions: any[];
+    userCurrency: string;
+    accounts: AccountWithConversion[];
+    exchangeRates: Record<string, number>;
+    lastUpdated: string;
+    conversionStatus: {
+        success: boolean;
+        failedCurrencies: string[];
+        errors: string[];
+    };
+}
+
+export async function GET(req: NextRequest): Promise<NextResponse<SummaryResponse | { message: string }>> {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
@@ -18,17 +43,58 @@ export async function GET(req: NextRequest) {
         await connectDB();
         
         const userCurrency = session.user.currency || 'INR';
-
+        
+        // Fetch all user accounts
         const accounts = await Account.find({ userId: session.user.id });
         
+        // Initialize tracking variables
         let totalBalance = 0;
+        const exchangeRates: Record<string, number> = {};
+        const accountsWithConversion: AccountWithConversion[] = [];
+        const conversionStatus = {
+            success: true,
+            failedCurrencies: [] as string[],
+            errors: [] as string[]
+        };
+
+        // Process each account for currency conversion
         for (const account of accounts) {
-            const rate = await getExchangeRate(account.currency, userCurrency);
-            totalBalance += account.balance * rate;
+            let exchangeRate = 1;
+            let convertedBalance = account.balance;
+
+            if (account.currency !== userCurrency) {
+                try {
+                    exchangeRate = await getExchangeRate(account.currency, userCurrency);
+                    exchangeRates[`${account.currency}-${userCurrency}`] = exchangeRate;
+                    convertedBalance = account.balance * exchangeRate;
+                } catch (error) {
+                    console.error(`Failed to get exchange rate for ${account.currency} to ${userCurrency}:`, error);
+                    conversionStatus.success = false;
+                    conversionStatus.failedCurrencies.push(account.currency);
+                    conversionStatus.errors.push(`Failed to convert ${account.currency} to ${userCurrency}`);
+                    // Use original balance as fallback
+                    convertedBalance = account.balance;
+                    exchangeRate = 1;
+                }
+            } else {
+                exchangeRates[`${account.currency}-${userCurrency}`] = 1;
+            }
+
+            totalBalance += convertedBalance;
+            
+            accountsWithConversion.push({
+                _id: account._id.toString(),
+                name: account.name,
+                type: account.type,
+                balance: account.balance,
+                currency: account.currency,
+                convertedBalance,
+                exchangeRate
+            });
         }
 
+        // Calculate income and expenses for last 30 days
         const thirtyDaysAgo = subDays(new Date(), 30);
-
         const recentTransactions = await Transaction.find({
             userId: session.user.id,
             date: { $gte: thirtyDaysAgo },
@@ -38,28 +104,64 @@ export async function GET(req: NextRequest) {
         let totalExpense = 0;
 
         for (const t of recentTransactions) {
-            const rate = await getExchangeRate(t.account.currency, userCurrency);
+            let exchangeRate = 1;
+            
+            if (t.account.currency !== userCurrency) {
+                // Use cached rate if available, otherwise fetch
+                const rateKey = `${t.account.currency}-${userCurrency}`;
+                if (exchangeRates[rateKey]) {
+                    exchangeRate = exchangeRates[rateKey];
+                } else {
+                    try {
+                        exchangeRate = await getExchangeRate(t.account.currency, userCurrency);
+                        exchangeRates[rateKey] = exchangeRate;
+                    } catch (error) {
+                        console.error(`Failed to get exchange rate for transaction ${t._id}:`, error);
+                        conversionStatus.success = false;
+                        if (!conversionStatus.failedCurrencies.includes(t.account.currency)) {
+                            conversionStatus.failedCurrencies.push(t.account.currency);
+                        }
+                        // Use rate of 1 as fallback
+                        exchangeRate = 1;
+                    }
+                }
+            }
+
+            const convertedAmount = t.amount * exchangeRate;
+            
             if (t.type === 'Income') {
-                totalIncome += t.amount * rate;
+                totalIncome += convertedAmount;
             } else if (t.type === 'Expense') {
-                totalExpense += t.amount * rate;
+                totalExpense += convertedAmount;
             }
         }
 
+        // Fetch latest transactions for display
         const latestTransactions = await Transaction.find({ userId: session.user.id })
             .sort({ date: -1 })
             .limit(10)
-            .populate('account');
+            .populate('account')
+            .populate('category');
 
-        return NextResponse.json({
+        const response: SummaryResponse = {
             totalBalance,
             totalIncome,
             totalExpense,
             recentTransactions: latestTransactions,
-        });
+            userCurrency,
+            accounts: accountsWithConversion,
+            exchangeRates,
+            lastUpdated: new Date().toISOString(),
+            conversionStatus
+        };
+
+        return NextResponse.json(response);
 
     } catch (error) {
         console.error('Error fetching summary:', error);
-        return NextResponse.json({ message: 'Error fetching summary' }, { status: 500 });
+        return NextResponse.json({ 
+            message: 'Error fetching summary',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
     }
 } 
