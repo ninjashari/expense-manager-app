@@ -47,6 +47,57 @@ export async function GET(req: NextRequest) {
   }
 }
 
+export async function DELETE(req: NextRequest) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        return NextResponse.json({ message: "Not authorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { ids } = body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return NextResponse.json({ message: 'Invalid IDs provided' }, { status: 400 });
+    }
+
+    const dbSession = await mongoose.startSession();
+    dbSession.startTransaction();
+
+    try {
+        const transactions = await Transaction.find({ _id: { $in: ids }, userId: session.user.id }).session(dbSession);
+
+        if (transactions.length !== ids.length) {
+            await dbSession.abortTransaction();
+            dbSession.endSession();
+            return NextResponse.json({ message: 'Some transactions not found' }, { status: 404 });
+        }
+
+        for (const transaction of transactions) {
+            const account = await Account.findById(transaction.account).session(dbSession);
+            if (account) {
+                if (transaction.type === 'Income') {
+                    account.balance -= transaction.amount;
+                } else if (transaction.type === 'Expense') {
+                    account.balance += transaction.amount;
+                }
+                await account.save({ session: dbSession });
+            }
+        }
+
+        await Transaction.deleteMany({ _id: { $in: ids }, userId: session.user.id }).session(dbSession);
+
+        await dbSession.commitTransaction();
+        dbSession.endSession();
+
+        return NextResponse.json({ message: 'Transactions deleted' }, { status: 200 });
+    } catch (error) {
+        await dbSession.abortTransaction();
+        dbSession.endSession();
+        console.error('Error deleting transactions:', error);
+        return NextResponse.json({ message: 'Error deleting transactions' }, { status: 500 });
+    }
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

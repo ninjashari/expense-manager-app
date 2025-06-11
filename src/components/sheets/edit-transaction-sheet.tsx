@@ -15,6 +15,19 @@ import { useGetCategories } from '@/hooks/use-get-categories';
 import { IAccount } from '@/models/account.model';
 import { ICategory } from '@/models/category.model';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Trash } from 'lucide-react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+  } from "@/components/ui/alert-dialog"
 
 export const EditTransactionSheet = () => {
   const { isOpen, onClose, transaction } = useEditTransaction();
@@ -23,6 +36,28 @@ export const EditTransactionSheet = () => {
 
   const { accounts } = useGetAccounts();
   const { categories } = useGetCategories();
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+        const response = await fetch(`/api/transactions/${transaction?._id}`, {
+            method: 'DELETE',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to delete transaction');
+        }
+    },
+    onSuccess: () => {
+        toast.success('Transaction deleted successfully.');
+        queryClient.invalidateQueries({ queryKey: ['transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['accounts'] });
+        onClose();
+    },
+    onError: (error: Error) => {
+        toast.error(error.message || 'An unexpected error occurred.');
+    }
+  });
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -106,6 +141,30 @@ export const EditTransactionSheet = () => {
         ) : (
             <div className="flex flex-col items-center justify-center h-full">
                 <p>Editing of transfer is not supported.</p>
+            </div>
+        )}
+        {transaction && (
+            <div className="pt-4">
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="outline" className="w-full" disabled={deleteMutation.isPending}>
+                            <Trash className="size-4 mr-2" />
+                            Delete transaction
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteMutation.mutate()}>Confirm</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         )}
       </SheetContent>

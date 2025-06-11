@@ -63,4 +63,50 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         console.error(error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+    await connectDB();
+    const session = await getServerSession(authOptions);
+    if (!session) {
+        return NextResponse.json({ message: 'Not authorized' }, { status: 401 });
+    }
+
+    const user = JSON.parse(JSON.stringify(session.user));
+    const { id } = params;
+
+    const dbSession = await mongoose.startSession();
+    dbSession.startTransaction();
+
+    try {
+        const transaction = await Transaction.findOne({ _id: id, userId: user.id }).session(dbSession);
+
+        if (!transaction) {
+            await dbSession.abortTransaction();
+            dbSession.endSession();
+            return NextResponse.json({ message: 'Transaction not found' }, { status: 404 });
+        }
+
+        const account = await Account.findById(transaction.account).session(dbSession);
+        if (account) {
+            if (transaction.type === 'Income') {
+                account.balance -= transaction.amount;
+            } else if (transaction.type === 'Expense') {
+                account.balance += transaction.amount;
+            }
+            await account.save({ session: dbSession });
+        }
+
+        await Transaction.deleteOne({ _id: id, userId: user.id }).session(dbSession);
+
+        await dbSession.commitTransaction();
+        dbSession.endSession();
+
+        return NextResponse.json({ message: 'Transaction deleted' }, { status: 200 });
+    } catch (error) {
+        await dbSession.abortTransaction();
+        dbSession.endSession();
+        console.error('Error deleting transaction:', error);
+        return NextResponse.json({ message: 'Error deleting transaction' }, { status: 500 });
+    }
 } 
