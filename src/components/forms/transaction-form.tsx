@@ -18,8 +18,8 @@ import { ICategory } from '@/models/category.model';
 
 export const formSchema = z.object({
   date: z.coerce.date(),
-  accountId: z.string().min(1, 'Please select an account.'),
-  categoryId: z.string().optional(),
+  account: z.string().min(1, 'Please select an account.'),
+  category: z.string().optional(),
   payee: z.string().min(1, 'Please enter a payee.'),
   amount: z.string().min(1, 'Please enter an amount.'),
   notes: z.string().optional(),
@@ -116,7 +116,7 @@ export const TransactionForm = ({
           )}
         />
         <FormField
-          name="accountId"
+          name="account"
           control={form.control}
           render={({ field }) => (
             <FormItem>
@@ -139,7 +139,7 @@ export const TransactionForm = ({
           )}
         />
         <FormField
-          name="categoryId"
+          name="category"
           control={form.control}
           render={({ field }) => (
             <FormItem>

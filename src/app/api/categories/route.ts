@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 
-import dbConnect from "@/lib/db";
+import { connectDB } from "@/lib/db";
 import Category from "@/models/category.model";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
@@ -11,22 +11,33 @@ const categorySchema = z.object({
   type: z.enum(["Income", "Expense"]),
 });
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ message: "Not authorized" }, { status: 401 });
-  }
-
+export async function GET(req: NextRequest) {
   try {
-    await dbConnect();
-    const categories = await Category.find({ userId: session.user.id }).sort({ createdAt: -1 });
+    console.log("Attempting to connect to DB...");
+    await connectDB();
+    console.log("DB connected. Fetching session...");
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      console.log("No session or user found.");
+      return NextResponse.json({ message: "Not authorized" }, { status: 401 });
+    }
+
+    const user = JSON.parse(JSON.stringify(session.user));
+    console.log("Session found for user:", user.id);
+
+    console.log("Fetching categories for user:", user.id);
+    const categories = await Category.find({ userId: user.id }).sort({ createdAt: -1 });
+    console.log("Categories fetched successfully:", categories);
+
     return NextResponse.json(categories);
   } catch (error) {
+    console.error('Error in GET /api/categories:', error);
     return NextResponse.json({ message: "Error fetching categories" }, { status: 500 });
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Not authorized" }, { status: 401 });
@@ -40,7 +51,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid data", errors: validatedData.error.errors }, { status: 400 });
     }
 
-    await dbConnect();
+    await connectDB();
 
     const newCategory = new Category({
       ...validatedData.data,

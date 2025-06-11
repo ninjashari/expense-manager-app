@@ -1,16 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import mongoose from "mongoose";
 
-import dbConnect from "@/lib/db";
+import { connectDB } from "@/lib/db";
 import Transaction from "@/models/transaction.model";
 import Account from "@/models/account.model";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const transactionSchema = z.object({
-  accountId: z.string().min(1, "Account is required."),
-  categoryId: z.string().optional(),
+  account: z.string().min(1, "Account is required."),
+  category: z.string().optional(),
   type: z.enum(["Income", "Expense", "Transfer"]),
   amount: z.coerce.number().positive("Amount must be positive."),
   date: z.coerce.date(),
@@ -18,20 +18,31 @@ const transactionSchema = z.object({
   notes: z.string().optional(),
 });
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ message: "Not authorized" }, { status: 401 });
-  }
-
+export async function GET(req: NextRequest) {
   try {
-    await dbConnect();
-    const transactions = await Transaction.find({ userId: session.user.id })
-      .populate('accountId', 'name')
-      .populate('categoryId', 'name')
+    console.log("Attempting to connect to DB...");
+    await connectDB();
+    console.log("DB connected. Fetching session...");
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+        console.log("No session or user found.");
+        return NextResponse.json({ message: 'Not authorized' }, { status: 401 });
+    }
+
+    const user = JSON.parse(JSON.stringify(session.user));
+    console.log("Session found for user:", user.id);
+
+    console.log("Fetching transactions for user:", user.id);
+    const transactions = await Transaction.find({ userId: user.id })
+      .populate('account', 'name')
+      .populate('category', 'name')
       .sort({ date: -1 });
+    console.log("Transactions fetched successfully:", transactions);
+
     return NextResponse.json(transactions);
   } catch (error) {
+    console.error('Error in GET /api/transactions:', error);
     return NextResponse.json({ message: "Error fetching transactions" }, { status: 500 });
   }
 }
@@ -53,7 +64,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid data", errors: validatedData.error.errors }, { status: 400 });
     }
 
-    const { accountId, amount, type } = validatedData.data;
+    const { account, amount, type } = validatedData.data;
 
     const newTransaction = new Transaction({
       ...validatedData.data,
@@ -63,11 +74,10 @@ export async function POST(req: Request) {
     await newTransaction.save({ session: dbSession });
 
     if (type === 'Income') {
-      await Account.updateOne({ _id: accountId }, { $inc: { balance: amount } }, { session: dbSession });
+      await Account.updateOne({ _id: account }, { $inc: { balance: amount } }, { session: dbSession });
     } else if (type === 'Expense') {
-      await Account.updateOne({ _id: accountId }, { $inc: { balance: -amount } }, { session: dbSession });
+      await Account.updateOne({ _id: account }, { $inc: { balance: -amount } }, { session: dbSession });
     }
-    // Note: Transfer logic will be more complex and is not handled here.
 
     await dbSession.commitTransaction();
     dbSession.endSession();

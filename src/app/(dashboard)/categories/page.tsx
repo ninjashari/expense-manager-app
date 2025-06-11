@@ -1,91 +1,86 @@
 'use client';
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
+import { useGetCategories } from '@/hooks/use-get-categories';
+import { columns } from './columns';
+import { DataTable } from '@/components/shared/data-table';
+import { useNewCategory } from '@/hooks/use-new-category';
+import { NewCategorySheet } from '@/components/sheets/new-category-sheet';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
-import { ICategory } from "@/models/category.model";
-import { columns } from "./columns";
-import { DataTable } from "@/components/shared/data-table";
-import { useNewCategory } from "@/hooks/use-new-category";
-import { NewCategorySheet } from "@/components/sheets/new-category-sheet";
-import { EditCategorySheet } from "@/components/sheets/edit-category-sheet";
-
-export default function CategoriesPage() {
-  const [categories, setCategories] = useState<ICategory[]>([]);
-  const [loading, setLoading] = useState(true);
+const CategoriesPage = () => {
   const { onOpen } = useNewCategory();
+  const { categories, isLoading } = useGetCategories();
+  const queryClient = useQueryClient();
 
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch('/api/categories');
-      const data = await response.json();
-      if (response.ok) {
-        setCategories(data);
-      } else {
-        console.error('Failed to fetch categories:', data.message);
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      console.log("Attempting to delete categories with IDs:", ids);
+      const response = await fetch('/api/categories', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("Failed to delete categories. Server responded with:", error);
+        throw new Error(error.message || 'Failed to delete categories');
       }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.log("Successfully deleted categories.");
+    },
+    onSuccess: () => {
+      toast.success('Categories deleted successfully.');
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+    onError: (error: Error) => {
+      console.error("An error occurred during category deletion:", error);
+      toast.error(error.message || 'An unexpected error occurred.');
+    },
+  });
+
+  const handleDelete = (rows: any[]) => {
+    const ids = rows.map((row) => row._id);
+    deleteMutation.mutate(ids);
   };
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const onCategoryCreated = () => {
-    fetchCategories();
-  };
-
-  const onCategoryUpdated = () => {
-    fetchCategories();
+  if (isLoading) {
+    console.log("Loading categories data...");
+    return <div>Loading...</div>;
   }
-
-  const onCategoryDeleted = () => {
-    fetchCategories();
-  }
-
-  if (loading) {
-    return (
-      <div className="max-w-screen-2xl mx-auto w-full pb-10 -mt-24">
-        <Card className="border-none drop-shadow-sm">
-          <CardHeader>
-            <div className="h-8 w-48 bg-gray-200 rounded-md animate-pulse" />
-          </CardHeader>
-          <CardContent>
-            <div className="h-[500px] w-full bg-gray-200 rounded-md animate-pulse" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  
+  console.log("Categories data loaded:", categories);
 
   return (
-    <div className="max-w-screen-2xl mx-auto w-full pb-10">
-       <NewCategorySheet onCategoryCreated={onCategoryCreated} />
-       <EditCategorySheet onCategoryUpdated={onCategoryUpdated} onCategoryDeleted={onCategoryDeleted} />
-       <Card className="border-none drop-shadow-sm">
+    <div className="max-w-screen-2xl mx-auto w-full pb-10 -mt-24">
+      <Card className="border-none drop-shadow-sm">
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="text-xl line-clamp-1">
             Categories
           </CardTitle>
-          <Button onClick={onOpen} size="sm">
+          <Button onClick={onOpen} size="sm" disabled={deleteMutation.isPending}>
             <Plus className="size-4 mr-2" />
             Add new
           </Button>
         </CardHeader>
         <CardContent>
-          <DataTable 
-            columns={columns} 
-            data={categories} 
+          <DataTable
+            columns={columns}
+            data={categories}
             filterKey="name"
+            onDelete={handleDelete}
+            disabled={deleteMutation.isPending}
           />
         </CardContent>
       </Card>
+      <NewCategorySheet />
     </div>
   );
-} 
+};
+
+export default CategoriesPage; 

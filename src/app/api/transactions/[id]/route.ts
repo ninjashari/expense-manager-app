@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     dbSession.startTransaction();
 
     try {
-        const oldTransaction = await Transaction.findOne({ _id: id, user: user.id }).session(dbSession);
+        const oldTransaction = await Transaction.findOne({ _id: id, userId: user.id }).session(dbSession);
         if (!oldTransaction) {
             await dbSession.abortTransaction();
             dbSession.endSession();
@@ -41,7 +41,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         }
         
         // Apply new transaction
-        const updatedTransaction = await Transaction.findByIdAndUpdate(id, { ...body, user: user.id }, { new: true, session: dbSession });
+        const updatedTransaction = await Transaction.findByIdAndUpdate(id, { ...body, userId: user.id }, { new: true, session: dbSession });
         
         const newAccount = await Account.findById(updatedTransaction.account).session(dbSession);
         if (newAccount) {

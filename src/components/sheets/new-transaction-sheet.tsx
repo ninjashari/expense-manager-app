@@ -82,8 +82,8 @@ export const NewTransactionSheet = () => {
           defaultValues={{
             date: new Date(),
             type: 'Expense',
-            accountId: '',
-            categoryId: '',
+            account: '',
+            category: '',
             payee: '',
             amount: '0',
             notes: '',
