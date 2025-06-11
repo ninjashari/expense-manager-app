@@ -1,24 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Personal Expense Management App
+
+This is a web application for personal expense management, built with the Next.js framework. It is inspired by the functionality of [Money Manager EX](https://github.com/moneymanagerex/moneymanagerex).
+
+## Features
+
+- **Dashboard:** A summary view of your financial health, including balances and recent activity.
+- **Accounts:** Manage multiple accounts (Checking, Savings, Credit Card, etc.).
+- **Transactions:** Track income, expenses, and transfers between accounts.
+- **Categories:** Organize your transactions with customizable categories.
+- **Budgets:** Set monthly budgets for different spending categories.
+- **Reports:** Visualize your financial data with charts and reports.
+
+## Tech Stack
+
+- **Framework:** [Next.js](https://nextjs.org/) (App Router)
+- **Database:** [MongoDB](https://www.mongodb.com/)
+- **UI:** [Shadcn/UI](https://ui.shadcn.com/) & [Tailwind CSS](https://tailwindcss.com/)
+- **Authentication:** [NextAuth.js](https://next-auth.js.org/)
+- **ORM:** [Mongoose](https://mongoosejs.com/)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js (v18 or later)
+- npm
+- A MongoDB database (you can get a free one from [MongoDB Atlas](https://www.mongodb.com/atlas/database))
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/your-repo-name.git
+    cd your-repo-name
+    ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+
+3.  **Set up environment variables:**
+
+    Create a file named `.env.local` in the root of the project and add the following variables.
+
+    ```env
+    # MongoDB Connection String from MongoDB Atlas
+    MONGODB_URI="your_mongodb_connection_string"
+
+    # NextAuth.js Configuration
+    # Generate a secret using: openssl rand -base64 32
+    NEXTAUTH_SECRET="your_nextauth_secret"
+    NEXTAUTH_URL="http://localhost:3000"
+    ```
+
+4.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+
+    Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Project Structure
+
+- `src/app/`: Contains the core application logic and pages (using the App Router).
+- `src/components/`: Shared React components.
+- `src/lib/`: Utility functions (e.g., database connection).
+- `src/models/`: Mongoose schemas and models.
+- `public/`: Static assets.
+
+## Action Plan
+
+The detailed implementation plan is documented in [ACTION_PLAN.md](ACTION_PLAN.md).
 
 ## Learn More
 
