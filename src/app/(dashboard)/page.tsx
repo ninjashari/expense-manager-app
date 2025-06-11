@@ -297,6 +297,60 @@ const DashboardPage = () => {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Credit Card Utilization */}
+            {summary.accounts?.some(account => account.type === 'Credit Card' && account.creditLimit) && (
+                <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <span>Credit Card Utilization</span>
+                            <Badge variant="outline" className="text-xs">
+                                Credit Cards
+                            </Badge>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            {summary.accounts
+                                ?.filter(account => account.type === 'Credit Card' && account.creditLimit)
+                                .map(account => {
+                                    const utilization = Math.abs(account.balance) / account.creditLimit * 100;
+                                    const isOverLimit = Math.abs(account.balance) > account.creditLimit;
+                                    
+                                    return (
+                                        <div key={account._id} className="space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-medium">{account.name}</span>
+                                                <span className="text-sm text-muted-foreground">
+                                                    {formatCurrency(Math.abs(account.balance) / 100, account.currency)} / {formatCurrency(account.creditLimit / 100, account.currency)}
+                                                </span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                <div 
+                                                    className={`h-2 rounded-full transition-all ${
+                                                        isOverLimit ? 'bg-red-500' : 
+                                                        utilization > 80 ? 'bg-orange-500' : 
+                                                        utilization > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                                                    }`}
+                                                    style={{ width: `${Math.min(utilization, 100)}%` }}
+                                                />
+                                            </div>
+                                            <div className="flex justify-between text-xs text-muted-foreground">
+                                                <span>{utilization.toFixed(1)}% utilized</span>
+                                                {isOverLimit && (
+                                                    <span className="text-red-600 font-medium">Over limit!</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            }
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+                
+            <div className="mt-8">
         </div>
         </TooltipProvider>
     );

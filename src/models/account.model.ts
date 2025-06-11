@@ -7,6 +7,7 @@ export interface IAccount extends Document {
   type: 'Checking' | 'Savings' | 'Credit Card' | 'Cash' | 'Investment';
   balance: number;
   currency: string;
+  creditLimit?: number; // Optional field for credit card accounts
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +35,11 @@ const AccountSchema: Schema = new Schema({
   currency: {
     type: String,
     required: true,
+  },
+  creditLimit: {
+    type: Number,
+    required: false,
+    default: null,
   },
 }, { timestamps: true });
 

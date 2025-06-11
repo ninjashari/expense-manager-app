@@ -10,6 +10,19 @@ const accountSchema = z.object({
   name: z.string().min(1, { message: "Name is required." }),
   type: z.enum(["Checking", "Savings", "Credit Card", "Cash", "Investment"]),
   currency: z.string().min(2, { message: "Please select a currency." }),
+  creditLimit: z.string().optional(),
+}).refine((data) => {
+  if (data.type === "Credit Card") {
+    if (!data.creditLimit || data.creditLimit.trim() === "") {
+      return false;
+    }
+    const limit = parseFloat(data.creditLimit);
+    return !isNaN(limit) && limit > 0;
+  }
+  return true;
+}, {
+  message: "Credit limit is required for credit card accounts and must be a positive number.",
+  path: ["creditLimit"],
 });
 
 export async function GET() {
@@ -54,10 +67,16 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
 
+    const { creditLimit, ...accountData } = parsedBody.data;
+    
+    // Convert credit limit to cents if provided
+    const creditLimitInCents = creditLimit ? Math.round(parseFloat(creditLimit) * 100) : null;
+
     const account = new Account({
-      ...parsedBody.data,
+      ...accountData,
       userId: session.user.id,
       balance: 0, // Initial balance is always 0
+      creditLimit: creditLimitInCents,
     });
 
     await account.save();

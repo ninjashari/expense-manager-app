@@ -15,6 +15,7 @@ interface AccountWithConversion {
     currency: string;
     convertedBalance: number;
     exchangeRate: number;
+    creditLimit?: number;
 }
 
 interface SummaryResponse {
@@ -89,7 +90,8 @@ export async function GET(): Promise<NextResponse<SummaryResponse | { message: s
                 balance: account.balance,
                 currency: account.currency,
                 convertedBalance,
-                exchangeRate
+                exchangeRate,
+                creditLimit: account.creditLimit
             });
         }
 

@@ -100,6 +100,21 @@ export const columns: ColumnDef<IAccount>[] = [
     header: "Currency",
   },
   {
+    accessorKey: "creditLimit",
+    header: "Credit Limit",
+    cell: ({ row }) => {
+      const creditLimit = row.original.creditLimit
+      const currency = row.original.currency
+      const accountType = row.original.type
+      
+      if (accountType !== "Credit Card" || !creditLimit) {
+        return <div className="text-muted-foreground">—</div>
+      }
+      
+      return <div className="font-medium">{formatCurrency(creditLimit / 100, currency)}</div>
+    },
+  },
+  {
     accessorKey: "createdAt",
     header: "Date Added",
     cell: ({ row }) => {

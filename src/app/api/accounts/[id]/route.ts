@@ -10,6 +10,19 @@ const accountUpdateSchema = z.object({
     name: z.string().min(1, { message: "Name is required." }).optional(),
     type: z.enum(["Checking", "Savings", "Credit Card", "Cash", "Investment"]).optional(),
     currency: z.string().min(2, { message: "Please select a currency." }).optional(),
+    creditLimit: z.string().optional(),
+}).refine((data) => {
+    if (data.type === "Credit Card") {
+        if (!data.creditLimit || data.creditLimit.trim() === "") {
+            return false;
+        }
+        const limit = parseFloat(data.creditLimit);
+        return !isNaN(limit) && limit > 0;
+    }
+    return true;
+}, {
+    message: "Credit limit is required for credit card accounts and must be a positive number.",
+    path: ["creditLimit"],
 });
 
 export async function GET(
@@ -56,12 +69,16 @@ export async function PUT(
 
         await connectDB();
 
-        // Prevent updating balance from this endpoint
-        const updateData = parsedBody.data;
+        // Process the update data, converting credit limit to cents if provided
+        const { creditLimit, ...updateData } = parsedBody.data;
+        const processedUpdateData = {
+            ...updateData,
+            ...(creditLimit !== undefined && { creditLimit: creditLimit ? Math.round(parseFloat(creditLimit) * 100) : null })
+        };
 
         const account = await Account.findOneAndUpdate(
             { _id: id, userId: session.user.id },
-            { $set: updateData },
+            { $set: processedUpdateData },
             { new: true }
         );
 

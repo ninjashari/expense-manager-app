@@ -28,6 +28,20 @@ const formSchema = z.object({
     name: z.string().min(1, { message: "Name is required." }),
     type: z.enum(["Checking", "Savings", "Credit Card", "Cash", "Investment"]),
     currency: z.string().min(2, { message: "Please select a currency." }),
+    creditLimit: z.string().optional(),
+}).refine((data) => {
+    // If it's a credit card, credit limit should be provided and be a positive number
+    if (data.type === "Credit Card") {
+        if (!data.creditLimit || data.creditLimit.trim() === "") {
+            return false;
+        }
+        const limit = parseFloat(data.creditLimit);
+        return !isNaN(limit) && limit > 0;
+    }
+    return true;
+}, {
+    message: "Credit limit is required for credit card accounts and must be a positive number.",
+    path: ["creditLimit"],
 });
 
 export type AccountFormValues = z.infer<typeof formSchema>;
@@ -73,7 +87,9 @@ export function AccountForm({
     };
 
     const selectedCurrency = form.watch('currency');
+    const selectedType = form.watch('type');
     const isDefaultCurrency = selectedCurrency === userCurrency;
+    const isCreditCard = selectedType === 'Credit Card';
 
     return (
         <Form {...form}>
@@ -164,6 +180,28 @@ export function AccountForm({
                         </FormItem>
                     )}
                 />
+                {isCreditCard && (
+                    <FormField
+                        control={form.control}
+                        name="creditLimit"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Credit Limit</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        disabled={disabled}
+                                        placeholder="e.g. 10000"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        {...field}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
                 <Button className="w-full" disabled={disabled}>
                     {id ? "Save changes" : "Create account"}
                 </Button>

@@ -31,6 +31,7 @@ export const EditAccountSheet = () => {
     name: accountQuery.data.name,
     type: accountQuery.data.type,
     currency: accountQuery.data.currency,
+    creditLimit: accountQuery.data.creditLimit ? (accountQuery.data.creditLimit / 100).toString() : undefined,
   } : undefined;
 
   return (
