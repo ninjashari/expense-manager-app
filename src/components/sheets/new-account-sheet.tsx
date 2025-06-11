@@ -8,7 +8,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useNewAccount } from '@/hooks/use-new-account';
-import { AccountForm, FormValues } from '@/components/forms/account-form';
+import { AccountForm, AccountFormValues } from '@/components/forms/account-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -18,7 +18,7 @@ export const NewAccountSheet = () => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async (values: FormValues) => {
+    mutationFn: async (values: AccountFormValues) => {
       const response = await fetch('/api/accounts', {
         method: 'POST',
         headers: {
@@ -44,7 +44,7 @@ export const NewAccountSheet = () => {
     },
   });
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = (values: AccountFormValues) => {
     mutation.mutate(values);
   };
 
@@ -60,11 +60,6 @@ export const NewAccountSheet = () => {
         <AccountForm
           onSubmit={onSubmit}
           disabled={mutation.isPending}
-          defaultValues={{
-            name: '',
-            type: '',
-            balance: '0',
-          }}
         />
       </SheetContent>
     </Sheet>

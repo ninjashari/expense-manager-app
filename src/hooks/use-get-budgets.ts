@@ -2,10 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { IBudget } from '@/models/budget.model';
 
+interface BudgetWithSpending extends IBudget {
+    spent: number;
+}
+
 export const useGetBudgets = (month: Date) => {
     const { data: session } = useSession();
 
-    const { data, isLoading, error } = useQuery<IBudget[]>({
+    const { data, isLoading, error } = useQuery<BudgetWithSpending[]>({
         queryKey: ['budgets', { month: month.toISOString().slice(0, 7) }],
         queryFn: async () => {
             const params = new URLSearchParams();

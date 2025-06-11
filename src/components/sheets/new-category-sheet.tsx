@@ -8,7 +8,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useNewCategory } from '@/hooks/use-new-category';
-import { CategoryForm, FormValues } from '@/components/forms/category-form';
+import { CategoryForm, CategoryFormValues } from '@/components/forms/category-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -18,7 +18,7 @@ export const NewCategorySheet = () => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async (values: FormValues) => {
+    mutationFn: async (values: CategoryFormValues) => {
       const response = await fetch('/api/categories', {
         method: 'POST',
         headers: {
@@ -44,7 +44,7 @@ export const NewCategorySheet = () => {
     },
   });
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = (values: CategoryFormValues) => {
     mutation.mutate(values);
   };
 

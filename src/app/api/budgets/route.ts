@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 import { connectDB } from "@/lib/db";
 import Budget from "@/models/budget.model";
 import Transaction from "@/models/transaction.model";
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
         }));
 
         return NextResponse.json(budgetsWithSpending);
-    } catch (error) {
+    } catch {
         return NextResponse.json({ message: "Error fetching budgets" }, { status: 500 });
     }
 }
@@ -96,8 +96,8 @@ export async function POST(req: NextRequest) {
         await newBudget.save();
 
         return NextResponse.json(newBudget, { status: 201 });
-    } catch (error: any) {
-        if (error.code === 11000) {
+    } catch (error: unknown) {
+        if ((error as { code?: number })?.code === 11000) {
             return NextResponse.json({ message: "A budget for this category and month already exists." }, { status: 409 });
         }
         return NextResponse.json({ message: "Error creating budget" }, { status: 500 });

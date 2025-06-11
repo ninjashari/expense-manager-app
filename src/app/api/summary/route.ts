@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Account from '@/models/account.model';
 import Transaction from '@/models/transaction.model';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-config';
 import { subDays } from 'date-fns';
 import { getExchangeRate } from '@/lib/currency-converter';
 
@@ -21,7 +21,7 @@ interface SummaryResponse {
     totalBalance: number;
     totalIncome: number;
     totalExpense: number;
-    recentTransactions: any[];
+    recentTransactions: unknown[];
     userCurrency: string;
     accounts: AccountWithConversion[];
     exchangeRates: Record<string, number>;
@@ -33,7 +33,7 @@ interface SummaryResponse {
     };
 }
 
-export async function GET(req: NextRequest): Promise<NextResponse<SummaryResponse | { message: string }>> {
+export async function GET(): Promise<NextResponse<SummaryResponse | { message: string }>> {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SummaryRespons
         await connectDB();
         
         const userCurrency = session.user.currency || 'INR';
-        
+
         // Fetch all user accounts
         const accounts = await Account.find({ userId: session.user.id });
         

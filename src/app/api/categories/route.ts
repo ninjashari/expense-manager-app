@@ -4,14 +4,14 @@ import { z } from "zod";
 
 import { connectDB } from "@/lib/db";
 import Category from "@/models/category.model";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 
 const categorySchema = z.object({
   name: z.string().min(1, "Name is required."),
   type: z.enum(["Income", "Expense"]),
 });
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     console.log("Attempting to connect to DB...");
     await connectDB();

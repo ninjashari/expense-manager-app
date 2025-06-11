@@ -18,6 +18,16 @@ interface BudgetWithSpending extends IBudget {
     spent: number;
 }
 
+const BudgetedCell = ({ amount }: { amount: number }) => {
+    const { data: session } = useSession();
+    return <span>{formatCurrency(amount / 100, session?.user?.currency || 'INR')}</span>;
+};
+
+const SpentCell = ({ spent }: { spent: number }) => {
+    const { data: session } = useSession();
+    return <span>{formatCurrency(spent / 100, session?.user?.currency || 'INR')}</span>;
+};
+
 export const columns: ColumnDef<BudgetWithSpending>[] = [
     {
         accessorKey: 'category',
@@ -26,7 +36,7 @@ export const columns: ColumnDef<BudgetWithSpending>[] = [
                 Category <ArrowUpDown className="ml-2 h-4 w-4" />
             </Button>
         ),
-        cell: ({ row }) => <span>{row.original.categoryId.name}</span>,
+        cell: ({ row }) => <span>{(row.original.categoryId as { name?: string })?.name || 'Unknown'}</span>,
     },
     {
         accessorKey: 'amount',
@@ -36,8 +46,7 @@ export const columns: ColumnDef<BudgetWithSpending>[] = [
             </Button>
         ),
         cell: ({ row }) => {
-            const { data: session } = useSession();
-            return <span>{formatCurrency(row.original.amount / 100, session?.user?.currency || 'INR')}</span>;
+            return <BudgetedCell amount={row.original.amount} />;
         },
     },
     {
@@ -48,8 +57,7 @@ export const columns: ColumnDef<BudgetWithSpending>[] = [
             </Button>
         ),
         cell: ({ row }) => {
-            const { data: session } = useSession();
-            return <span>{formatCurrency(row.original.spent / 100, session?.user?.currency || 'INR')}</span>;
+            return <SpentCell spent={row.original.spent} />;
         },
     },
     {
@@ -67,7 +75,7 @@ export const columns: ColumnDef<BudgetWithSpending>[] = [
     },
     {
         id: 'actions',
-        cell: ({ row }) => {
+        cell: () => {
             return (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

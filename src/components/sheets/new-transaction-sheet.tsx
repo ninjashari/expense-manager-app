@@ -12,8 +12,6 @@ import { TransactionForm, FormValues } from '@/components/forms/transaction-form
 import { toast } from 'sonner';
 import { useGetAccounts } from '@/hooks/use-get-accounts';
 import { useGetCategories } from '@/hooks/use-get-categories';
-import { IAccount } from '@/models/account.model';
-import { ICategory } from '@/models/category.model';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCreateTransaction } from '@/hooks/use-create-transaction';
 import { Loader2 } from 'lucide-react';
@@ -30,7 +28,7 @@ export function NewTransactionSheet() {
   const isPending = createMutation.isPending || isLoadingCategories || isLoadingAccounts;
 
   const mutation = useMutation({
-    mutationFn: async (values: FormValues) => {
+    mutationFn: async (values: Omit<FormValues, 'accountId'> & { account: string }) => {
         const response = await fetch('/api/transactions', {
             method: 'POST',
             headers: {
@@ -57,18 +55,16 @@ export function NewTransactionSheet() {
   });
   
   const handleSubmit = (values: FormValues) => {
-    mutation.mutate(values);
+    const { accountId, amount, ...rest } = values;
+    const amountInCents = Math.round(parseFloat(amount) * 100);
+    mutation.mutate({ 
+      ...rest, 
+      account: accountId,
+      amount: amountInCents.toString()
+    });
   };
 
-  const accountOptions = accounts?.map((account: IAccount) => ({
-    label: account.name,
-    value: account._id.toString(),
-  })) || [];
 
-  const categoryOptions = categories?.map((category: ICategory) => ({
-    label: category.name,
-    value: category._id.toString(),
-  })) || [];
   
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -92,6 +88,11 @@ export function NewTransactionSheet() {
             defaultValues={{
               date: new Date(),
               type: 'Expense',
+              accountId: '',
+              payee: '',
+              amount: '',
+              notes: '',
+              categoryId: '',
             }}
           />
         )}

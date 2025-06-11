@@ -5,7 +5,7 @@ import { FormValues } from '@/components/forms/budget-form';
 export function useCreateBudget() {
     const queryClient = useQueryClient();
 
-    const mutation = useMutation<any, Error, FormValues>({
+    const mutation = useMutation<unknown, Error, FormValues>({
         mutationFn: async (values) => {
             const res = await fetch('/api/budgets', {
                 method: 'POST',

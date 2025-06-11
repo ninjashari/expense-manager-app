@@ -1,63 +1,65 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 
-import dbConnect from "@/lib/db";
+import { connectDB } from "@/lib/db";
 import Category from "@/models/category.model";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 
-const categorySchema = z.object({
-  name: z.string().min(1, "Name is required."),
-  type: z.enum(["Income", "Expense"]),
+const categoryUpdateSchema = z.object({
+  name: z.string().min(1, { message: "Name is required." }).optional(),
+  type: z.enum(["Income", "Expense"]).optional(),
 });
 
-async function getCategory(categoryId: string, userId: string) {
-  await dbConnect();
-  const category = await Category.findOne({ _id: categoryId, userId: userId });
-  return category;
-}
-
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Not authorized" }, { status: 401 });
   }
 
-  const category = await getCategory(params.id, session.user.id);
+    const { id } = await params;
+
+    await connectDB();
+    const category = await Category.findOne({ _id: id, userId: session.user.id });
   if (!category) {
     return NextResponse.json({ message: "Category not found" }, { status: 404 });
   }
 
   return NextResponse.json(category);
+  } catch {
+    return NextResponse.json({ message: "Error fetching category" }, { status: 500 });
+  }
 }
 
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Not authorized" }, { status: 401 });
   }
 
-  const category = await getCategory(params.id, session.user.id);
-  if (!category) {
-    return NextResponse.json({ message: "Category not found" }, { status: 404 });
-  }
-
-  try {
+    const { id } = await params;
     const body = await req.json();
-    const validatedData = categorySchema.safeParse(body);
+    const parsedBody = categoryUpdateSchema.safeParse(body);
 
-    if (!validatedData.success) {
-      return NextResponse.json({ message: "Invalid data", errors: validatedData.error.errors }, { status: 400 });
+    if (!parsedBody.success) {
+      return NextResponse.json({ message: 'Invalid data', errors: parsedBody.error.errors }, { status: 400 });
     }
     
-    category.set(validatedData.data);
-    await category.save();
+    await connectDB();
+
+    const updateData = parsedBody.data;
+
+    const category = await Category.findOneAndUpdate(
+      { _id: id, userId: session.user.id },
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (!category) {
+      return NextResponse.json({ message: "Category not found" }, { status: 404 });
+    }
     
     return NextResponse.json(category);
   } catch (error) {
@@ -68,24 +70,23 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Not authorized" }, { status: 401 });
   }
   
-  const category = await getCategory(params.id, session.user.id);
-  if (!category) {
-    return NextResponse.json({ message: "Category not found" }, { status: 404 });
-  }
+    const { id } = await params;
 
-  try {
-    await Category.deleteOne({ _id: params.id, userId: session.user.id });
+    await connectDB();
+    
+    // Check if there are any transactions using this category
+    // For simplicity, we'll delete it directly. In production, you might want to check for dependencies.
+    
+    await Category.deleteOne({ _id: id, userId: session.user.id });
     return NextResponse.json({ message: "Category deleted" }, { status: 200 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: "Error deleting category" }, { status: 500 });
   }
 } 

@@ -10,6 +10,7 @@ import { useNewCategory } from '@/hooks/use-new-category';
 import { NewCategorySheet } from '@/components/sheets/new-category-sheet';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { ICategory } from '@/models/category.model';
 
 const CategoriesPage = () => {
   const { onOpen } = useNewCategory();
@@ -44,8 +45,8 @@ const CategoriesPage = () => {
     },
   });
 
-  const handleDelete = (rows: any[]) => {
-    const ids = rows.map((row) => row._id);
+  const handleDelete = (rows: ICategory[]) => {
+    const ids = rows.map((row) => row._id.toString());
     deleteMutation.mutate(ids);
   };
 

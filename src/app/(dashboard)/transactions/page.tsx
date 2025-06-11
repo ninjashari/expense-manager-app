@@ -11,6 +11,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { EditTransactionSheet } from '@/components/sheets/edit-transaction-sheet';
 import { columns } from './columns';
+import { ColumnDef } from '@tanstack/react-table';
 
 const TransactionsPage = () => {
   const { onOpen } = useNewTransaction();
@@ -42,8 +43,8 @@ const TransactionsPage = () => {
     },
   });
 
-  const handleDelete = (rows: any[]) => {
-    const ids = rows.map((row) => row._id);
+  const handleDelete = (rows: unknown[]) => {
+    const ids = rows.map((row) => String((row as { _id: unknown })._id));
     deleteMutation.mutate(ids);
   };
 
@@ -63,7 +64,7 @@ const TransactionsPage = () => {
         </CardHeader>
         <CardContent>
           <DataTable 
-            columns={columns} 
+            columns={columns as ColumnDef<unknown>[]} 
             data={transactions} 
             filterKey="payee"
             onDelete={handleDelete}

@@ -4,13 +4,7 @@ import { z } from "zod";
 
 import { connectDB } from "@/lib/db";
 import Account from "@/models/account.model";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-
-const accountSchema = z.object({
-  name: z.string().min(1, "Name is required."),
-  type: z.enum(["Checking", "Savings", "Credit Card", "Cash", "Investment"]),
-  balance: z.coerce.number(),
-});
+import { authOptions } from "@/lib/auth-config";
 
 const accountUpdateSchema = z.object({
     name: z.string().min(1, { message: "Name is required." }).optional(),
@@ -18,15 +12,9 @@ const accountUpdateSchema = z.object({
     currency: z.string().min(2, { message: "Please select a currency." }).optional(),
 });
 
-async function getAccount(accountId: string, userId: string) {
-  await connectDB();
-  const account = await Account.findOne({ _id: accountId, userId: userId });
-  return account;
-}
-
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -34,21 +22,23 @@ export async function GET(
             return NextResponse.json({ message: "Not authorized" }, { status: 401 });
         }
 
+        const { id } = await params;
+
         await connectDB();
-        const account = await Account.findOne({ _id: params.id, userId: session.user.id });
+        const account = await Account.findOne({ _id: id, userId: session.user.id });
         if (!account) {
             return NextResponse.json({ message: "Account not found" }, { status: 404 });
         }
 
         return NextResponse.json(account);
-    } catch (error) {
+    } catch {
         return NextResponse.json({ message: "Error fetching account" }, { status: 500 });
     }
 }
 
 export async function PUT(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -56,6 +46,7 @@ export async function PUT(
             return NextResponse.json({ message: 'Not authorized' }, { status: 401 });
         }
 
+        const { id } = await params;
         const body = await req.json();
         const parsedBody = accountUpdateSchema.safeParse(body);
 
@@ -69,7 +60,7 @@ export async function PUT(
         const updateData = parsedBody.data;
 
         const account = await Account.findOneAndUpdate(
-            { _id: params.id, userId: session.user.id },
+            { _id: id, userId: session.user.id },
             { $set: updateData },
             { new: true }
         );
@@ -79,14 +70,14 @@ export async function PUT(
         }
 
         return NextResponse.json(account);
-    } catch (error) {
+    } catch {
         return NextResponse.json({ message: 'Error updating account' }, { status: 500 });
     }
 }
 
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -94,19 +85,21 @@ export async function DELETE(
             return NextResponse.json({ message: "Not authorized" }, { status: 401 });
         }
 
+        const { id } = await params;
+
         await connectDB();
         
         // We need to ensure that there are no transactions associated with this account before deleting.
         // For simplicity, we are deleting it directly. A better approach would be to check for transactions.
 
-        const account = await Account.findOneAndDelete({ _id: params.id, userId: session.user.id });
+        const account = await Account.findOneAndDelete({ _id: id, userId: session.user.id });
 
         if (!account) {
             return NextResponse.json({ message: "Account not found" }, { status: 404 });
         }
         
         return NextResponse.json({ message: "Account deleted" });
-    } catch (error) {
+    } catch {
         return NextResponse.json({ message: "Error deleting account" }, { status: 500 });
     }
 } 

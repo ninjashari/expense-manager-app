@@ -15,6 +15,34 @@ import {
 import { ICategory } from "@/models/category.model"
 import { useEditCategory } from "@/hooks/use-edit-category"
 
+const CategoryActions = ({ category }: { category: ICategory }) => {
+  const { onOpen } = useEditCategory()
+  
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuItem
+          onClick={() => navigator.clipboard.writeText(category._id.toString())}
+        >
+          Copy category ID
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onOpen(category._id.toString())}>
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem className="text-red-500">Delete</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export const columns: ColumnDef<ICategory>[] = [
   {
     accessorKey: "name",
@@ -47,28 +75,9 @@ export const columns: ColumnDef<ICategory>[] = [
     id: "actions",
     cell: ({ row }) => {
       const category = row.original
-      const { onOpen } = useEditCategory()
  
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(category._id as string)}
-            >
-              Copy category ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Edit</DropdownMenuItem>
-            <DropdownMenuItem className="text-red-500">Delete</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <CategoryActions category={category} />
       )
     },
   },

@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/select";
 import { currencies } from "@/lib/currencies";
 import { useSession } from "next-auth/react";
-import { IAccount } from "@/models/account.model";
 
 const formSchema = z.object({
     name: z.string().min(1, { message: "Name is required." }),

@@ -62,9 +62,9 @@ export function SignUpForm() {
 
       toast.success("You've successfully signed up. Please sign in.");
       router.push('/auth/signin');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Sign up failed", {
-        description: error.message,
+        description: (error as Error).message,
       });
     }
   };

@@ -2,15 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Transaction from '@/models/transaction.model';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import mongoose from 'mongoose';
-import { z } from 'zod';
+import { authOptions } from '@/lib/auth-config';
 import { getExchangeRate } from "@/lib/currency-converter";
-
-const querySchema = z.object({
-    from: z.string().optional(),
-    to: z.string().optional(),
-});
 
 export async function GET(req: NextRequest) {
     try {

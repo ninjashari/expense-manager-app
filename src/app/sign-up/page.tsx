@@ -32,7 +32,7 @@ export default function SignUpPage() {
         const data = await res.json();
         setError(data.message || 'An error occurred during registration.');
       }
-    } catch (err) {
+          } catch {
       setError('An unexpected error occurred.');
     }
   };

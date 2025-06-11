@@ -5,7 +5,7 @@ import { AccountFormValues } from '@/components/forms/account-form';
 export function useEditAccountMutation(id?: string) {
     const queryClient = useQueryClient();
 
-    const mutation = useMutation<any, Error, AccountFormValues>({
+    const mutation = useMutation<unknown, Error, AccountFormValues>({
         mutationFn: async (values) => {
             const res = await fetch(`/api/accounts/${id}`, {
                 method: 'PUT',

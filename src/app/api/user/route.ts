@@ -4,14 +4,14 @@ import { z } from "zod";
 
 import { connectDB } from "@/lib/db";
 import User from "@/models/user.model";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 
 const userUpdateSchema = z.object({
   name: z.string().min(1, { message: "Name is required." }),
   currency: z.string().min(2, { message: "Please select a currency." }),
 });
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     await connectDB();
     const session = await getServerSession(authOptions);

@@ -32,7 +32,7 @@ const ReportsPage = () => {
         throw new Error('Failed to fetch report data');
       }
       const reportData = await response.json();
-      return reportData.map((item: any) => ({
+      return reportData.map((item: { name: string; value: number }) => ({
           ...item,
           value: item.value / 100, // Convert from cents
       }));
@@ -40,7 +40,7 @@ const ReportsPage = () => {
     enabled: !!dateRange && !!session,
   });
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number }> }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-2 border border-gray-200 rounded-md shadow-sm">
@@ -81,7 +81,7 @@ const ReportsPage = () => {
                                 nameKey="name"
                                 label
                             >
-                                {data?.map((entry: any, index: number) => (
+                                {data?.map((entry: { name: string; value: number }, index: number) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>

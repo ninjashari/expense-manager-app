@@ -5,7 +5,7 @@ import { FormValues } from '@/components/forms/transaction-form';
 export function useEditTransactionMutation(id?: string) {
     const queryClient = useQueryClient();
 
-    const mutation = useMutation<any, Error, FormValues>({
+    const mutation = useMutation<unknown, Error, FormValues>({
         mutationFn: async (values) => {
             const res = await fetch(`/api/transactions/${id}`, {
                 method: 'PUT',

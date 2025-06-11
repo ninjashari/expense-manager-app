@@ -10,6 +10,7 @@ import { useNewAccount } from '@/hooks/use-new-account';
 import { NewAccountSheet } from '@/components/sheets/new-account-sheet';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { IAccount } from '@/models/account.model';
 
 const AccountsPage = () => {
   const { onOpen } = useNewAccount();
@@ -44,8 +45,8 @@ const AccountsPage = () => {
     },
   });
 
-  const handleDelete = (rows: any[]) => {
-    const ids = rows.map((row) => row._id);
+  const handleDelete = (rows: IAccount[]) => {
+    const ids = rows.map((row) => row._id.toString());
     deleteMutation.mutate(ids);
   };
 

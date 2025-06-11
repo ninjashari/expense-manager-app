@@ -4,8 +4,7 @@ import { z } from "zod";
 
 import { connectDB } from "@/lib/db";
 import Account from "@/models/account.model";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getAuth } from '@/lib/auth';
+import { authOptions } from "@/lib/auth-config";
 
 const accountSchema = z.object({
   name: z.string().min(1, { message: "Name is required." }),
@@ -13,7 +12,7 @@ const accountSchema = z.object({
   currency: z.string().min(2, { message: "Please select a currency." }),
 });
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     console.log("Attempting to connect to DB...");
     await connectDB();
@@ -64,7 +63,7 @@ export async function POST(req: NextRequest) {
     await account.save();
 
     return NextResponse.json(account, { status: 201 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: "Error creating account" }, { status: 500 });
   }
 } 

@@ -5,7 +5,7 @@ import { CategoryFormValues } from '@/components/forms/category-form';
 export function useEditCategoryMutation(id?: string) {
     const queryClient = useQueryClient();
 
-    const mutation = useMutation<any, Error, CategoryFormValues>({
+    const mutation = useMutation<unknown, Error, CategoryFormValues>({
         mutationFn: async (values) => {
             const res = await fetch(`/api/categories/${id}`, {
                 method: 'PUT',

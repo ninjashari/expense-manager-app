@@ -3,52 +3,65 @@ import { connectDB } from '@/lib/db';
 import Transaction from '@/models/transaction.model';
 import Account from '@/models/account.model';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-config';
 import mongoose from 'mongoose';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-    await connectDB();
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
         return NextResponse.json({ message: 'Not authorized' }, { status: 401 });
     }
 
-    const user = JSON.parse(JSON.stringify(session.user));
-
-    const { id } = params;
-    const body = await req.json();
+    const { id } = await params;
 
     const dbSession = await mongoose.startSession();
     dbSession.startTransaction();
 
     try {
-        const oldTransaction = await Transaction.findOne({ _id: id, userId: user.id }).session(dbSession);
+        const body = await req.json();
+        const { account, amount, type, ...otherData } = body;
+
+        await connectDB();
+
+        // Get the old transaction to reverse its effect on account balance
+        const oldTransaction = await Transaction.findOne({ _id: id, userId: session.user.id }).session(dbSession);
         if (!oldTransaction) {
             await dbSession.abortTransaction();
             dbSession.endSession();
             return NextResponse.json({ message: 'Transaction not found' }, { status: 404 });
         }
 
-        // Revert old transaction
+        // Reverse the old transaction's effect on account balance
         const oldAccount = await Account.findById(oldTransaction.account).session(dbSession);
         if (oldAccount) {
             if (oldTransaction.type === 'Income') {
                 oldAccount.balance -= oldTransaction.amount;
-            } else {
+            } else if (oldTransaction.type === 'Expense') {
                 oldAccount.balance += oldTransaction.amount;
             }
             await oldAccount.save({ session: dbSession });
         }
         
-        // Apply new transaction
-        const updatedTransaction = await Transaction.findByIdAndUpdate(id, { ...body, userId: user.id }, { new: true, session: dbSession });
+        // Update the transaction
+        const updatedTransaction = await Transaction.findByIdAndUpdate(
+            id,
+            { ...otherData, account, amount, type },
+            { new: true, session: dbSession }
+        );
         
-        const newAccount = await Account.findById(updatedTransaction.account).session(dbSession);
+        if (!updatedTransaction) {
+            await dbSession.abortTransaction();
+            dbSession.endSession();
+            return NextResponse.json({ message: 'Transaction not found' }, { status: 404 });
+        }
+
+        // Apply the new transaction's effect on account balance
+        const newAccount = await Account.findById(account).session(dbSession);
         if (newAccount) {
-            if (updatedTransaction.type === 'Income') {
-                newAccount.balance += updatedTransaction.amount;
-            } else {
-                newAccount.balance -= updatedTransaction.amount;
+            if (type === 'Income') {
+                newAccount.balance += amount;
+            } else if (type === 'Expense') {
+                newAccount.balance -= amount;
             }
             await newAccount.save({ session: dbSession });
         }
@@ -56,37 +69,36 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         await dbSession.commitTransaction();
         dbSession.endSession();
         
-        return NextResponse.json(updatedTransaction, { status: 200 });
-    } catch (error) {
+        return NextResponse.json(updatedTransaction);
+    } catch {
         await dbSession.abortTransaction();
         dbSession.endSession();
-        console.error(error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+        return NextResponse.json({ message: 'Error updating transaction' }, { status: 500 });
     }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-    await connectDB();
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
         return NextResponse.json({ message: 'Not authorized' }, { status: 401 });
     }
 
-    const user = JSON.parse(JSON.stringify(session.user));
-    const { id } = params;
+    const { id } = await params;
 
     const dbSession = await mongoose.startSession();
     dbSession.startTransaction();
 
     try {
-        const transaction = await Transaction.findOne({ _id: id, userId: user.id }).session(dbSession);
+        await connectDB();
 
+        const transaction = await Transaction.findOne({ _id: id, userId: session.user.id }).session(dbSession);
         if (!transaction) {
             await dbSession.abortTransaction();
             dbSession.endSession();
             return NextResponse.json({ message: 'Transaction not found' }, { status: 404 });
         }
 
+        // Reverse the transaction's effect on account balance
         const account = await Account.findById(transaction.account).session(dbSession);
         if (account) {
             if (transaction.type === 'Income') {
@@ -97,16 +109,15 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
             await account.save({ session: dbSession });
         }
 
-        await Transaction.deleteOne({ _id: id, userId: user.id }).session(dbSession);
+        await Transaction.deleteOne({ _id: id }).session(dbSession);
 
         await dbSession.commitTransaction();
         dbSession.endSession();
 
-        return NextResponse.json({ message: 'Transaction deleted' }, { status: 200 });
-    } catch (error) {
+        return NextResponse.json({ message: 'Transaction deleted' });
+    } catch {
         await dbSession.abortTransaction();
         dbSession.endSession();
-        console.error('Error deleting transaction:', error);
         return NextResponse.json({ message: 'Error deleting transaction' }, { status: 500 });
     }
 } 

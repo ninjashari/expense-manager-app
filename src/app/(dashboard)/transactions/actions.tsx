@@ -9,8 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useEditTransaction } from "@/hooks/use-edit-transaction"
 import { PopulatedTransaction } from "@/models/transaction.model"
-import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 
 export const Actions = ({ transaction }: { transaction: PopulatedTransaction }) => {
     const { onOpen } = useEditTransaction();
@@ -24,7 +23,7 @@ export const Actions = ({ transaction }: { transaction: PopulatedTransaction }) 
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onOpen(transaction)}>
+                <DropdownMenuItem onClick={() => onOpen(transaction._id.toString())}>
                     Edit
                 </DropdownMenuItem>
             </DropdownMenuContent>

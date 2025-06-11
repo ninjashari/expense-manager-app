@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { PopulatedTransaction } from '@/models/transaction.model';
 import { useSession } from 'next-auth/react';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2, RefreshCw, AlertTriangle, Info, TrendingUp } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Info, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -88,7 +88,7 @@ const DashboardPage = () => {
 
     return (
         <TooltipProvider>
-            <div className="max-w-screen-2xl mx-auto w-full pb-10 -mt-24">
+        <div className="max-w-screen-2xl mx-auto w-full pb-10 -mt-24">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl font-bold text-white">Dashboard</h1>
                     <div className="flex items-center gap-3">
@@ -158,9 +158,9 @@ const DashboardPage = () => {
                     </Card>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card>
-                        <CardHeader>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                    <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <span>Total Balance</span>
                                 <div className="flex items-center gap-2">
@@ -191,50 +191,50 @@ const DashboardPage = () => {
                                     </Badge>
                                 </div>
                             </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-bold">{formatCurrency(summary.totalBalance / 100, currency)}</p>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-2xl font-bold">{formatCurrency(summary.totalBalance / 100, currency)}</p>
                             {hasMultipleCurrencies && (
                                 <p className="text-xs text-muted-foreground mt-1">
                                     From {summary.accounts?.length || 0} accounts in {new Set(summary.accounts?.map(a => a.currency)).size} currencies
                                 </p>
                             )}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <span>Income (Last 30 Days)</span>
                                 <Badge variant="outline" className="text-xs text-green-600">
                                     {hasMultipleCurrencies ? 'Converted' : currency}
                                 </Badge>
                             </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-bold text-green-500">{formatCurrency(summary.totalIncome / 100, currency)}</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-2xl font-bold text-green-500">{formatCurrency(summary.totalIncome / 100, currency)}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <span>Expenses (Last 30 Days)</span>
                                 <Badge variant="outline" className="text-xs text-red-600">
                                     {hasMultipleCurrencies ? 'Converted' : currency}
                                 </Badge>
                             </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-bold text-red-500">{formatCurrency(summary.totalExpense / 100, currency)}</p>
-                        </CardContent>
-                    </Card>
-                </div>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-2xl font-bold text-red-500">{formatCurrency(summary.totalExpense / 100, currency)}</p>
+                    </CardContent>
+                </Card>
+            </div>
                 
-                <div className="mt-8">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Recent Transactions</CardTitle>
-                        </CardHeader>
-                        <CardContent>
+            <div className="mt-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Recent Transactions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
                             {summary.recentTransactions.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
                                     <p>No transactions yet.</p>
@@ -249,13 +249,13 @@ const DashboardPage = () => {
                                         
                                         return (
                                             <li key={t._id.toString()} className="flex justify-between items-center py-3 border-b last:border-b-0 hover:bg-gray-50/50 rounded-lg px-2 transition-colors">
-                                                <div className='flex items-center gap-x-3'>
-                                                    <div className={`p-2 rounded-md ${t.type === 'Income' ? 'bg-green-100' : 'bg-red-100'}`}>
+                                    <div className='flex items-center gap-x-3'>
+                                        <div className={`p-2 rounded-md ${t.type === 'Income' ? 'bg-green-100' : 'bg-red-100'}`}>
                                                         <Tooltip>
                                                             <TooltipTrigger>
-                                                                <p className={`font-semibold ${t.type === 'Income' ? 'text-green-500' : 'text-red-500'}`}>
-                                                                    {formatCurrency(t.amount / 100, t.account.currency)}
-                                                                </p>
+                                            <p className={`font-semibold ${t.type === 'Income' ? 'text-green-500' : 'text-red-500'}`}>
+                                                {formatCurrency(t.amount / 100, t.account.currency)}
+                                            </p>
                                                             </TooltipTrigger>
                                                             {needsConversion && (
                                                                 <TooltipContent>
@@ -267,11 +267,11 @@ const DashboardPage = () => {
                                                                 </TooltipContent>
                                                             )}
                                                         </Tooltip>
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-semibold">{t.payee}</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold">{t.payee}</p>
                                                         <div className="flex items-center gap-2">
-                                                            <p className="text-sm text-gray-500">{t.account.name}</p>
+                                            <p className="text-sm text-gray-500">{t.account.name}</p>
                                                             {needsConversion && (
                                                                 <div className="flex items-center gap-1">
                                                                     <Badge variant="secondary" className="text-xs">
@@ -286,18 +286,18 @@ const DashboardPage = () => {
                                                         {t.category && (
                                                             <p className="text-xs text-muted-foreground">{t.category.name}</p>
                                                         )}
-                                                    </div>
-                                                </div>
-                                                <p className='text-sm text-gray-500'>{format(new Date(t.date), 'PPP')}</p>
-                                            </li>
+                                        </div>
+                                    </div>
+                                    <p className='text-sm text-gray-500'>{format(new Date(t.date), 'PPP')}</p>
+                                </li>
                                         );
                                     })}
-                                </ul>
+                        </ul>
                             )}
-                        </CardContent>
-                    </Card>
-                </div>
+                    </CardContent>
+                </Card>
             </div>
+        </div>
         </TooltipProvider>
     );
 };

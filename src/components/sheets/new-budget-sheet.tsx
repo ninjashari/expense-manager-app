@@ -54,6 +54,8 @@ export function NewBudgetSheet() {
                         defaultValues={{
                             month: new Date(),
                             currency: session?.user?.currency || 'INR',
+                            amount: 0,
+                            categoryId: '',
                         }}
                     />
                 )}
