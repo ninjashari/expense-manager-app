@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { PopulatedTransaction } from '@/models/transaction.model';
 
 interface Summary {
@@ -11,20 +11,37 @@ interface Summary {
 }
 
 export const useGetSummary = () => {
-    const { data: session } = useSession();
+    const { data: session, status } = useSession();
     const queryClient = useQueryClient();
+    const prevCurrencyRef = useRef<string | undefined>();
 
     // Invalidate summary when user currency changes
     useEffect(() => {
-        if (session?.user?.currency) {
-            queryClient.invalidateQueries({
-                queryKey: ['summary']
-            });
+        if (status === 'authenticated' && session?.user?.currency) {
+            // Check if currency actually changed
+            if (prevCurrencyRef.current && prevCurrencyRef.current !== session.user.currency) {
+                // Currency changed - invalidate all related queries
+                queryClient.invalidateQueries({
+                    queryKey: ['summary']
+                });
+                
+                // Also invalidate accounts and transactions queries if they exist
+                queryClient.invalidateQueries({
+                    queryKey: ['accounts']
+                });
+                
+                queryClient.invalidateQueries({
+                    queryKey: ['transactions']
+                });
+            }
+            
+            // Update the ref with current currency
+            prevCurrencyRef.current = session.user.currency;
         }
-    }, [session?.user?.currency, queryClient]);
+    }, [session?.user?.currency, status, queryClient]);
 
     const { data: summary, isLoading, error } = useQuery<Summary>({
-        queryKey: ['summary', session?.user?.currency],
+        queryKey: ['summary', session?.user?.currency, session?.user?.id],
         queryFn: async () => {
             const response = await fetch('/api/summary');
             if (!response.ok) {
@@ -32,9 +49,11 @@ export const useGetSummary = () => {
             }
             return response.json();
         },
-        enabled: !!session?.user?.id,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
+        enabled: !!session?.user?.id && status === 'authenticated',
+        staleTime: 2 * 60 * 1000, // 2 minutes (reduced from 5)
+        gcTime: 5 * 60 * 1000, // 5 minutes (reduced from 10)
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     });
 
     return { 

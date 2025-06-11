@@ -1,49 +1,60 @@
 'use client';
 
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 
 import { UserSettingsForm, UserSettingsFormValues } from "@/components/forms/user-settings-form";
 
 const SettingsPage = () => {
-    const { data: session, status } = useSession();
+    const { data: session, status, update: updateSession } = useSession();
     const [userSettings, setUserSettings] = useState<Partial<UserSettingsFormValues> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchUserSettings = async () => {
-            if (status === 'loading') return;
+    const fetchUserSettings = useCallback(async () => {
+        if (status === 'loading') return;
+        
+        if (!session?.user?.id) {
+            setError('Not authenticated');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            setError(null);
+            const response = await fetch('/api/user');
             
-            if (!session?.user?.id) {
-                setError('Not authenticated');
-                setIsLoading(false);
-                return;
+            if (!response.ok) {
+                throw new Error('Failed to fetch user settings');
             }
 
-            try {
-                const response = await fetch('/api/user');
-                
-                if (!response.ok) {
-                    throw new Error('Failed to fetch user settings');
-                }
+            const userData = await response.json();
+            setUserSettings({
+                name: userData.name,
+                currency: userData.currency,
+            });
+        } catch (err) {
+            console.error('Error fetching user settings:', err);
+            setError(err instanceof Error ? err.message : 'Failed to fetch user settings');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [session?.user?.id, status]);
 
-                const userData = await response.json();
-                setUserSettings({
-                    name: userData.name,
-                    currency: userData.currency,
-                });
-            } catch (err) {
-                console.error('Error fetching user settings:', err);
-                setError(err instanceof Error ? err.message : 'Failed to fetch user settings');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
+    useEffect(() => {
         fetchUserSettings();
-    }, [session, status]);
+    }, [fetchUserSettings]);
+
+    const handleSettingsUpdated = useCallback(async () => {
+        // Refetch user settings from API
+        await fetchUserSettings();
+        
+        // Also force session to refresh from server
+        setTimeout(async () => {
+            await updateSession();
+        }, 500); // Small delay to ensure API data is consistent
+    }, [fetchUserSettings, updateSession]);
 
     if (status === 'loading' || isLoading) {
         return (
@@ -77,7 +88,10 @@ const SettingsPage = () => {
                 </div>
 
                 <div className="max-w-2xl">
-                    <UserSettingsForm defaultValues={userSettings || undefined} />
+                    <UserSettingsForm 
+                        defaultValues={userSettings || undefined} 
+                        onSettingsUpdated={handleSettingsUpdated}
+                    />
                 </div>
             </div>
         </div>

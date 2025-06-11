@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 import {
@@ -36,10 +36,11 @@ export type UserSettingsFormValues = z.infer<typeof formSchema>;
 
 interface UserSettingsFormProps {
     defaultValues?: Partial<UserSettingsFormValues>;
+    onSettingsUpdated?: () => void; // Callback to refresh parent data
 }
 
-export function UserSettingsForm({ defaultValues }: UserSettingsFormProps) {
-    const { data: session, update } = useSession();
+export function UserSettingsForm({ defaultValues, onSettingsUpdated }: UserSettingsFormProps) {
+    const { data: session, update: updateSession } = useSession();
     const [isLoading, setIsLoading] = useState(false);
 
     const form = useForm<UserSettingsFormValues>({
@@ -49,6 +50,16 @@ export function UserSettingsForm({ defaultValues }: UserSettingsFormProps) {
             currency: defaultValues?.currency || session?.user?.currency || 'INR',
         },
     });
+
+    // Update form when defaultValues change (after refetch)
+    useEffect(() => {
+        if (defaultValues) {
+            form.reset({
+                name: defaultValues.name || '',
+                currency: defaultValues.currency || 'INR',
+            });
+        }
+    }, [defaultValues, form]);
 
     const handleSubmit = async (values: UserSettingsFormValues) => {
         setIsLoading(true);
@@ -68,17 +79,30 @@ export function UserSettingsForm({ defaultValues }: UserSettingsFormProps) {
 
             const updatedUser = await response.json();
             
-            // Update the session with new user data
-            await update({
+            // Update the session with new user data - this should trigger session updates across the app
+            await updateSession({
                 ...session,
                 user: {
                     ...session?.user,
+                    id: session?.user?.id || updatedUser.id,
+                    email: session?.user?.email || updatedUser.email,
                     name: updatedUser.name,
                     currency: updatedUser.currency,
                 },
             });
 
-            toast.success('Settings updated successfully!');
+            // Update form with new values to reflect changes immediately
+            form.reset({
+                name: updatedUser.name,
+                currency: updatedUser.currency,
+            });
+
+            // Trigger parent to refetch data
+            if (onSettingsUpdated) {
+                onSettingsUpdated();
+            }
+
+            toast.success('Settings updated successfully! Changes will be reflected shortly.');
         } catch (error) {
             console.error('Error updating settings:', error);
             toast.error(error instanceof Error ? error.message : 'Failed to update settings');
@@ -121,7 +145,7 @@ export function UserSettingsForm({ defaultValues }: UserSettingsFormProps) {
                                     <FormLabel>Default Currency</FormLabel>
                                     <Select
                                         onValueChange={field.onChange}
-                                        defaultValue={field.value}
+                                        value={field.value}
                                         disabled={isLoading}
                                     >
                                         <FormControl>
