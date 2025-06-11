@@ -7,34 +7,42 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useEditAccount } from '@/hooks/use-edit-account';
 import { AccountForm } from '@/components/forms/account-form';
 import { toast } from 'sonner';
-import { useConfirm } from '@/hooks/use-confirm';
 import { useState, useEffect } from 'react';
 import { IAccount } from '@/models/account.model';
+import { Button } from '@/components/ui/button';
+import { Trash } from 'lucide-react';
 
-export const EditAccountSheet = ({ onAccountUpdated, onAccountDeleted }: { onAccountUpdated: () => void; onAccountDeleted: () => void; }) => {
+export const EditAccountSheet = ({ onAccountUpdated, onAccountDeleted }: { onAccountUpdated: () => void, onAccountDeleted: () => void }) => {
   const { isOpen, onClose, id } = useEditAccount();
-  const [accountData, setAccountData] = useState<IAccount | null>(null);
+  const [account, setAccount] = useState<IAccount | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const [ConfirmDialog, confirm] = useConfirm(
-    "Are you sure?",
-    "You are about to delete this account."
-  );
 
   useEffect(() => {
     if (id) {
       setLoading(true);
       fetch(`/api/accounts/${id}`)
         .then(res => res.json())
-        .then(data => setAccountData(data))
+        .then(data => setAccount(data))
         .finally(() => setLoading(false));
     }
   }, [id]);
 
   const handleSubmit = async (values: any) => {
+    setLoading(true);
     try {
       const response = await fetch(`/api/accounts/${id}`, {
         method: 'PUT',
@@ -52,43 +60,41 @@ export const EditAccountSheet = ({ onAccountUpdated, onAccountDeleted }: { onAcc
       }
     } catch (error) {
       toast.error('An unexpected error occurred.');
+    } finally {
+        setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    const ok = await confirm();
-    if (ok) {
-      try {
-        const response = await fetch(`/api/accounts/${id}`, {
-          method: 'DELETE',
-        });
+    setLoading(true);
+    try {
+        const response = await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
         if (response.ok) {
-          toast.success('Account deleted successfully.');
-          onAccountDeleted();
-          onClose();
+            toast.success('Account deleted successfully.');
+            onAccountDeleted();
+            onClose();
         } else {
-          const data = await response.json();
-          toast.error(data.message || 'Failed to delete account.');
+            const data = await response.json();
+            toast.error(data.message || 'Failed to delete account.');
         }
-      } catch (error) {
+    } catch (error) {
         toast.error('An unexpected error occurred.');
-      }
+    } finally {
+        setLoading(false);
     }
   };
-
-  const defaultValues = accountData ? {
-    name: accountData.name,
-    type: accountData.type,
-    balance: String(accountData.balance),
+  
+  const defaultValues = account ? {
+    name: account.name,
+    type: account.type,
+    balance: String(account.balance),
   } : {
     name: "",
     type: "",
     balance: "0",
-  }
+  };
 
   return (
-    <>
-      <ConfirmDialog />
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent className="space-y-4">
           <SheetHeader>
@@ -99,19 +105,43 @@ export const EditAccountSheet = ({ onAccountUpdated, onAccountDeleted }: { onAcc
           </SheetHeader>
           {loading ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              <p>Loading...</p>
+                <p>Loading...</p>
             </div>
           ) : (
-            <AccountForm 
+            <AccountForm
               id={id}
-              onSubmit={handleSubmit} 
-              onDelete={handleDelete}
+              onSubmit={handleSubmit}
               disabled={loading}
               defaultValues={defaultValues}
             />
           )}
+          {!!id && (
+            <div className="pt-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="w-full">
+                    <Trash className="size-4 mr-2" />
+                    Delete account
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete your account.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction disabled={loading} onClick={handleDelete}>
+                      Continue
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
-    </>
   );
 }; 

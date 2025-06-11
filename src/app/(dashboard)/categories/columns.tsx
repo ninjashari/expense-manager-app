@@ -14,66 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ICategory } from "@/models/category.model"
 import { useEditCategory } from "@/hooks/use-edit-category"
-import { useConfirm } from "@/hooks/use-confirm"
-import { toast } from "sonner"
 
-const Actions = ({ category, onDelete }: { category: ICategory, onDelete: () => void }) => {
-    const { onOpen } = useEditCategory();
-    const [ConfirmDialog, confirm] = useConfirm(
-        "Are you sure?",
-        "You are about to delete this category."
-    );
-
-    const handleDelete = async () => {
-        const ok = await confirm();
-        if (ok) {
-            try {
-                const response = await fetch(`/api/categories/${category._id}`, {
-                    method: 'DELETE',
-                });
-                if (response.ok) {
-                    toast.success('Category deleted successfully.');
-                    onDelete();
-                } else {
-                    const data = await response.json();
-                    toast.error(data.message || 'Failed to delete category.');
-                }
-            } catch (error) {
-                toast.error('An unexpected error occurred.');
-            }
-        }
-    }
-
-    return (
-        <>
-            <ConfirmDialog />
-            <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem
-                    onClick={() => onOpen(category._id as string)}
-                >
-                    Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                    onClick={handleDelete}
-                    className="text-red-500"
-                >
-                    Delete
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-            </DropdownMenu>
-        </>
-    )
-}
-
-export const columns = (onDelete: () => void): ColumnDef<ICategory>[] => [
+export const columns: ColumnDef<ICategory>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => {
@@ -103,6 +45,31 @@ export const columns = (onDelete: () => void): ColumnDef<ICategory>[] => [
   },
   {
     id: "actions",
-    cell: ({ row }) => <Actions category={row.original} onDelete={onDelete} />
+    cell: ({ row }) => {
+      const category = row.original
+      const { onOpen } = useEditCategory()
+ 
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() => navigator.clipboard.writeText(category._id as string)}
+            >
+              Copy category ID
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>Edit</DropdownMenuItem>
+            <DropdownMenuItem className="text-red-500">Delete</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
   },
 ] 

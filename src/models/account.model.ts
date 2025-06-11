@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, models, Types } from 'mongoose';
 
 export interface IAccount extends Document {
+  _id: Types.ObjectId;
   userId: Types.ObjectId;
   name: string;
   type: 'Checking' | 'Savings' | 'Credit Card' | 'Cash' | 'Investment';

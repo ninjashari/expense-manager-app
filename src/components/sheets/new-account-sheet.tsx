@@ -8,14 +8,17 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useNewAccount } from '@/hooks/use-new-account';
-import { AccountForm } from '@/components/forms/account-form';
+import { AccountForm, FormValues } from '@/components/forms/account-form';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-export const NewAccountSheet = ({ onAccountCreated }: { onAccountCreated: () => void }) => {
+export const NewAccountSheet = () => {
   const { isOpen, onClose } = useNewAccount();
-  
-  const handleSubmit = async (values: any) => {
-    try {
+
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async (values: FormValues) => {
       const response = await fetch('/api/accounts', {
         method: 'POST',
         headers: {
@@ -25,16 +28,24 @@ export const NewAccountSheet = ({ onAccountCreated }: { onAccountCreated: () => 
       });
 
       if (response.ok) {
-        toast.success('Account created successfully.');
-        onAccountCreated(); // Refreshes the data on the page
-        onClose();
+        return response.json();
       } else {
         const data = await response.json();
-        toast.error(data.message || 'Failed to create account.');
+        throw new Error(data.message || 'Failed to create account.');
       }
-    } catch (error) {
-      toast.error('An unexpected error occurred.');
-    }
+    },
+    onSuccess: () => {
+      toast.success('Account created successfully');
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      onClose();
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const onSubmit = (values: FormValues) => {
+    mutation.mutate(values);
   };
 
   return (
@@ -46,9 +57,9 @@ export const NewAccountSheet = ({ onAccountCreated }: { onAccountCreated: () => 
             Create a new account to track your transactions.
           </SheetDescription>
         </SheetHeader>
-        <AccountForm 
-          onSubmit={handleSubmit} 
-          disabled={false} // Will handle loading state later
+        <AccountForm
+          onSubmit={onSubmit}
+          disabled={mutation.isPending}
           defaultValues={{
             name: '',
             type: '',

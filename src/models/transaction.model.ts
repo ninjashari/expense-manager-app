@@ -1,9 +1,12 @@
 import mongoose, { Schema, Document, models, Types } from 'mongoose';
+import { IAccount } from './account.model';
+import { ICategory } from './category.model';
 
 export interface ITransaction extends Document {
+  _id: Types.ObjectId;
   userId: Types.ObjectId;
-  accountId: Types.ObjectId;
-  categoryId?: Types.ObjectId;
+  account: Types.ObjectId;
+  category?: Types.ObjectId;
   type: 'Income' | 'Expense' | 'Transfer';
   amount: number;
   date: Date;
@@ -13,18 +16,23 @@ export interface ITransaction extends Document {
   updatedAt: Date;
 }
 
+export interface PopulatedTransaction extends Omit<ITransaction, 'account' | 'category'> {
+  account: IAccount;
+  category?: ICategory;
+}
+
 const TransactionSchema: Schema = new Schema({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true,
   },
-  accountId: {
+  account: {
     type: Schema.Types.ObjectId,
     ref: 'Account',
     required: true,
   },
-  categoryId: {
+  category: {
     type: Schema.Types.ObjectId,
     ref: 'Category',
   },

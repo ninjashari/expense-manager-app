@@ -38,6 +38,18 @@ export default function AccountsPage() {
     fetchAccounts();
   }, []);
 
+  const onAccountCreated = () => {
+    fetchAccounts();
+  };
+
+  const onAccountUpdated = () => {
+    fetchAccounts();
+  }
+
+  const onAccountDeleted = () => {
+    fetchAccounts();
+  }
+
   if (loading) {
     return (
       <div className="max-w-screen-2xl mx-auto w-full pb-10 -mt-24">
@@ -55,8 +67,8 @@ export default function AccountsPage() {
 
   return (
     <div className="max-w-screen-2xl mx-auto w-full pb-10">
-       <NewAccountSheet onAccountCreated={fetchAccounts} />
-       <EditAccountSheet onAccountUpdated={fetchAccounts} onAccountDeleted={fetchAccounts} />
+       <NewAccountSheet onAccountCreated={onAccountCreated} />
+       <EditAccountSheet onAccountUpdated={onAccountUpdated} onAccountDeleted={onAccountDeleted} />
        <Card className="border-none drop-shadow-sm">
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="text-xl line-clamp-1">
@@ -69,7 +81,7 @@ export default function AccountsPage() {
         </CardHeader>
         <CardContent>
           <DataTable 
-            columns={columns(fetchAccounts)} 
+            columns={columns} 
             data={accounts} 
             filterKey="name"
           />

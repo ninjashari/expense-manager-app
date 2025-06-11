@@ -9,19 +9,18 @@ import { Button } from '@/components/ui/button';
 import { Trash } from 'lucide-react';
 import { IAccount } from '@/models/account.model';
 
-const formSchema = z.object({
+export const formSchema = z.object({
   name: z.string().min(1, { message: 'Name is required' }),
   type: z.string().min(1, { message: 'Type is required' }), // A select would be better
   balance: z.string(),
 });
 
-type FormValues = z.input<typeof formSchema>;
+export type FormValues = z.input<typeof formSchema>;
 
 type Props = {
   id?: string;
   defaultValues?: FormValues;
   onSubmit: (values: FormValues) => void;
-  onDelete?: () => void;
   disabled: boolean;
 };
 
@@ -29,7 +28,6 @@ export const AccountForm = ({
   id,
   defaultValues,
   onSubmit,
-  onDelete,
   disabled,
 }: Props) => {
   const form = useForm<FormValues>({
@@ -39,10 +37,6 @@ export const AccountForm = ({
 
   const handleSubmit = (values: FormValues) => {
     onSubmit(values);
-  };
-
-  const handleDelete = () => {
-    onDelete?.();
   };
 
   return (
@@ -100,18 +94,6 @@ export const AccountForm = ({
         <Button className="w-full" disabled={disabled}>
           {id ? 'Save changes' : 'Create account'}
         </Button>
-        {!!id && (
-          <Button
-            type="button"
-            disabled={disabled}
-            onClick={handleDelete}
-            className="w-full"
-            variant="outline"
-          >
-            <Trash className="size-4 mr-2" />
-            Delete account
-          </Button>
-        )}
       </form>
     </Form>
   );

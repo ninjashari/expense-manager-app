@@ -2,7 +2,7 @@ import NextAuth from 'next-auth';
 import { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import dbConnect from '@/lib/db';
+import { connectDB } from '@/lib/db';
 import User from '@/models/user.model';
 
 export const authOptions: AuthOptions = {
@@ -14,7 +14,7 @@ export const authOptions: AuthOptions = {
         password: {  label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        await dbConnect();
+        await connectDB();
 
         if (!credentials) {
           return null;

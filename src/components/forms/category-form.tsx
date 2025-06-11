@@ -15,18 +15,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const formSchema = z.object({
+export const formSchema = z.object({
   name: z.string().min(1, { message: 'Name is required' }),
   type: z.enum(['Income', 'Expense']),
 });
 
-type FormValues = z.input<typeof formSchema>;
+export type FormValues = z.input<typeof formSchema>;
 
 type Props = {
   id?: string;
   defaultValues?: FormValues;
   onSubmit: (values: FormValues) => void;
-  onDelete?: () => void;
   disabled: boolean;
 };
 
@@ -34,7 +33,6 @@ export const CategoryForm = ({
   id,
   defaultValues,
   onSubmit,
-  onDelete,
   disabled,
 }: Props) => {
   const form = useForm<FormValues>({
@@ -44,10 +42,6 @@ export const CategoryForm = ({
 
   const handleSubmit = (values: FormValues) => {
     onSubmit(values);
-  };
-
-  const handleDelete = () => {
-    onDelete?.();
   };
 
   return (
@@ -96,18 +90,6 @@ export const CategoryForm = ({
         <Button className="w-full" disabled={disabled}>
           {id ? 'Save changes' : 'Create category'}
         </Button>
-        {!!id && (
-          <Button
-            type="button"
-            disabled={disabled}
-            onClick={handleDelete}
-            className="w-full"
-            variant="outline"
-          >
-            <Trash className="size-4 mr-2" />
-            Delete category
-          </Button>
-        )}
       </form>
     </Form>
   );

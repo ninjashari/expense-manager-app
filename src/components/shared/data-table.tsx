@@ -23,22 +23,28 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Trash } from "lucide-react"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   filterKey: string
+  onDelete: (rows: TData[]) => void
+  disabled?: boolean
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   filterKey,
+  onDelete,
+  disabled
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
+  const [rowSelection, setRowSelection] = React.useState({})
 
   const table = useReactTable({
     data,
@@ -66,6 +72,21 @@ export function DataTable<TData, TValue>({
           }
           className="max-w-sm"
         />
+        {Object.keys(rowSelection).length > 0 && (
+            <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                    const selectedRows = table.getSelectedRowModel().rows.map(row => row.original);
+                    onDelete(selectedRows);
+                    table.resetRowSelection();
+                }}
+                disabled={disabled}
+            >
+                <Trash className="size-4 mr-2" />
+                Delete ({Object.keys(rowSelection).length})
+            </Button>
+        )}
       </div>
       <div className="rounded-md border">
         <Table>
@@ -116,7 +137,7 @@ export function DataTable<TData, TValue>({
           variant="outline"
           size="sm"
           onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
+          disabled={!table.getCanPreviousPage() || disabled}
         >
           Previous
         </Button>
@@ -124,7 +145,7 @@ export function DataTable<TData, TValue>({
           variant="outline"
           size="sm"
           onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
+          disabled={!table.getCanNextPage() || disabled}
         >
           Next
         </Button>

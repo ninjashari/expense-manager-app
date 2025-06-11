@@ -37,6 +37,18 @@ export default function CategoriesPage() {
     fetchCategories();
   }, []);
 
+  const onCategoryCreated = () => {
+    fetchCategories();
+  };
+
+  const onCategoryUpdated = () => {
+    fetchCategories();
+  }
+
+  const onCategoryDeleted = () => {
+    fetchCategories();
+  }
+
   if (loading) {
     return (
       <div className="max-w-screen-2xl mx-auto w-full pb-10 -mt-24">
@@ -54,8 +66,8 @@ export default function CategoriesPage() {
 
   return (
     <div className="max-w-screen-2xl mx-auto w-full pb-10">
-       <NewCategorySheet onCategoryCreated={fetchCategories} />
-       <EditCategorySheet onCategoryUpdated={fetchCategories} onCategoryDeleted={fetchCategories} />
+       <NewCategorySheet onCategoryCreated={onCategoryCreated} />
+       <EditCategorySheet onCategoryUpdated={onCategoryUpdated} onCategoryDeleted={onCategoryDeleted} />
        <Card className="border-none drop-shadow-sm">
         <CardHeader className="gap-y-2 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="text-xl line-clamp-1">
@@ -68,7 +80,7 @@ export default function CategoriesPage() {
         </CardHeader>
         <CardContent>
           <DataTable 
-            columns={columns(fetchCategories)} 
+            columns={columns} 
             data={categories} 
             filterKey="name"
           />

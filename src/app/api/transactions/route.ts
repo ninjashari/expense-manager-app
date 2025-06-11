@@ -9,81 +9,73 @@ import Account from "@/models/account.model";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const transactionSchema = z.object({
-  amount: z.coerce.number(),
-  payee: z.string().min(1, "Payee is required."),
-  notes: z.string().optional(),
-  date: z.coerce.date(),
   accountId: z.string().min(1, "Account is required."),
   categoryId: z.string().optional(),
+  type: z.enum(["Income", "Expense", "Transfer"]),
+  amount: z.coerce.number().positive("Amount must be positive."),
+  date: z.coerce.date(),
+  payee: z.string().min(1, "Payee is required."),
+  notes: z.string().optional(),
 });
 
 export async function GET() {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ message: "Not authorized" }, { status: 401 });
-    }
-  
-    try {
-      await dbConnect();
-      const transactions = await Transaction.find({ userId: session.user.id }).sort({ date: -1 });
-      return NextResponse.json(transactions);
-    } catch (error) {
-      return NextResponse.json({ message: "Error fetching transactions" }, { status: 500 });
-    }
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ message: "Not authorized" }, { status: 401 });
+  }
+
+  try {
+    await dbConnect();
+    const transactions = await Transaction.find({ userId: session.user.id })
+      .populate('accountId', 'name')
+      .populate('categoryId', 'name')
+      .sort({ date: -1 });
+    return NextResponse.json(transactions);
+  } catch (error) {
+    return NextResponse.json({ message: "Error fetching transactions" }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return NextResponse.json({ message: "Not authorized" }, { status: 401 });
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ message: "Not authorized" }, { status: 401 });
+  }
+
+  const dbSession = await mongoose.startSession();
+  dbSession.startTransaction();
+
+  try {
+    const body = await req.json();
+    const validatedData = transactionSchema.safeParse(body);
+    
+    if (!validatedData.success) {
+      return NextResponse.json({ message: "Invalid data", errors: validatedData.error.errors }, { status: 400 });
     }
 
-    const dbSession = await mongoose.startSession();
-    dbSession.startTransaction();
+    const { accountId, amount, type } = validatedData.data;
 
-    try {
-        const body = await req.json();
-        const validatedData = transactionSchema.safeParse(body);
-        
-        if (!validatedData.success) {
-            await dbSession.abortTransaction();
-            dbSession.endSession();
-            return NextResponse.json({ message: "Invalid data", errors: validatedData.error.errors }, { status: 400 });
-        }
-        
-        const { amount, accountId, ...rest } = validatedData.data;
+    const newTransaction = new Transaction({
+      ...validatedData.data,
+      userId: session.user.id,
+    });
 
-        const account = await Account.findOne({ _id: accountId, userId: session.user.id }).session(dbSession);
-        if (!account) {
-            await dbSession.abortTransaction();
-            dbSession.endSession();
-            return NextResponse.json({ message: "Account not found" }, { status: 404 });
-        }
+    await newTransaction.save({ session: dbSession });
 
-        // Determine transaction type based on amount
-        const type = amount > 0 ? 'Income' : 'Expense';
-
-        const newTransaction = new Transaction({
-            ...rest,
-            amount,
-            type,
-            accountId,
-            userId: session.user.id,
-        });
-
-        await newTransaction.save({ session: dbSession });
-
-        // Update account balance
-        account.balance += amount;
-        await account.save({ session: dbSession });
-
-        await dbSession.commitTransaction();
-        dbSession.endSession();
-
-        return NextResponse.json(newTransaction, { status: 201 });
-    } catch (error) {
-        await dbSession.abortTransaction();
-        dbSession.endSession();
-        return NextResponse.json({ message: "Error creating transaction" }, { status: 500 });
+    if (type === 'Income') {
+      await Account.updateOne({ _id: accountId }, { $inc: { balance: amount } }, { session: dbSession });
+    } else if (type === 'Expense') {
+      await Account.updateOne({ _id: accountId }, { $inc: { balance: -amount } }, { session: dbSession });
     }
+    // Note: Transfer logic will be more complex and is not handled here.
+
+    await dbSession.commitTransaction();
+    dbSession.endSession();
+
+    return NextResponse.json(newTransaction, { status: 201 });
+  } catch (error) {
+    await dbSession.abortTransaction();
+    dbSession.endSession();
+    return NextResponse.json({ message: "Error creating transaction" }, { status: 500 });
+  }
 } 

@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { IAccount } from '@/models/account.model';
 
 type EditAccountState = {
   id?: string;

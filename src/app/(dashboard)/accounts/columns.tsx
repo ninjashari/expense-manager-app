@@ -14,66 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { IAccount } from "@/models/account.model"
 import { useEditAccount } from "@/hooks/use-edit-account"
-import { useConfirm } from "@/hooks/use-confirm"
-import { toast } from "sonner"
 
-const Actions = ({ account, onDelete }: { account: IAccount, onDelete: () => void }) => {
-    const { onOpen } = useEditAccount();
-    const [ConfirmDialog, confirm] = useConfirm(
-        "Are you sure?",
-        "You are about to delete this account."
-    );
-
-    const handleDelete = async () => {
-        const ok = await confirm();
-        if (ok) {
-            try {
-                const response = await fetch(`/api/accounts/${account._id}`, {
-                    method: 'DELETE',
-                });
-                if (response.ok) {
-                    toast.success('Account deleted successfully.');
-                    onDelete();
-                } else {
-                    const data = await response.json();
-                    toast.error(data.message || 'Failed to delete account.');
-                }
-            } catch (error) {
-                toast.error('An unexpected error occurred.');
-            }
-        }
-    }
-
-    return (
-        <>
-            <ConfirmDialog />
-            <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem
-                    onClick={() => onOpen(account._id as string)}
-                >
-                    Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                    onClick={handleDelete}
-                    className="text-red-500"
-                >
-                    Delete
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-            </DropdownMenu>
-        </>
-    )
-}
-
-export const columns = (onDelete: () => void): ColumnDef<IAccount>[] => [
+export const columns: ColumnDef<IAccount>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => {
@@ -116,6 +58,33 @@ export const columns = (onDelete: () => void): ColumnDef<IAccount>[] => [
   },
   {
     id: "actions",
-    cell: ({ row }) => <Actions account={row.original} onDelete={onDelete} />
+    cell: ({ row }) => {
+      const account = row.original
+      const { onOpen } = useEditAccount()
+ 
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() => navigator.clipboard.writeText(account._id as string)}
+            >
+              Copy account ID
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onOpen(account._id as string)}>
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-red-500">Delete</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
   },
 ] 
