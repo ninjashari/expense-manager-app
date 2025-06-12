@@ -1,5 +1,3 @@
-import OpenAI from 'openai';
-
 export interface AnalysisResult {
   dataType: 'transactions' | 'accounts' | 'categories' | 'mixed' | 'unknown';
   columnMappings: Record<string, string>;
@@ -9,17 +7,20 @@ export interface AnalysisResult {
   detectedColumns: string[];
 }
 
-export class CSVAnalyzer {
-  private openai: OpenAI;
+// Declare puter as global for TypeScript
+declare global {
+  interface Window {
+    puter?: {
+      ai: {
+        chat: (prompt: string, options?: { model?: string }) => Promise<string>;
+      };
+    };
+  }
+}
 
+export class CSVAnalyzer {
   constructor() {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OpenAI API key is required for CSV analysis');
-    }
-    
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    // No API key needed - Puter.js handles everything
   }
 
   async analyzeCSV(csvData: Record<string, unknown>[], fileName: string): Promise<AnalysisResult> {
@@ -29,178 +30,234 @@ export class CSVAnalyzer {
       }
 
       const headers = Object.keys(csvData[0]);
-      const sampleRows = csvData.slice(0, Math.min(5, csvData.length));
-
-      const prompt = this.buildAnalysisPrompt(headers, sampleRows, fileName);
       
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert financial data analyst. Analyze CSV data for a personal expense management application and provide column mapping suggestions.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 1500,
-      });
-
-      const result = response.choices[0]?.message?.content;
-      if (!result) {
-        throw new Error('No response from AI analysis');
+      // Try AI analysis first if Puter.js is available
+      if (typeof window !== 'undefined' && window.puter?.ai) {
+        try {
+          return await this.performAIAnalysis(headers, csvData, fileName);
+        } catch (error) {
+          console.warn('AI analysis failed, falling back to pattern matching:', error);
+        }
       }
 
-      return this.parseAIResponse(result, headers);
+      // Use enhanced pattern matching as fallback
+      return this.getEnhancedPatternAnalysis(csvData, fileName);
     } catch (error) {
-      console.error('AI analysis failed:', error);
-      return this.getFallbackAnalysis(csvData);
+      console.error('CSV analysis failed:', error);
+      return this.getBasicFallbackAnalysis(csvData);
     }
   }
 
-  private buildAnalysisPrompt(headers: string[], sampleRows: Record<string, unknown>[], fileName: string): string {
-    return `
-Analyze this CSV file for a personal expense management application.
+  private async performAIAnalysis(headers: string[], csvData: Record<string, unknown>[], fileName: string): Promise<AnalysisResult> {
+    const sampleRows = csvData.slice(0, Math.min(3, csvData.length));
+    const prompt = this.buildAnalysisPrompt(headers, sampleRows, fileName);
 
-File Name: ${fileName}
-CSV Headers: ${headers.join(', ')}
-
-Sample Data Rows:
-${sampleRows.map((row, index) => `Row ${index + 1}: ${JSON.stringify(row)}`).join('\n')}
-
-Database Schema Options:
-
-1. TRANSACTIONS:
-   - date (required): Transaction date
-   - type (required): "Income" or "Expense"
-   - amount (required): Monetary amount (positive number)
-   - payee (required): Who the transaction was with
-   - account (required): Reference to account name/id
-   - category (optional): Reference to category name/id
-   - notes (optional): Additional notes
-
-2. ACCOUNTS:
-   - name (required): Account name
-   - type (required): "Checking", "Savings", "Credit Card", "Cash", "Investment"
-   - currency (required): Currency code (e.g., "USD", "INR")
-   - balance (optional): Current balance
-
-3. CATEGORIES:
-   - name (required): Category name
-   - type (required): "Income" or "Expense"
-
-Please analyze and respond with ONLY a JSON object in this exact format:
-{
-  "dataType": "transactions|accounts|categories|mixed|unknown",
-  "columnMappings": {
-    "csv_column_name": "database_field_name"
-  },
-  "confidence": 0-100,
-  "suggestions": ["suggestion 1", "suggestion 2"],
-  "warnings": ["warning 1", "warning 2"],
-  "detectedColumns": ["list", "of", "csv", "headers"]
-}
-
-Rules:
-- Only map columns that clearly match database fields
-- Confidence should be 0-100 based on how certain you are
-- Include suggestions for improving data quality
-- Warn about potential issues (missing required fields, format problems, etc.)
-- If multiple data types are detected, use "mixed"
-- If unsure about the data type, use "unknown"
-`;
+    const response = await window.puter!.ai.chat(prompt, { model: 'gpt-4o-mini' });
+    
+    return this.parseAIResponse(response, headers) || this.getEnhancedPatternAnalysis(csvData, fileName);
   }
 
-  private parseAIResponse(response: string, headers: string[]): AnalysisResult {
-    try {
-      // Extract JSON from the response (in case there's extra text)
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in AI response');
-      }
+  private buildAnalysisPrompt(headers: string[], sampleRows: Record<string, unknown>[], fileName: string): string {
+    return `Analyze CSV file "${fileName}" with headers: ${headers.join(', ')}. Sample: ${JSON.stringify(sampleRows[0] || {})}. 
+    
+Respond with JSON only:
+{
+  "dataType": "transactions|accounts|categories|unknown",
+  "columnMappings": {"csv_column": "db_field"},
+  "confidence": 85,
+  "suggestions": ["tip1"],
+  "warnings": ["warning1"]
+}
 
-      const parsed = JSON.parse(jsonMatch[0]) as {
-        dataType: string;
-        columnMappings: Record<string, string>;
-        confidence: number;
-        suggestions: string[];
-        warnings: string[];
-      };
+Database fields:
+- Transactions: date, type, amount, payee, account, category, notes
+- Accounts: name, type, currency, balance
+- Categories: name, type`;
+  }
+
+  private parseAIResponse(response: string, headers: string[]): AnalysisResult | null {
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return null;
+
+      const parsed = JSON.parse(jsonMatch[0]);
       
-      // Validate the response structure
-      const result: AnalysisResult = {
-        dataType: parsed.dataType as AnalysisResult['dataType'] || 'unknown',
+      return {
+        dataType: parsed.dataType || 'unknown',
         columnMappings: parsed.columnMappings || {},
         confidence: Math.max(0, Math.min(100, parsed.confidence || 0)),
         suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
         warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
         detectedColumns: headers,
       };
-
-      // Validate that mapped columns exist in the CSV
-      const validMappings: Record<string, string> = {};
-      for (const [csvCol, dbField] of Object.entries(result.columnMappings)) {
-        if (headers.includes(csvCol)) {
-          validMappings[csvCol] = dbField;
-        }
-      }
-      result.columnMappings = validMappings;
-
-      return result;
     } catch (error) {
-      console.error('Failed to parse AI response:', error);
-      throw new Error('Invalid AI response format');
+      console.warn('Failed to parse AI response:', error);
+      return null;
     }
   }
 
-  private getFallbackAnalysis(csvData: Record<string, unknown>[]): AnalysisResult {
+  private getEnhancedPatternAnalysis(csvData: Record<string, unknown>[], fileName: string): AnalysisResult {
     const headers = Object.keys(csvData[0] || {});
+    const sampleRow = csvData[0] || {};
     
-    // Simple heuristic-based analysis as fallback
+    // Enhanced pattern matching with data type detection
     const mappings: Record<string, string> = {};
     let dataType: AnalysisResult['dataType'] = 'unknown';
+    const suggestions: string[] = [];
+    const warnings: string[] = [];
     
-    // Common patterns for transaction data
+    // Transaction patterns (most common use case)
     const transactionPatterns = {
-      date: /date|time|when/i,
-      amount: /amount|value|sum|total|price|cost/i,
-      payee: /payee|merchant|vendor|description|desc/i,
-      type: /type|category|kind/i,
-      account: /account|bank/i,
-      notes: /note|memo|comment|description/i,
+      date: /date|time|when|day|created|posted/i,
+      amount: /amount|value|sum|total|price|cost|debit|credit|balance/i,
+      payee: /payee|merchant|vendor|description|desc|name|company|store/i,
+      type: /type|category|kind|class|income|expense/i,
+      account: /account|bank|card|wallet/i,
+      notes: /note|memo|comment|remark|detail/i,
     };
 
-    // Check for transaction patterns
+    // Account patterns
+    const accountPatterns = {
+      name: /name|title|account|label/i,
+      type: /type|kind|category|class/i,
+      currency: /currency|curr|money|symbol/i,
+      balance: /balance|amount|total|value/i,
+    };
+
+    // Category patterns
+    const categoryPatterns = {
+      name: /name|title|category|label/i,
+      type: /type|kind|income|expense/i,
+    };
+
+    // Score each data type
     let transactionScore = 0;
+    let accountScore = 0;
+    let categoryScore = 0;
+
     headers.forEach(header => {
+      const sampleValue = String(sampleRow[header] || '').toLowerCase();
+
+      // Check transaction patterns
       for (const [field, pattern] of Object.entries(transactionPatterns)) {
         if (pattern.test(header)) {
           mappings[header] = field;
           transactionScore++;
+          
+          // Additional validation based on sample data
+          if (field === 'amount' && sampleValue && !isNaN(Number(sampleValue.replace(/[^0-9.-]/g, '')))) {
+            transactionScore += 0.5;
+          }
+          if (field === 'date' && this.isDateLike(sampleValue)) {
+            transactionScore += 0.5;
+          }
+        }
+      }
+
+      // Check account patterns
+      for (const [fieldName, pattern] of Object.entries(accountPatterns)) {
+        if (pattern.test(header)) {
+          accountScore++;
+          if (fieldName === 'type' && /checking|savings|credit|cash|investment/i.test(sampleValue)) {
+            accountScore += 0.5;
+          }
+        }
+      }
+
+      // Check category patterns
+      for (const [, pattern] of Object.entries(categoryPatterns)) {
+        if (pattern.test(header)) {
+          categoryScore++;
         }
       }
     });
 
+    // Determine data type based on scores
     if (transactionScore >= 3) {
       dataType = 'transactions';
+      suggestions.push('Detected transaction data - ensure date and amount formats are consistent');
+      if (!mappings.date) warnings.push('No date column detected - this is required for transactions');
+      if (!mappings.amount) warnings.push('No amount column detected - this is required for transactions');
+      if (!mappings.payee) warnings.push('No payee/description column detected - this is required for transactions');
+    } else if (accountScore >= 2) {
+      dataType = 'accounts';
+      suggestions.push('Detected account data - verify account types and currency codes');
+    } else if (categoryScore >= 1) {
+      dataType = 'categories';
+      suggestions.push('Detected category data - ensure category types are specified');
+    } else {
+      dataType = 'unknown';
+      warnings.push('Could not determine data type automatically');
+      suggestions.push('Please manually map columns to appropriate fields');
+    }
+
+    // File name hints
+    const fileNameLower = fileName.toLowerCase();
+    if (fileNameLower.includes('transaction') || fileNameLower.includes('expense') || fileNameLower.includes('income')) {
+      if (dataType === 'unknown') {
+        dataType = 'transactions';
+        suggestions.push('File name suggests transaction data');
+      }
+    } else if (fileNameLower.includes('account') || fileNameLower.includes('bank')) {
+      if (dataType === 'unknown') {
+        dataType = 'accounts';
+        suggestions.push('File name suggests account data');
+      }
+    }
+
+    // Calculate confidence based on matches and data quality
+    const maxPossibleScore = dataType === 'transactions' ? 6 : dataType === 'accounts' ? 4 : 2;
+    const actualScore = dataType === 'transactions' ? transactionScore : 
+                       dataType === 'accounts' ? accountScore : categoryScore;
+    const confidence = Math.min(Math.round((actualScore / maxPossibleScore) * 100), 95);
+
+    // Add general suggestions
+    suggestions.push('Review column mappings before importing');
+    if (csvData.length > 1000) {
+      suggestions.push('Large dataset detected - import may take some time');
     }
 
     return {
       dataType,
       columnMappings: mappings,
-      confidence: Math.min(transactionScore * 20, 80), // Lower confidence for fallback
+      confidence,
+      suggestions,
+      warnings,
+      detectedColumns: headers,
+    };
+  }
+
+  private getBasicFallbackAnalysis(csvData: Record<string, unknown>[]): AnalysisResult {
+    const headers = Object.keys(csvData[0] || {});
+    
+    return {
+      dataType: 'unknown',
+      columnMappings: {},
+      confidence: 0,
       suggestions: [
-        'AI analysis was not available, using pattern matching',
-        'Please review and adjust the column mappings manually',
+        'Analysis failed - please manually map columns',
+        'Ensure your CSV file has proper headers',
+        'Check that data is properly formatted',
       ],
       warnings: [
-        'Automatic analysis failed, mappings may be inaccurate',
-        'Verify all required fields are mapped correctly',
+        'Automatic analysis was not possible',
+        'Manual column mapping required',
       ],
       detectedColumns: headers,
     };
+  }
+
+  private isDateLike(value: string): boolean {
+    if (!value) return false;
+    
+    // Common date patterns
+    const datePatterns = [
+      /^\d{4}-\d{2}-\d{2}/, // YYYY-MM-DD
+      /^\d{2}\/\d{2}\/\d{4}/, // MM/DD/YYYY
+      /^\d{2}-\d{2}-\d{4}/, // MM-DD-YYYY
+      /^\d{1,2}\/\d{1,2}\/\d{2,4}/, // M/D/YY or MM/DD/YYYY
+    ];
+    
+    return datePatterns.some(pattern => pattern.test(value)) || !isNaN(Date.parse(value));
   }
 } 

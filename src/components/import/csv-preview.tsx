@@ -46,8 +46,9 @@ export function CSVPreview({ importData, onConfirm, isLoading }: CSVPreviewProps
   const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const [selectedDataType, setSelectedDataType] = useState<string>(importData.analysis?.dataType || 'transactions');
 
-  const dataType = importData.analysis?.dataType || 'unknown';
+  const dataType = selectedDataType;
   const csvColumns = importData.detectedColumns || [];
   
   const aiMappings = useMemo(() => 
@@ -78,7 +79,7 @@ export function CSVPreview({ importData, onConfirm, isLoading }: CSVPreviewProps
   }, [importData.importId]);
 
   const validateData = useCallback((mappings: Record<string, string>) => {
-    if (!importData.previewData || dataType === 'unknown') return;
+    if (!importData.previewData) return;
     
     const validationResult = ImportValidator.validateData(
       importData.previewData,
@@ -119,6 +120,14 @@ export function CSVPreview({ importData, onConfirm, isLoading }: CSVPreviewProps
     setColumnMappings(newMappings);
   };
 
+  const handleDataTypeChange = (newDataType: string) => {
+    setSelectedDataType(newDataType);
+    // Clear existing mappings when data type changes
+    setColumnMappings({});
+    setValidation(null);
+    setPreviewData([]);
+  };
+
   const handleConfirm = () => {
     if (!validation?.isValid) {
       toast.error('Please fix validation errors before proceeding');
@@ -149,18 +158,7 @@ export function CSVPreview({ importData, onConfirm, isLoading }: CSVPreviewProps
     return required.filter(field => !mapped.includes(field));
   };
 
-  if (dataType === 'unknown') {
-    return (
-      <div className="text-center space-y-4">
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Unable to determine data type. Please ensure your CSV contains recognizable financial data.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-6">
@@ -172,17 +170,88 @@ export function CSVPreview({ importData, onConfirm, isLoading }: CSVPreviewProps
             Review and adjust how your CSV columns map to database fields
           </p>
         </div>
-        <Badge variant="outline" className="capitalize">
-          {dataType} Data
-        </Badge>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Data Type:</label>
+            <Select value={dataType} onValueChange={handleDataTypeChange}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="transactions">
+                  <div className="flex items-center gap-2">
+                    <span>Transactions</span>
+                    <Badge variant="outline" className="text-xs">Most Common</Badge>
+                  </div>
+                </SelectItem>
+                <SelectItem value="accounts">
+                  <div className="flex items-center gap-2">
+                    <span>Accounts</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="categories">
+                  <div className="flex items-center gap-2">
+                    <span>Categories</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Badge variant="outline" className="capitalize">
+            {dataType} Data
+          </Badge>
+        </div>
       </div>
+
+      {/* Data Type Information */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-medium mb-1">
+                {dataType === 'transactions' && 'Transaction Data'}
+                {dataType === 'accounts' && 'Account Data'}
+                {dataType === 'categories' && 'Category Data'}
+              </h4>
+              <p className="text-sm text-muted-foreground mb-3">
+                {dataType === 'transactions' && 'Import financial transactions with dates, amounts, payees, and accounts. Perfect for bank statements and expense records.'}
+                {dataType === 'accounts' && 'Import account information including names, types, currencies, and balances. Use this for setting up your account structure.'}
+                {dataType === 'categories' && 'Import expense and income categories. Use this to organize your transaction categorization system.'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <div className="text-xs">
+                  <span className="font-medium text-red-600">Required:</span>
+                  {getRequiredFields().map((field) => (
+                    <Badge key={field} variant="destructive" className="ml-1 h-5 text-xs">
+                      {field}
+                    </Badge>
+                  ))}
+                </div>
+                {getOptionalFields().length > 0 && (
+                  <div className="text-xs">
+                    <span className="font-medium text-gray-600">Optional:</span>
+                    {getOptionalFields().map((field) => (
+                      <Badge key={field} variant="secondary" className="ml-1 h-5 text-xs">
+                        {field}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Column Mapping */}
       <Card>
         <CardHeader>
           <CardTitle>Column Mappings</CardTitle>
           <CardDescription>
-            Map your CSV columns to the appropriate database fields
+            Map your CSV columns to the appropriate database fields for {dataType}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -263,6 +332,16 @@ export function CSVPreview({ importData, onConfirm, isLoading }: CSVPreviewProps
             </Badge>
           )}
         </Button>
+        {Object.keys(aiMappings).length > 0 && (
+          <Button
+            variant="outline"
+            onClick={() => setColumnMappings(aiMappings)}
+            size="sm"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Reset to AI Suggestions
+          </Button>
+        )}
       </div>
 
       {/* Data Preview Section */}

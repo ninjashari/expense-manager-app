@@ -176,8 +176,16 @@ async function importTransactions(data: Record<string, unknown>[], mappings: Rec
         }
       }
 
-      // Determine transaction type based on amount
-      const type = amount >= 0 ? 'Income' : 'Expense';
+      // Determine transaction type based on amount or explicit type
+      let type = amount >= 0 ? 'Income' : 'Expense';
+      if (transactionData.type) {
+        const explicitType = transactionData.type.toString().toLowerCase();
+        if (explicitType.includes('income') || explicitType.includes('credit')) {
+          type = 'Income';
+        } else if (explicitType.includes('expense') || explicitType.includes('debit')) {
+          type = 'Expense';
+        }
+      }
       const absoluteAmount = Math.abs(amount) * 100; // Convert to cents
 
       // Create transaction
