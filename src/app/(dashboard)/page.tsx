@@ -13,7 +13,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useEffect, useState } from 'react';
@@ -87,7 +86,6 @@ const DashboardPage = () => {
     const conversionFailed = summary.conversionStatus && !summary.conversionStatus.success;
 
     return (
-        <TooltipProvider>
         <div className="max-w-screen-2xl mx-auto w-full pb-10 -mt-24">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl font-bold text-white">Dashboard</h1>
@@ -351,8 +349,8 @@ const DashboardPage = () => {
             )}
                 
             <div className="mt-8">
+            </div>
         </div>
-        </TooltipProvider>
     );
 };
 

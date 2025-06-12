@@ -1,0 +1,11 @@
+Name,Type
+Food,Expense
+Income,Income
+Transportation,Expense
+Utilities,Expense
+Shopping,Expense
+Entertainment,Expense
+Healthcare,Expense
+Education,Expense
+Investment,Income
+Bonus,Income 

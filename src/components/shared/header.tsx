@@ -25,6 +25,7 @@ const routes = [
   { href: '/categories', label: 'Categories' },
   { href: '/transactions', label: 'Transactions'},
   { href: '/budgets', label: 'Budgets' },
+  { href: '/import', label: 'Import' },
   { href: '/reports', label: 'Reports' },
   { href: '/settings', label: 'Settings' }
 ];

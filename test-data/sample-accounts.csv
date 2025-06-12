@@ -1,0 +1,6 @@
+Name,Type,Currency,Balance
+Checking Account,Checking,USD,1500.00
+Savings Account,Savings,USD,5000.00
+Credit Card,Credit Card,USD,-150.00
+Investment Account,Investment,USD,10000.00
+Emergency Fund,Savings,USD,2500.00 
