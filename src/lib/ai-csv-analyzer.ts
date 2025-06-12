@@ -22,7 +22,7 @@ export class CSVAnalyzer {
     });
   }
 
-  async analyzeCSV(csvData: any[], fileName: string): Promise<AnalysisResult> {
+  async analyzeCSV(csvData: Record<string, unknown>[], fileName: string): Promise<AnalysisResult> {
     try {
       if (!csvData || csvData.length === 0) {
         throw new Error('No CSV data provided for analysis');
@@ -61,7 +61,7 @@ export class CSVAnalyzer {
     }
   }
 
-  private buildAnalysisPrompt(headers: string[], sampleRows: any[], fileName: string): string {
+  private buildAnalysisPrompt(headers: string[], sampleRows: Record<string, unknown>[], fileName: string): string {
     return `
 Analyze this CSV file for a personal expense management application.
 
@@ -122,11 +122,17 @@ Rules:
         throw new Error('No JSON found in AI response');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonMatch[0]) as {
+        dataType: string;
+        columnMappings: Record<string, string>;
+        confidence: number;
+        suggestions: string[];
+        warnings: string[];
+      };
       
       // Validate the response structure
       const result: AnalysisResult = {
-        dataType: parsed.dataType || 'unknown',
+        dataType: parsed.dataType as AnalysisResult['dataType'] || 'unknown',
         columnMappings: parsed.columnMappings || {},
         confidence: Math.max(0, Math.min(100, parsed.confidence || 0)),
         suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
@@ -150,7 +156,7 @@ Rules:
     }
   }
 
-  private getFallbackAnalysis(csvData: any[]): AnalysisResult {
+  private getFallbackAnalysis(csvData: Record<string, unknown>[]): AnalysisResult {
     const headers = Object.keys(csvData[0] || {});
     
     // Simple heuristic-based analysis as fallback

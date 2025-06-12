@@ -9,14 +9,14 @@ export interface ValidationError {
   row: number;
   field: string;
   message: string;
-  value: any;
+  value: unknown;
 }
 
 export interface ValidationWarning {
   row: number;
   field: string;
   message: string;
-  value: any;
+  value: unknown;
 }
 
 export interface ValidationStats {
@@ -28,7 +28,7 @@ export interface ValidationStats {
 }
 
 export class ImportValidator {
-  static validateTransactions(data: any[], mappings: Record<string, string>): ValidationResult {
+  static validateTransactions(data: Record<string, unknown>[], mappings: Record<string, string>): ValidationResult {
     const result: ValidationResult = {
       isValid: true,
       errors: [],
@@ -43,7 +43,6 @@ export class ImportValidator {
     };
 
     const requiredFields = ['date', 'amount', 'payee', 'account'];
-    const optionalFields = ['category', 'notes', 'type'];
 
     data.forEach((row, index) => {
       const rowNum = index + 1;
@@ -52,7 +51,7 @@ export class ImportValidator {
       // Check required fields
       requiredFields.forEach(field => {
         const csvColumn = Object.keys(mappings).find(key => mappings[key] === field);
-        if (!csvColumn || !row[csvColumn] || row[csvColumn].toString().trim() === '') {
+        if (!csvColumn || !row[csvColumn] || row[csvColumn]?.toString().trim() === '') {
           result.errors.push({
             row: rowNum,
             field: field,
@@ -66,7 +65,7 @@ export class ImportValidator {
       // Validate specific fields if they exist
       const amountColumn = Object.keys(mappings).find(key => mappings[key] === 'amount');
       if (amountColumn && row[amountColumn]) {
-        const amount = parseFloat(row[amountColumn].toString());
+        const amount = parseFloat(row[amountColumn]?.toString() || '');
         if (isNaN(amount)) {
           result.errors.push({
             row: rowNum,
@@ -87,7 +86,7 @@ export class ImportValidator {
 
       const dateColumn = Object.keys(mappings).find(key => mappings[key] === 'date');
       if (dateColumn && row[dateColumn]) {
-        const date = new Date(row[dateColumn]);
+        const date = new Date(row[dateColumn] as string);
         if (isNaN(date.getTime())) {
           result.errors.push({
             row: rowNum,
@@ -123,8 +122,8 @@ export class ImportValidator {
       // Validate payee
       const payeeColumn = Object.keys(mappings).find(key => mappings[key] === 'payee');
       if (payeeColumn && row[payeeColumn]) {
-        const payee = row[payeeColumn].toString().trim();
-        if (payee.length < 2) {
+        const payee = row[payeeColumn]?.toString().trim();
+        if (payee && payee.length < 2) {
           result.warnings.push({
             row: rowNum,
             field: 'payee',
@@ -132,7 +131,7 @@ export class ImportValidator {
             value: payee
           });
         }
-        if (payee.length > 100) {
+        if (payee && payee.length > 100) {
           result.warnings.push({
             row: rowNum,
             field: 'payee',
@@ -157,7 +156,7 @@ export class ImportValidator {
     return result;
   }
 
-  static validateAccounts(data: any[], mappings: Record<string, string>): ValidationResult {
+  static validateAccounts(data: Record<string, unknown>[], mappings: Record<string, string>): ValidationResult {
     const result: ValidationResult = {
       isValid: true,
       errors: [],
@@ -182,7 +181,7 @@ export class ImportValidator {
       // Check required fields
       requiredFields.forEach(field => {
         const csvColumn = Object.keys(mappings).find(key => mappings[key] === field);
-        if (!csvColumn || !row[csvColumn] || row[csvColumn].toString().trim() === '') {
+        if (!csvColumn || !row[csvColumn] || row[csvColumn]?.toString().trim() === '') {
           result.errors.push({
             row: rowNum,
             field: field,
@@ -196,8 +195,8 @@ export class ImportValidator {
       // Validate account type
       const typeColumn = Object.keys(mappings).find(key => mappings[key] === 'type');
       if (typeColumn && row[typeColumn]) {
-        const accountType = row[typeColumn].toString().trim();
-        if (!validAccountTypes.includes(accountType)) {
+        const accountType = row[typeColumn]?.toString().trim();
+        if (accountType && !validAccountTypes.includes(accountType)) {
           result.warnings.push({
             row: rowNum,
             field: 'type',
@@ -210,7 +209,7 @@ export class ImportValidator {
       // Validate currency
       const currencyColumn = Object.keys(mappings).find(key => mappings[key] === 'currency');
       if (currencyColumn && row[currencyColumn]) {
-        const currency = row[currencyColumn].toString().trim().toUpperCase();
+        const currency = row[currencyColumn]?.toString().trim().toUpperCase();
         if (!validCurrencies.includes(currency)) {
           result.warnings.push({
             row: rowNum,
@@ -224,7 +223,7 @@ export class ImportValidator {
       // Validate balance if provided
       const balanceColumn = Object.keys(mappings).find(key => mappings[key] === 'balance');
       if (balanceColumn && row[balanceColumn]) {
-        const balance = parseFloat(row[balanceColumn].toString());
+        const balance = parseFloat(row[balanceColumn]?.toString() || '');
         if (isNaN(balance)) {
           result.errors.push({
             row: rowNum,
@@ -239,8 +238,8 @@ export class ImportValidator {
       // Validate account name
       const nameColumn = Object.keys(mappings).find(key => mappings[key] === 'name');
       if (nameColumn && row[nameColumn]) {
-        const name = row[nameColumn].toString().trim();
-        if (name.length < 2) {
+        const name = row[nameColumn]?.toString().trim();
+        if (name && name.length < 2) {
           result.errors.push({
             row: rowNum,
             field: 'name',
@@ -249,7 +248,7 @@ export class ImportValidator {
           });
           rowValid = false;
         }
-        if (name.length > 50) {
+        if (name && name.length > 50) {
           result.warnings.push({
             row: rowNum,
             field: 'name',
@@ -274,7 +273,7 @@ export class ImportValidator {
     return result;
   }
 
-  static validateCategories(data: any[], mappings: Record<string, string>): ValidationResult {
+  static validateCategories(data: Record<string, unknown>[], mappings: Record<string, string>): ValidationResult {
     const result: ValidationResult = {
       isValid: true,
       errors: [],
@@ -298,7 +297,7 @@ export class ImportValidator {
       // Check required fields
       requiredFields.forEach(field => {
         const csvColumn = Object.keys(mappings).find(key => mappings[key] === field);
-        if (!csvColumn || !row[csvColumn] || row[csvColumn].toString().trim() === '') {
+        if (!csvColumn || !row[csvColumn] || row[csvColumn]?.toString().trim() === '') {
           result.errors.push({
             row: rowNum,
             field: field,
@@ -312,8 +311,8 @@ export class ImportValidator {
       // Validate category type
       const typeColumn = Object.keys(mappings).find(key => mappings[key] === 'type');
       if (typeColumn && row[typeColumn]) {
-        const categoryType = row[typeColumn].toString().trim();
-        if (!validTypes.includes(categoryType)) {
+        const categoryType = row[typeColumn]?.toString().trim();
+        if (categoryType && !validTypes.includes(categoryType)) {
           result.errors.push({
             row: rowNum,
             field: 'type',
@@ -327,8 +326,8 @@ export class ImportValidator {
       // Validate category name
       const nameColumn = Object.keys(mappings).find(key => mappings[key] === 'name');
       if (nameColumn && row[nameColumn]) {
-        const name = row[nameColumn].toString().trim();
-        if (name.length < 2) {
+        const name = row[nameColumn]?.toString().trim();
+        if (name && name.length < 2) {
           result.errors.push({
             row: rowNum,
             field: 'name',
@@ -337,7 +336,7 @@ export class ImportValidator {
           });
           rowValid = false;
         }
-        if (name.length > 30) {
+        if (name && name.length > 30) {
           result.warnings.push({
             row: rowNum,
             field: 'name',
@@ -362,7 +361,7 @@ export class ImportValidator {
     return result;
   }
 
-  static validateData(data: any[], mappings: Record<string, string>, dataType: string): ValidationResult {
+  static validateData(data: Record<string, unknown>[], mappings: Record<string, string>, dataType: string): ValidationResult {
     switch (dataType) {
       case 'transactions':
         return this.validateTransactions(data, mappings);

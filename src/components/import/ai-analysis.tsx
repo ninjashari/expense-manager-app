@@ -1,32 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Brain, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { AnalysisResult } from '@/lib/ai-csv-analyzer';
 
 interface AIAnalysisProps {
   importId: string;
-  onAnalysisSuccess: (analysis: any) => void;
+  onAnalysisSuccess: (analysis: AnalysisResult) => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
 }
 
 export function AIAnalysis({ importId, onAnalysisSuccess, isLoading, setIsLoading }: AIAnalysisProps) {
-  const [analysis, setAnalysis] = useState<any>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
 
-  useEffect(() => {
-    if (importId && !analysis) {
-      startAnalysis();
-    }
-  }, [importId, analysis]);
-
-  const startAnalysis = async () => {
+  const startAnalysis = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     setProgress(10);
@@ -76,7 +71,13 @@ export function AIAnalysis({ importId, onAnalysisSuccess, isLoading, setIsLoadin
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [importId, setIsLoading, onAnalysisSuccess]);
+
+  useEffect(() => {
+    if (importId && !analysis) {
+      startAnalysis();
+    }
+  }, [importId, analysis, startAnalysis]);
 
   const retryAnalysis = () => {
     setAnalysis(null);
@@ -133,12 +134,12 @@ export function AIAnalysis({ importId, onAnalysisSuccess, isLoading, setIsLoadin
         </div>
 
         <div className="text-left bg-muted/50 rounded-lg p-4 max-w-md mx-auto">
-          <h4 className="font-medium text-sm mb-2">What we're analyzing:</h4>
+          <h4 className="font-medium text-sm mb-2">What we are analyzing:</h4>
           <ul className="text-xs text-muted-foreground space-y-1">
-            <li>• Data type detection</li>
-            <li>• Column mapping suggestions</li>
-            <li>• Data quality assessment</li>
-            <li>• Format validation</li>
+            <li>&bull; Data type detection</li>
+            <li>&bull; Column mapping suggestions</li>
+            <li>&bull; Data quality assessment</li>
+            <li>&bull; Format validation</li>
           </ul>
         </div>
       </div>
@@ -201,7 +202,7 @@ export function AIAnalysis({ importId, onAnalysisSuccess, isLoading, setIsLoadin
             {analysis.suggestions.map((suggestion: string, index: number) => (
               <li key={index} className="flex items-start space-x-2 text-sm">
                 <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                                 <span>{String(suggestion)}</span>
+                <span>{String(suggestion)}</span>
               </li>
             ))}
           </ul>
@@ -215,8 +216,8 @@ export function AIAnalysis({ importId, onAnalysisSuccess, isLoading, setIsLoadin
           <AlertDescription>
             <strong>Potential Issues:</strong>
             <ul className="mt-2 space-y-1">
-                             {analysis.warnings.map((warning: string, index: number) => (
-                 <li key={index} className="text-sm">• {String(warning)}</li>
+              {analysis.warnings.map((warning: string, index: number) => (
+                <li key={index} className="text-sm">&bull; {String(warning)}</li>
               ))}
             </ul>
           </AlertDescription>

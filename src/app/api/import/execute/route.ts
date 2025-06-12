@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
 }
 
 // Import transactions
-async function importTransactions(data: any[], mappings: Record<string, string>, userId: string) {
+async function importTransactions(data: Record<string, unknown>[], mappings: Record<string, string>, userId: string) {
   const results = { successCount: 0, errorCount: 0, errors: [] as string[] };
   
   // Get all user accounts and categories for reference
@@ -126,7 +126,7 @@ async function importTransactions(data: any[], mappings: Record<string, string>,
     
     try {
       // Map CSV data to transaction fields
-      const transactionData: any = {};
+      const transactionData: Record<string, unknown> = {};
       
       Object.entries(mappings).forEach(([csvColumn, dbField]) => {
         if (row[csvColumn] !== undefined) {
@@ -150,7 +150,7 @@ async function importTransactions(data: any[], mappings: Record<string, string>,
       }
 
       // Parse date
-      const date = new Date(transactionData.date);
+      const date = new Date(transactionData.date as string);
       if (isNaN(date.getTime())) {
         results.errors.push(`Row ${i + 1}: Invalid date: ${transactionData.date}`);
         results.errorCount++;
@@ -206,14 +206,14 @@ async function importTransactions(data: any[], mappings: Record<string, string>,
 }
 
 // Import accounts
-async function importAccounts(data: any[], mappings: Record<string, string>, userId: string) {
+async function importAccounts(data: Record<string, unknown>[], mappings: Record<string, string>, userId: string) {
   const results = { successCount: 0, errorCount: 0, errors: [] as string[] };
 
   for (let i = 0; i < data.length; i++) {
     const row = data[i];
     
     try {
-      const accountData: any = {};
+      const accountData: Record<string, unknown> = {};
       
       Object.entries(mappings).forEach(([csvColumn, dbField]) => {
         if (row[csvColumn] !== undefined) {
@@ -273,14 +273,14 @@ async function importAccounts(data: any[], mappings: Record<string, string>, use
 }
 
 // Import categories
-async function importCategories(data: any[], mappings: Record<string, string>, userId: string) {
+async function importCategories(data: Record<string, unknown>[], mappings: Record<string, string>, userId: string) {
   const results = { successCount: 0, errorCount: 0, errors: [] as string[] };
 
   for (let i = 0; i < data.length; i++) {
     const row = data[i];
     
     try {
-      const categoryData: any = {};
+      const categoryData: Record<string, unknown> = {};
       
       Object.entries(mappings).forEach(([csvColumn, dbField]) => {
         if (row[csvColumn] !== undefined) {

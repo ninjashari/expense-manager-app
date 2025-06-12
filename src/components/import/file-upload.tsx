@@ -8,8 +8,20 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FileText, Upload, X, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface UploadSuccessData {
+  success: boolean;
+  importId: string;
+  fileName: string;
+  fileSize: number;
+  totalRows: number;
+  detectedColumns: string[];
+  previewData: Record<string, unknown>[];
+  message: string;
+  file: File;
+}
+
 interface FileUploadProps {
-  onUploadSuccess: (data: any) => void;
+  onUploadSuccess: (data: UploadSuccessData) => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
 }
@@ -74,7 +86,10 @@ export function FileUpload({ onUploadSuccess, isLoading, setIsLoading }: FileUpl
       }
 
       toast.success('File uploaded successfully!');
-      onUploadSuccess(result);
+      onUploadSuccess({
+        ...result,
+        file: selectedFile
+      });
 
     } catch (error) {
       console.error('Upload error:', error);

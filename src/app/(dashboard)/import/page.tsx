@@ -10,16 +10,25 @@ import { CSVPreview } from '@/components/import/csv-preview';
 import { ImportConfirmation } from '@/components/import/import-confirmation';
 import { ImportHistory } from '@/components/import/import-history';
 import { CheckCircle, Upload, Brain, Eye, Database, History } from 'lucide-react';
+import { AnalysisResult } from '@/lib/ai-csv-analyzer';
 
 type ImportStep = 'upload' | 'analyze' | 'preview' | 'confirm' | 'history';
 
 interface ImportData {
   file?: File;
   importId?: string;
-  analysis?: any;
+  analysis?: AnalysisResult;
   detectedColumns?: string[];
-  previewData?: any[];
+  previewData?: Record<string, unknown>[];
   totalRows?: number;
+}
+
+interface FileUploadData {
+  file: File;
+  importId: string;
+  detectedColumns: string[];
+  previewData: Record<string, unknown>[];
+  totalRows: number;
 }
 
 const STEPS = [
@@ -46,7 +55,7 @@ export default function ImportPage() {
     return ((currentIndex + 1) / STEPS.length) * 100;
   };
 
-  const handleFileUploaded = (data: any) => {
+  const handleFileUploaded = (data: FileUploadData) => {
     setImportData(prev => ({
       ...prev,
       file: data.file,
@@ -58,7 +67,7 @@ export default function ImportPage() {
     setCurrentStep('analyze');
   };
 
-  const handleAnalysisComplete = (analysis: any) => {
+  const handleAnalysisComplete = (analysis: AnalysisResult) => {
     setImportData(prev => ({
       ...prev,
       analysis
@@ -71,7 +80,7 @@ export default function ImportPage() {
     setCurrentStep('confirm');
   };
 
-  const handleImportComplete = (results: any) => {
+  const handleImportComplete = () => {
     // Reset for next import
     setImportData({});
     setColumnMappings({});
@@ -173,7 +182,6 @@ export default function ImportPage() {
             importData={importData}
             onConfirm={handlePreviewConfirm}
             isLoading={isLoading}
-            setIsLoading={setIsLoading}
           />
         );
 

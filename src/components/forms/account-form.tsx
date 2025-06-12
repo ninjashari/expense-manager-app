@@ -50,7 +50,6 @@ interface AccountFormProps {
     id?: string;
     defaultValues?: AccountFormValues;
     onSubmit: (values: AccountFormValues) => void;
-    onDelete?: () => void;
     disabled?: boolean;
 }
 
@@ -58,7 +57,6 @@ export function AccountForm({
     id,
     defaultValues,
     onSubmit,
-    onDelete,
     disabled,
 }: AccountFormProps) {
     const { data: session } = useSession();
@@ -80,10 +78,6 @@ export function AccountForm({
 
     const handleSubmit = (values: AccountFormValues) => {
         onSubmit(values);
-    };
-
-    const handleDelete = () => {
-        onDelete?.();
     };
 
     const selectedCurrency = form.watch('currency');

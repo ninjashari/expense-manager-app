@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,12 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CheckCircle, AlertCircle, ArrowDown, RefreshCw, Eye, BarChart3 } from 'lucide-react';
 import { ImportValidator, ValidationResult } from '@/lib/import-validator';
 import { toast } from 'sonner';
+import { AnalysisResult } from '@/lib/ai-csv-analyzer';
+
+interface ImportData {
+  importId?: string;
+  detectedColumns?: string[];
+  previewData?: Record<string, unknown>[];
+  analysis?: AnalysisResult;
+}
 
 interface CSVPreviewProps {
-  importData: any;
+  importData: ImportData;
   onConfirm: (mappings: Record<string, string>) => void;
   isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
 }
 
 const DATABASE_FIELDS = {
@@ -33,31 +40,22 @@ const DATABASE_FIELDS = {
   }
 };
 
-export function CSVPreview({ importData, onConfirm, isLoading, setIsLoading }: CSVPreviewProps) {
+export function CSVPreview({ importData, onConfirm, isLoading }: CSVPreviewProps) {
   const [columnMappings, setColumnMappings] = useState<Record<string, string>>({});
   const [validation, setValidation] = useState<ValidationResult | null>(null);
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
 
   const dataType = importData.analysis?.dataType || 'unknown';
   const csvColumns = importData.detectedColumns || [];
-  const aiMappings = importData.analysis?.columnMappings || {};
+  
+  const aiMappings = useMemo(() => 
+    importData.analysis?.columnMappings || {}, 
+    [importData.analysis?.columnMappings]
+  );
 
-  useEffect(() => {
-    // Initialize with AI mappings
-    setColumnMappings(aiMappings);
-    generatePreview(aiMappings);
-  }, [importData]);
-
-  useEffect(() => {
-    if (Object.keys(columnMappings).length > 0) {
-      generatePreview(columnMappings);
-      validateData(columnMappings);
-    }
-  }, [columnMappings]);
-
-  const generatePreview = async (mappings: Record<string, string>) => {
+  const generatePreview = useCallback(async (mappings: Record<string, string>) => {
     try {
       const response = await fetch('/api/import/preview', {
         method: 'POST',
@@ -77,9 +75,9 @@ export function CSVPreview({ importData, onConfirm, isLoading, setIsLoading }: C
     } catch (error) {
       console.error('Preview generation failed:', error);
     }
-  };
+  }, [importData.importId]);
 
-  const validateData = (mappings: Record<string, string>) => {
+  const validateData = useCallback((mappings: Record<string, string>) => {
     if (!importData.previewData || dataType === 'unknown') return;
     
     const validationResult = ImportValidator.validateData(
@@ -88,7 +86,20 @@ export function CSVPreview({ importData, onConfirm, isLoading, setIsLoading }: C
       dataType
     );
     setValidation(validationResult);
-  };
+  }, [importData.previewData, dataType]);
+
+  useEffect(() => {
+    // Initialize with AI mappings
+    setColumnMappings(aiMappings);
+    generatePreview(aiMappings);
+  }, [importData, aiMappings, generatePreview]);
+
+  useEffect(() => {
+    if (Object.keys(columnMappings).length > 0) {
+      generatePreview(columnMappings);
+      validateData(columnMappings);
+    }
+  }, [columnMappings, generatePreview, validateData]);
 
   const handleMappingChange = (csvColumn: string, dbField: string) => {
     const newMappings = { ...columnMappings };
@@ -181,7 +192,7 @@ export function CSVPreview({ importData, onConfirm, isLoading, setIsLoading }: C
                 <div className="min-w-0 flex-1">
                   <p className="font-medium truncate">{column}</p>
                   <p className="text-sm text-muted-foreground">
-                    Sample: {importData.previewData?.[0]?.[column] || 'No data'}
+                    Sample: {String(importData.previewData?.[0]?.[column] || 'No data')}
                   </p>
                 </div>
                 <ArrowDown className="h-4 w-4 text-muted-foreground" />
@@ -194,7 +205,7 @@ export function CSVPreview({ importData, onConfirm, isLoading, setIsLoading }: C
                       <SelectValue placeholder="Select field" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Don't map</SelectItem>
+                      <SelectItem value="none">Do not map</SelectItem>
                       {getRequiredFields().map(field => (
                         <SelectItem key={field} value={field}>
                           <span className="font-medium">{field}</span>
@@ -284,7 +295,7 @@ export function CSVPreview({ importData, onConfirm, isLoading, setIsLoading }: C
                       <TableRow key={index}>
                         {getAllFields().map(field => (
                           <TableCell key={field}>
-                            {row[field] || <span className="text-muted-foreground">—</span>}
+                            {row[field] ? String(row[field]) : <span className="text-muted-foreground">—</span>}
                           </TableCell>
                         ))}
                       </TableRow>

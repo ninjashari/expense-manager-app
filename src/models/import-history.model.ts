@@ -5,7 +5,7 @@ export interface IImportHistory extends Document {
   userId: Types.ObjectId;
   fileName: string;
   fileSize: number;
-  originalData: any[];
+  originalData: Record<string, unknown>[];
   status: 'pending' | 'analyzing' | 'ready' | 'importing' | 'completed' | 'failed';
   totalRows: number;
   importedRows: number;
@@ -20,7 +20,7 @@ export interface IImportHistory extends Document {
     detectedColumns: string[];
   };
   userConfirmedMappings?: Record<string, string>;
-  previewData: any[];
+  previewData: Record<string, unknown>[];
   createdAt: Date;
   completedAt?: Date;
 }

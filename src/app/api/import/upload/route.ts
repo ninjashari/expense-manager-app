@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     // Read and parse CSV file
     const fileContent = await file.text();
     
-    return new Promise((resolve) => {
+    return new Promise<NextResponse>((resolve) => {
       Papa.parse(fileContent, {
         header: true,
         skipEmptyLines: true,
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
             }, { status: 500 }));
           }
         },
-        error: (error: any) => {
+        error: (error: Error) => {
           console.error('Papa Parse error:', error);
           resolve(NextResponse.json({ 
             message: 'Error parsing CSV file',

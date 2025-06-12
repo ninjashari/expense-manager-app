@@ -11,6 +11,7 @@ interface AccountWithConversion {
     currency: string;
     convertedBalance: number;
     exchangeRate: number;
+    creditLimit?: number; // Optional field for credit card accounts
 }
 
 interface Summary {

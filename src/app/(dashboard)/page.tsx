@@ -312,15 +312,16 @@ const DashboardPage = () => {
                             {summary.accounts
                                 ?.filter(account => account.type === 'Credit Card' && account.creditLimit)
                                 .map(account => {
-                                    const utilization = Math.abs(account.balance) / account.creditLimit * 100;
-                                    const isOverLimit = Math.abs(account.balance) > account.creditLimit;
+                                    const creditLimit = account.creditLimit!; // Non-null assertion since we filtered for creditLimit
+                                    const utilization = Math.abs(account.balance) / creditLimit * 100;
+                                    const isOverLimit = Math.abs(account.balance) > creditLimit;
                                     
                                     return (
                                         <div key={account._id} className="space-y-2">
                                             <div className="flex justify-between items-center">
                                                 <span className="font-medium">{account.name}</span>
                                                 <span className="text-sm text-muted-foreground">
-                                                    {formatCurrency(Math.abs(account.balance) / 100, account.currency)} / {formatCurrency(account.creditLimit / 100, account.currency)}
+                                                    {formatCurrency(Math.abs(account.balance) / 100, account.currency)} / {formatCurrency(creditLimit / 100, account.currency)}
                                                 </span>
                                             </div>
                                             <div className="w-full bg-gray-200 rounded-full h-2">

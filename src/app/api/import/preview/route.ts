@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
     const finalMappings = importRecord.userConfirmedMappings || importRecord.aiAnalysis.columnMappings;
 
     // Generate preview data with mapped fields
-    const previewData = importRecord.originalData.slice(0, 10).map((row: any) => {
-      const mappedRow: any = {};
+    const previewData = importRecord.originalData.slice(0, 10).map((row: Record<string, unknown>) => {
+      const mappedRow: Record<string, unknown> = {};
       
       // Apply column mappings
       Object.entries(finalMappings).forEach(([csvColumn, dbField]) => {
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
 }
 
 // Validation helper function
-function validateMappedData(data: any[], dataType: string) {
+function validateMappedData(data: Record<string, unknown>[], dataType: string) {
   const results = {
     isValid: true,
     errors: [] as string[],

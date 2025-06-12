@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,15 +9,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
+  Clock, 
   CheckCircle, 
   AlertCircle, 
-  Clock, 
   Trash2, 
   Eye, 
   RefreshCw,
   Calendar,
-  FileText,
-  Download
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -42,6 +41,28 @@ interface ImportRecord {
   importErrors?: string[];
 }
 
+interface ImportDetailsData {
+  _id: string;
+  fileName: string;
+  fileSize: number;
+  status: string;
+  totalRows: number;
+  importedRows: number;
+  failedRows: number;
+  createdAt: string;
+  completedAt?: string;
+  aiAnalysis: {
+    dataType: string;
+    confidence: number;
+    columnMappings: Record<string, string>;
+    suggestions: string[];
+    warnings: string[];
+  };
+  userConfirmedMappings?: Record<string, string>;
+  importErrors: string[];
+  previewData: Record<string, unknown>[];
+}
+
 const STATUS_CONFIG = {
   pending: { color: 'bg-gray-500', label: 'Pending', icon: Clock },
   analyzing: { color: 'bg-blue-500', label: 'Analyzing', icon: RefreshCw },
@@ -57,18 +78,14 @@ export function ImportHistory({ onNewImport }: ImportHistoryProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedImport, setSelectedImport] = useState<ImportRecord | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
-  const [detailsData, setDetailsData] = useState<any>(null);
+  const [detailsData, setDetailsData] = useState<ImportDetailsData | null>(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
     totalCount: 0
   });
 
-  useEffect(() => {
-    fetchImports();
-  }, [statusFilter, pagination.currentPage]);
-
-  const fetchImports = async () => {
+  const fetchImports = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         page: pagination.currentPage.toString(),
@@ -89,7 +106,11 @@ export function ImportHistory({ onNewImport }: ImportHistoryProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, pagination.currentPage]);
+
+  useEffect(() => {
+    fetchImports();
+  }, [fetchImports]);
 
   const fetchImportDetails = async (importId: string) => {
     setDetailsLoading(true);
@@ -212,7 +233,7 @@ export function ImportHistory({ onNewImport }: ImportHistoryProps) {
             <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-medium mb-2">No import history</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              You haven't imported any CSV files yet.
+              You have not imported any CSV files yet.
             </p>
             <Button onClick={onNewImport}>
               Start Your First Import
@@ -407,7 +428,7 @@ export function ImportHistory({ onNewImport }: ImportHistoryProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
-                    disabled={!pagination.hasPrevPage}
+                    disabled={pagination.currentPage <= 1}
                   >
                     Previous
                   </Button>
@@ -415,7 +436,7 @@ export function ImportHistory({ onNewImport }: ImportHistoryProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
-                    disabled={!pagination.hasNextPage}
+                    disabled={pagination.currentPage >= pagination.totalPages}
                   >
                     Next
                   </Button>

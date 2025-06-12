@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
 
     // Build query
-    const query: any = { userId: session.user.id };
+    const query: { userId: string; status?: string } = { userId: session.user.id };
     if (status) {
       query.status = status;
     }

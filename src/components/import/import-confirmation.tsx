@@ -8,19 +8,32 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, AlertCircle, Clock, Database, FileText, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { AnalysisResult } from '@/lib/ai-csv-analyzer';
+
+interface ImportData {
+  importId?: string;
+  totalRows?: number;
+  analysis?: AnalysisResult;
+}
+
+interface ImportResults {
+  importedRows: number;
+  failedRows: number;
+  errors: string[];
+}
 
 interface ImportConfirmationProps {
-  importData: any;
+  importData: ImportData;
   columnMappings: Record<string, string>;
   onBack: () => void;
-  onComplete: (results: any) => void;
+  onComplete: (results: ImportResults) => void;
 }
 
 export function ImportConfirmation({ importData, columnMappings, onBack, onComplete }: ImportConfirmationProps) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<ImportResults | null>(null);
 
   const dataType = importData.analysis?.dataType || 'unknown';
   const totalRows = importData.totalRows || 0;
@@ -159,7 +172,7 @@ export function ImportConfirmation({ importData, columnMappings, onBack, onCompl
       <div className="text-center">
         <h3 className="text-xl font-semibold mb-2">Ready to Import</h3>
         <p className="text-muted-foreground">
-          Review the import summary and click "Start Import" to begin
+          Review the import summary and click &quot;Start Import&quot; to begin
         </p>
       </div>
 
@@ -242,7 +255,7 @@ export function ImportConfirmation({ importData, columnMappings, onBack, onCompl
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Please don't close this window while the import is in progress.
+                <strong>Important:</strong> Please do not close this window while the import is in progress.
               </AlertDescription>
             </Alert>
           </CardContent>
