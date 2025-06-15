@@ -1,0 +1,1216 @@
+openapi: 3.0.3
+info:
+  title: Expense Manager API
+  description: |
+    A comprehensive personal finance management API that provides endpoints for managing accounts, 
+    transactions, categories, budgets, and financial reports with multi-currency support.
+    
+    ## Features
+    - 🔐 Secure authentication with NextAuth.js
+    - 💰 Multi-currency support with real-time exchange rates
+    - 📊 Comprehensive financial tracking and reporting
+    - 🤖 AI-powered CSV import functionality
+    - 📈 Budget management and tracking
+    
+    ## Authentication
+    All endpoints require authentication via session cookies. Users must be logged in to access any API endpoints.
+    
+    ## Error Handling
+    The API uses standardized error responses with consistent structure:
+    ```json
+    {
+      "success": false,
+      "error": "Error message",
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "requestId": "req_1234567890_abcdef"
+    }
+    ```
+    
+  version: 1.0.0
+  contact:
+    name: Expense Manager API Support
+    email: support@expensemanager.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://your-domain.com/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and registration
+  - name: Users
+    description: User profile and settings management
+  - name: Accounts
+    description: Financial account management
+  - name: Categories
+    description: Transaction category management
+  - name: Transactions
+    description: Financial transaction management
+  - name: Budgets
+    description: Budget management and tracking
+  - name: Reports
+    description: Financial reports and analytics
+  - name: Import
+    description: CSV import functionality
+  - name: Summary
+    description: Dashboard summary data
+
+paths:
+  # Authentication Endpoints
+  /register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Creates a new user account with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  example: "John Doe"
+                email:
+                  type: string
+                  format: email
+                  example: "john@example.com"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "securepassword123"
+                currency:
+                  type: string
+                  default: "INR"
+                  example: "USD"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # User Management
+  /user:
+    get:
+      tags:
+        - Users
+      summary: Get current user profile
+      description: Retrieves the authenticated user's profile information
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    put:
+      tags:
+        - Users
+      summary: Update user profile
+      description: Updates the authenticated user's profile information
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - currency
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  example: "John Doe"
+                currency:
+                  type: string
+                  minLength: 2
+                  example: "USD"
+      responses:
+        '200':
+          description: User profile updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # Account Management
+  /accounts:
+    get:
+      tags:
+        - Accounts
+      summary: Get all user accounts
+      description: Retrieves all financial accounts for the authenticated user
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Accounts retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Accounts
+      summary: Create a new account
+      description: Creates a new financial account for the authenticated user
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountInput'
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /accounts/{id}:
+    get:
+      tags:
+        - Accounts
+      summary: Get account by ID
+      description: Retrieves a specific account by its ID
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Account ID
+      responses:
+        '200':
+          description: Account retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Accounts
+      summary: Update account
+      description: Updates an existing account
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Account ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountUpdateInput'
+      responses:
+        '200':
+          description: Account updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Accounts
+      summary: Delete account
+      description: Deletes an existing account
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Account ID
+      responses:
+        '200':
+          description: Account deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # Category Management
+  /categories:
+    get:
+      tags:
+        - Categories
+      summary: Get all categories
+      description: Retrieves all categories for the authenticated user
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+
+    post:
+      tags:
+        - Categories
+      summary: Create a new category
+      description: Creates a new transaction category
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '201':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Category'
+
+  /categories/{id}:
+    get:
+      tags:
+        - Categories
+      summary: Get category by ID
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Category'
+
+    put:
+      tags:
+        - Categories
+      summary: Update category
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateInput'
+      responses:
+        '200':
+          description: Category updated successfully
+
+    delete:
+      tags:
+        - Categories
+      summary: Delete category
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category deleted successfully
+
+  # Transaction Management
+  /transactions:
+    get:
+      tags:
+        - Transactions
+      summary: Get all transactions
+      description: Retrieves all transactions for the authenticated user with optional filtering
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: Number of items per page
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [Income, Expense, Transfer]
+          description: Filter by transaction type
+        - name: account
+          in: query
+          schema:
+            type: string
+          description: Filter by account ID
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category ID
+      responses:
+        '200':
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Transaction'
+
+    post:
+      tags:
+        - Transactions
+      summary: Create a new transaction
+      description: Creates a new financial transaction
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionInput'
+      responses:
+        '201':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Transaction'
+
+  /transactions/{id}:
+    get:
+      tags:
+        - Transactions
+      summary: Get transaction by ID
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transaction retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Transaction'
+
+  # Budget Management
+  /budgets:
+    get:
+      tags:
+        - Budgets
+      summary: Get all budgets
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Budgets retrieved successfully
+
+    post:
+      tags:
+        - Budgets
+      summary: Create a new budget
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetInput'
+      responses:
+        '201':
+          description: Budget created successfully
+
+  # Reports
+  /reports/expenses-by-category:
+    get:
+      tags:
+        - Reports
+      summary: Get expenses by category report
+      description: Retrieves expense breakdown by category for a specified date range
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Start date for the report
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: End date for the report
+      responses:
+        '200':
+          description: Report generated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              description: Category name
+                            value:
+                              type: number
+                              description: Total amount in user's currency
+
+  # Summary
+  /summary:
+    get:
+      tags:
+        - Summary
+      summary: Get dashboard summary
+      description: Retrieves comprehensive dashboard data including balances, recent transactions, and currency conversion information
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Summary data retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Summary'
+
+  # Import Functionality
+  /import/upload:
+    post:
+      tags:
+        - Import
+      summary: Upload CSV file for import
+      description: Uploads a CSV file and initiates AI analysis for field mapping
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file to upload
+      responses:
+        '200':
+          description: File uploaded and analyzed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ImportAnalysis'
+
+  /import/execute:
+    post:
+      tags:
+        - Import
+      summary: Execute CSV import
+      description: Executes the import process with confirmed field mappings
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                importId:
+                  type: string
+                  description: Import record ID from upload step
+                confirmedMappings:
+                  type: object
+                  description: User-confirmed field mappings
+      responses:
+        '200':
+          description: Import executed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ImportResult'
+
+  /import/history:
+    get:
+      tags:
+        - Import
+      summary: Get import history
+      description: Retrieves the history of CSV imports with pagination
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed]
+      responses:
+        '200':
+          description: Import history retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          imports:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ImportHistory'
+                          pagination:
+                            $ref: '#/components/schemas/PaginationMeta'
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: Session-based authentication using NextAuth.js
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation completed successfully"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-01T00:00:00.000Z"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Error message"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        currency:
+          type: string
+          example: "USD"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Account:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        userId:
+          type: string
+        name:
+          type: string
+          example: "Main Checking"
+        type:
+          type: string
+          enum: [Checking, Savings, Credit Card, Cash, Investment]
+          example: "Checking"
+        balance:
+          type: number
+          description: Balance in cents
+          example: 150000
+        currency:
+          type: string
+          example: "USD"
+        creditLimit:
+          type: number
+          nullable: true
+          description: Credit limit in cents (for credit cards)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AccountInput:
+      type: object
+      required:
+        - name
+        - type
+        - currency
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: "Main Checking"
+        type:
+          type: string
+          enum: [Checking, Savings, Credit Card, Cash, Investment]
+        currency:
+          type: string
+          minLength: 2
+          example: "USD"
+        creditLimit:
+          type: string
+          description: Credit limit (required for credit cards)
+
+    AccountUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [Checking, Savings, Credit Card, Cash, Investment]
+        currency:
+          type: string
+          minLength: 2
+        creditLimit:
+          type: string
+
+    Category:
+      type: object
+      properties:
+        _id:
+          type: string
+        userId:
+          type: string
+        name:
+          type: string
+          example: "Groceries"
+        type:
+          type: string
+          enum: [Income, Expense]
+          example: "Expense"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CategoryInput:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: "Groceries"
+        type:
+          type: string
+          enum: [Income, Expense]
+
+    CategoryUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [Income, Expense]
+
+    Transaction:
+      type: object
+      properties:
+        _id:
+          type: string
+        userId:
+          type: string
+        account:
+          $ref: '#/components/schemas/Account'
+        category:
+          $ref: '#/components/schemas/Category'
+        type:
+          type: string
+          enum: [Income, Expense, Transfer]
+        amount:
+          type: number
+          description: Amount in cents
+        date:
+          type: string
+          format: date-time
+        payee:
+          type: string
+          example: "Walmart"
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TransactionInput:
+      type: object
+      required:
+        - account
+        - type
+        - amount
+        - date
+        - payee
+      properties:
+        account:
+          type: string
+          description: Account ID
+        category:
+          type: string
+          description: Category ID (optional)
+        type:
+          type: string
+          enum: [Income, Expense, Transfer]
+        amount:
+          type: string
+          description: Amount as string
+        date:
+          type: string
+          format: date
+        payee:
+          type: string
+          minLength: 1
+        notes:
+          type: string
+
+    Budget:
+      type: object
+      properties:
+        _id:
+          type: string
+        userId:
+          type: string
+        categoryId:
+          type: string
+        amount:
+          type: number
+          description: Budget amount in cents
+        month:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BudgetInput:
+      type: object
+      required:
+        - categoryId
+        - amount
+        - month
+      properties:
+        categoryId:
+          type: string
+        amount:
+          type: number
+        month:
+          type: string
+          format: date
+
+    Summary:
+      type: object
+      properties:
+        totalBalance:
+          type: number
+          description: Total balance across all accounts in user's currency (cents)
+        totalIncome:
+          type: number
+          description: Total income for current month (cents)
+        totalExpense:
+          type: number
+          description: Total expenses for current month (cents)
+        recentTransactions:
+          type: array
+          items:
+            type: object
+        userCurrency:
+          type: string
+        accounts:
+          type: array
+          items:
+            type: object
+            allOf:
+              - $ref: '#/components/schemas/Account'
+              - type: object
+                properties:
+                  convertedBalance:
+                    type: number
+                    description: Balance converted to user's currency (cents)
+                  exchangeRate:
+                    type: number
+                    description: Exchange rate used for conversion
+        exchangeRates:
+          type: object
+          additionalProperties:
+            type: number
+        lastUpdated:
+          type: string
+          format: date-time
+        conversionStatus:
+          type: object
+          properties:
+            success:
+              type: boolean
+            failedCurrencies:
+              type: array
+              items:
+                type: string
+            errors:
+              type: array
+              items:
+                type: string
+
+    ImportAnalysis:
+      type: object
+      properties:
+        importId:
+          type: string
+        fileName:
+          type: string
+        totalRows:
+          type: number
+        aiAnalysis:
+          type: object
+          properties:
+            dataType:
+              type: string
+            confidence:
+              type: number
+            suggestedMappings:
+              type: object
+        previewData:
+          type: array
+          items:
+            type: object
+
+    ImportResult:
+      type: object
+      properties:
+        importedRows:
+          type: number
+        failedRows:
+          type: number
+        errors:
+          type: array
+          items:
+            type: string
+        message:
+          type: string
+
+    ImportHistory:
+      type: object
+      properties:
+        _id:
+          type: string
+        fileName:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        totalRows:
+          type: number
+        importedRows:
+          type: number
+        failedRows:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PaginationMeta:
+      type: object
+      properties:
+        currentPage:
+          type: number
+        totalPages:
+          type: number
+        totalCount:
+          type: number
+        hasNextPage:
+          type: boolean
+        hasPrevPage:
+          type: boolean
+        limit:
+          type: number
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "Authentication required"
+            timestamp: "2024-01-01T00:00:00.000Z"
+
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "Validation failed"
+            errors:
+              - field: "name"
+                message: "Name is required"
+            timestamp: "2024-01-01T00:00:00.000Z"
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "Resource not found"
+            timestamp: "2024-01-01T00:00:00.000Z" 
