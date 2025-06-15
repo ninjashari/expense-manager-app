@@ -1,162 +1,307 @@
-# Personal Expense Management App
+# 💰 Expense Manager - Personal Finance Management System
 
-This is a web application for personal expense management, built with the Next.js framework. It is inspired by the functionality of [Money Manager EX](https://github.com/moneymanagerex/moneymanagerex).
+A modern, full-stack expense management application built with Next.js 15, featuring multi-currency support, AI-powered CSV import, and comprehensive financial tracking capabilities.
 
-## Features
+## 🌟 Features
 
-- **Dashboard:** A summary view of your financial health, including balances and recent activity with multi-currency support.
-- **Accounts:** Manage multiple accounts (Checking, Savings, Credit Card, etc.) with credit card utilization tracking.
-- **Transactions:** Track income, expenses, and transfers between accounts.
-- **Categories:** Organize your transactions with customizable categories.
-- **Budgets:** Set monthly budgets for different spending categories.
-- **Reports:** Visualize your financial data with charts and reports.
-- **🆕 AI-Powered CSV Import:** Intelligent CSV file analysis and import with automatic column mapping.
-- **🆕 Multi-Currency Support:** Handle multiple currencies with automatic conversion rates.
-- **🆕 Import History:** Track and manage your CSV import history with detailed analytics.
+### Core Functionality
+- **🔐 Secure Authentication** - NextAuth.js with credential-based login
+- **💳 Account Management** - Support for multiple account types (Checking, Savings, Credit Card, Cash, Investment)
+- **📊 Transaction Tracking** - Comprehensive income, expense, and transfer management
+- **🏷️ Category Management** - Customizable income and expense categories
+- **💰 Multi-Currency Support** - Real-time exchange rates with intelligent caching
+- **📈 Budget Management** - Set and track monthly spending limits
+- **📊 Financial Reports** - Visual analytics and expense breakdowns
+- **📤 CSV Import** - AI-powered transaction import with smart mapping
 
-## Tech Stack
+### Advanced Features
+- **🤖 AI-Powered Import** - Intelligent CSV analysis and field mapping
+- **⚡ Real-time Updates** - Optimistic updates with TanStack Query
+- **🌍 Multi-Currency Dashboard** - Unified view across different currencies
+- **📱 Responsive Design** - Mobile-first approach with Tailwind CSS
+- **🔄 Offline Support** - Cached data for improved performance
+- **🛡️ Security Headers** - Production-ready security configurations
 
-- **Framework:** [Next.js](https://nextjs.org/) (App Router)
-- **Database:** [MongoDB](https://www.mongodb.com/)
-- **UI:** [Shadcn/UI](https://ui.shadcn.com/) & [Tailwind CSS](https://tailwindcss.com/)
-- **Authentication:** [NextAuth.js](https://next-auth.js.org/)
-- **ORM:** [Mongoose](https://mongoosejs.com/)
-- **Language:** [TypeScript](https://www.typescriptlang.org/)
-- **AI Analysis:** [Puter.js](https://puter.com/) (Free AI with robust fallback)
-- **State Management:** [Zustand](https://zustand-demo.pmnd.rs/)
-- **Data Fetching:** [TanStack Query](https://tanstack.com/query)
+## 🚀 Technology Stack
 
-## Getting Started
+### Frontend
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + Shadcn/UI
+- **State Management**: TanStack Query (React Query)
+- **Forms**: React Hook Form + Zod validation
+- **Charts**: Recharts
+- **Icons**: Lucide React
 
-### Prerequisites
+### Backend
+- **Runtime**: Node.js
+- **Database**: MongoDB with Mongoose ODM
+- **Authentication**: NextAuth.js
+- **Validation**: Zod
+- **File Processing**: PapaParse (CSV)
+- **Currency Conversion**: ExchangeRate-API
 
-- Node.js (v18 or later)
-- npm
-- A MongoDB database (you can get a free one from [MongoDB Atlas](https://www.mongodb.com/atlas/database))
+### Development & Deployment
+- **Package Manager**: npm
+- **Linting**: ESLint + TypeScript
+- **Build Tool**: Next.js built-in bundler
+- **Deployment**: Vercel (recommended)
 
-### Installation
+## 📋 Prerequisites
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-username/your-repo-name.git
-    cd your-repo-name
-    ```
+- Node.js 18.17 or later
+- MongoDB database (local or MongoDB Atlas)
+- ExchangeRate-API key (optional, for currency conversion)
 
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
+## 🛠️ Installation & Setup
 
-3.  **Set up environment variables:**
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd expense-management/expense-manager-app
+```
 
-    Create a file named `.env.local` in the root of the project and add the following variables.
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-    ```env
-    # MongoDB Connection String from MongoDB Atlas
-    MONGODB_URI="your_mongodb_connection_string"
+### 3. Environment Configuration
+Create a `.env.local` file in the root directory:
 
-    # NextAuth.js Configuration
-    # Generate a secret using: openssl rand -base64 32
-    NEXTAUTH_SECRET="your_nextauth_secret"
-    NEXTAUTH_URL="http://localhost:3000"
+```env
+# Database
+MONGODB_URI=mongodb://localhost:27017/expense-manager
+# or for MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/expense-manager
 
-    # AI Analysis (Automatic - no setup required)
-    # Powered by Puter.js - provides free AI analysis
-    # No API key needed - works automatically
+# Authentication
+NEXTAUTH_SECRET=your-super-secret-key-here
+NEXTAUTH_URL=http://localhost:3000
 
-    # Currency Exchange API (Optional - for multi-currency support)
-    # Get free API key from: https://exchangerate-api.com/
-    EXCHANGE_RATE_API_KEY="your_exchange_rate_api_key_here"
-    ```
+# Currency Exchange (Optional)
+EXCHANGERATE_API_KEY=your-exchange-rate-api-key
 
-4.  **Run the development server:**
-    ```bash
-    npm run dev
-    ```
+# Environment
+NODE_ENV=development
+```
 
-    Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 4. Database Setup
+Ensure MongoDB is running locally or your MongoDB Atlas cluster is accessible.
 
-## CSV Import Feature
+### 5. Run the Development Server
+```bash
+npm run dev
+```
 
-The application includes an intelligent CSV import system that can automatically analyze and import your financial data:
+Visit [http://localhost:3000](http://localhost:3000) to access the application.
 
-### Supported Data Types
-- **Transactions:** Date, amount, payee, account, category, notes
-- **Accounts:** Name, type, currency, balance
-- **Categories:** Name, type (income/expense)
+## 📁 Project Structure
 
-### AI Analysis
-- **Automatic Column Detection:** Uses AI to identify column types and suggest mappings
-- **Smart Fallback:** If AI is unavailable, uses advanced pattern matching
-- **No Setup Required:** Works automatically with Puter.js integration
-- **Completely Free:** Unlimited AI analysis with no API keys or quotas
+```
+expense-manager-app/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── (dashboard)/        # Protected dashboard routes
+│   │   ├── api/               # API routes
+│   │   ├── sign-in/           # Authentication pages
+│   │   └── sign-up/
+│   ├── components/            # Reusable UI components
+│   │   ├── ui/               # Shadcn/UI components
+│   │   ├── forms/            # Form components
+│   │   ├── shared/           # Shared components
+│   │   └── providers/        # Context providers
+│   ├── hooks/                # Custom React hooks
+│   ├── lib/                  # Utility functions
+│   │   ├── db.ts            # Database connection
+│   │   ├── auth-config.ts   # Authentication configuration
+│   │   ├── utils.ts         # General utilities
+│   │   ├── currency-converter.ts # Currency conversion
+│   │   └── api-helpers.ts   # API utilities
+│   ├── models/               # Mongoose models
+│   └── types/                # TypeScript type definitions
+├── public/                   # Static assets
+├── package.json
+├── tsconfig.json
+├── tailwind.config.js
+└── next.config.ts
+```
 
-### Import Process
-1. Upload your CSV file
-2. AI analyzes the structure and suggests column mappings
-3. Review and adjust mappings as needed
-4. Preview the data before importing
-5. Import with validation and error reporting
+## 🔧 Configuration
 
-## Project Structure
+### Database Models
+- **User**: User accounts with authentication and preferences
+- **Account**: Financial accounts (checking, savings, etc.)
+- **Category**: Income and expense categories
+- **Transaction**: Financial transactions with full details
+- **Budget**: Monthly budget limits per category
+- **ImportHistory**: CSV import tracking and history
 
-- `src/app/`: Contains the core application logic and pages (using the App Router).
-- `src/components/`: Shared React components including import functionality.
-- `src/lib/`: Utility functions (e.g., database connection, AI analysis).
-- `src/models/`: Mongoose schemas and models.
-- `src/hooks/`: Custom React hooks for data fetching.
-- `public/`: Static assets.
+### API Endpoints
+- `GET/POST /api/accounts` - Account management
+- `GET/POST /api/categories` - Category management
+- `GET/POST /api/transactions` - Transaction management
+- `GET/POST /api/budgets` - Budget management
+- `GET /api/summary` - Dashboard summary data
+- `GET /api/reports/*` - Financial reports
+- `POST /api/import/*` - CSV import functionality
 
-## Environment Variables
+## 🎯 Usage Guide
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `MONGODB_URI` | ✅ | MongoDB connection string |
-| `NEXTAUTH_SECRET` | ✅ | NextAuth.js secret key |
-| `NEXTAUTH_URL` | ✅ | Application URL |
-| `PUTER_JS_ENABLED` | ❌ | Automatic: Free AI analysis via Puter.js |
-| `EXCHANGE_RATE_API_KEY` | ❌ | Optional: Real-time currency rates |
+### Getting Started
+1. **Sign Up**: Create a new account or sign in
+2. **Add Accounts**: Set up your financial accounts
+3. **Create Categories**: Define income and expense categories
+4. **Add Transactions**: Start tracking your financial activities
+5. **Set Budgets**: Define monthly spending limits
+6. **Import Data**: Use CSV import for bulk transaction entry
 
-## Key Features Implemented
+### Multi-Currency Features
+- Set your preferred currency in Settings
+- Add accounts in different currencies
+- View unified dashboard with automatic conversion
+- Real-time exchange rate updates
 
-### ✅ Core Functionality
-- User authentication and registration
-- Account management with multiple currencies
-- Transaction tracking and categorization
-- Budget creation and monitoring
-- Financial reports and analytics
-- Dashboard with comprehensive overview
+### CSV Import
+1. Navigate to Import section
+2. Upload CSV file
+3. AI analyzes and suggests field mappings
+4. Review and confirm mappings
+5. Execute import with progress tracking
 
-### ✅ Advanced Features
-- AI-powered CSV import with intelligent column mapping
-- Multi-currency support with conversion rates
-- Credit card utilization tracking
-- Import history and management
-- Responsive design with modern UI
-- Real-time data validation
+## 🚀 Performance Optimizations
 
-### ✅ Technical Excellence
-- Full TypeScript implementation
-- Comprehensive error handling
-- Production-ready build system
-- No external API dependencies (all features work offline)
-- Robust fallback systems for all AI features
+### Frontend Optimizations
+- **Code Splitting**: Automatic route-based splitting
+- **Image Optimization**: Next.js Image component with WebP/AVIF
+- **Bundle Analysis**: Built-in bundle analyzer
+- **Caching**: Aggressive caching with TanStack Query
+- **Lazy Loading**: Component-level lazy loading
 
-## Action Plan
+### Backend Optimizations
+- **Database Connection Pooling**: Optimized MongoDB connections
+- **Query Optimization**: Efficient database queries with indexing
+- **Response Caching**: API response caching strategies
+- **Error Handling**: Comprehensive error handling and logging
 
-The detailed implementation plan is documented in [ACTION_PLAN.md](ACTION_PLAN.md).
+### Security Features
+- **Authentication**: Secure session-based authentication
+- **Input Validation**: Zod schema validation
+- **Security Headers**: Production-ready security headers
+- **Rate Limiting**: API rate limiting implementation
+- **CSRF Protection**: Built-in CSRF protection
 
-## Learn More
+## 🧪 Testing
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Run linting
+npm run lint
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Build for production
+npm run build
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Start production server
+npm start
+```
 
-## Deploy on Vercel
+## 📊 Monitoring & Analytics
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Performance Monitoring
+- Request/response timing
+- Database query performance
+- Error tracking and logging
+- Cache hit/miss ratios
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Business Metrics
+- User engagement tracking
+- Feature usage analytics
+- Import success rates
+- Currency conversion accuracy
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+1. Connect your GitHub repository to Vercel
+2. Configure environment variables
+3. Deploy automatically on push
+
+### Manual Deployment
+```bash
+# Build the application
+npm run build
+
+# Start production server
+npm start
+```
+
+### Environment Variables for Production
+```env
+MONGODB_URI=your-production-mongodb-uri
+NEXTAUTH_SECRET=your-production-secret
+NEXTAUTH_URL=https://your-domain.com
+EXCHANGERATE_API_KEY=your-api-key
+NODE_ENV=production
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+- Follow TypeScript best practices
+- Use ESLint and Prettier for code formatting
+- Write comprehensive JSDoc comments
+- Implement proper error handling
+- Add unit tests for new features
+
+## 📝 API Documentation
+
+Detailed API documentation is available in the [API Specification](./api-specification.yaml) file.
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Database Connection Issues**
+- Verify MongoDB is running
+- Check connection string format
+- Ensure network connectivity
+
+**Authentication Problems**
+- Verify NEXTAUTH_SECRET is set
+- Check NEXTAUTH_URL matches your domain
+- Clear browser cookies and try again
+
+**Currency Conversion Issues**
+- Verify ExchangeRate-API key is valid
+- Check internet connectivity
+- Review fallback rates in currency-converter.ts
+
+**Import Failures**
+- Ensure CSV format is supported
+- Check file size limits
+- Verify column mappings
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Next.js](https://nextjs.org/) - The React framework
+- [Shadcn/UI](https://ui.shadcn.com/) - Beautiful UI components
+- [TanStack Query](https://tanstack.com/query) - Powerful data synchronization
+- [MongoDB](https://www.mongodb.com/) - Database platform
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+
+## 📞 Support
+
+For support, please open an issue on GitHub or contact the development team.
+
+---
+
+**Built with ❤️ using modern web technologies** 
