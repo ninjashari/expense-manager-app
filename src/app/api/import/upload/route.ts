@@ -20,12 +20,21 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File;
 
+    console.log('🔄 CSV Upload started:', {
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      userId: session.user.id
+    });
+
     if (!file) {
+      console.error('❌ No file provided in upload request');
       return NextResponse.json({ message: 'No file provided' }, { status: 400 });
     }
 
     // Validate file type
     if (!ALLOWED_TYPES.includes(file.type) && !file.name.toLowerCase().endsWith('.csv')) {
+      console.error('❌ Invalid file type:', { type: file.type, name: file.name });
       return NextResponse.json({ 
         message: 'Invalid file type. Only CSV files are allowed.' 
       }, { status: 400 });
@@ -33,6 +42,7 @@ export async function POST(req: NextRequest) {
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
+      console.error('❌ File too large:', { size: file.size, maxSize: MAX_FILE_SIZE });
       return NextResponse.json({ 
         message: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.` 
       }, { status: 400 });
@@ -40,6 +50,10 @@ export async function POST(req: NextRequest) {
 
     // Read and parse CSV file
     const fileContent = await file.text();
+    console.log('📄 File content preview:', {
+      contentLength: fileContent.length,
+      firstLines: fileContent.split('\n').slice(0, 3)
+    });
     
     return new Promise<NextResponse>((resolve) => {
       Papa.parse(fileContent, {
@@ -48,8 +62,15 @@ export async function POST(req: NextRequest) {
         transformHeader: (header) => header.trim(),
         complete: async (results) => {
           try {
+            console.log('📊 CSV parsing completed:', {
+              totalRows: results.data.length,
+              headers: results.meta.fields,
+              errors: results.errors.length,
+              firstRow: results.data[0]
+            });
+
             if (results.errors.length > 0) {
-              console.error('CSV parsing errors:', results.errors);
+              console.error('❌ CSV parsing errors:', results.errors);
               resolve(NextResponse.json({ 
                 message: 'Error parsing CSV file',
                 errors: results.errors.map(e => e.message)
@@ -58,6 +79,7 @@ export async function POST(req: NextRequest) {
             }
 
             if (!results.data || results.data.length === 0) {
+              console.error('❌ CSV file is empty');
               resolve(NextResponse.json({ 
                 message: 'CSV file is empty or contains no valid data' 
               }, { status: 400 }));
@@ -85,6 +107,13 @@ export async function POST(req: NextRequest) {
 
             await importRecord.save();
 
+            console.log('✅ Import record created:', {
+              importId: importRecord._id,
+              fileName: file.name,
+              totalRows: results.data.length,
+              detectedColumns: results.meta.fields
+            });
+
             resolve(NextResponse.json({
               success: true,
               importId: importRecord._id,
@@ -97,14 +126,14 @@ export async function POST(req: NextRequest) {
             }, { status: 201 }));
 
           } catch (error) {
-            console.error('Error saving import record:', error);
+            console.error('❌ Error saving import record:', error);
             resolve(NextResponse.json({ 
               message: 'Error processing file' 
             }, { status: 500 }));
           }
         },
         error: (error: Error) => {
-          console.error('Papa Parse error:', error);
+          console.error('❌ Papa Parse error:', error);
           resolve(NextResponse.json({ 
             message: 'Error parsing CSV file',
             error: error.message 
@@ -114,7 +143,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Upload API error:', error);
+    console.error('❌ Upload API error:', error);
     return NextResponse.json({ 
       message: 'Internal server error' 
     }, { status: 500 });

@@ -177,6 +177,81 @@ function validateMappedData(data: Record<string, unknown>[], dataType: string) {
         results.isValid = false;
       }
     });
+  } else if (dataType === 'accounts') {
+    const requiredFields = ['name', 'type', 'currency'];
+    const validAccountTypes = ['Checking', 'Savings', 'Credit Card', 'Cash', 'Investment'];
+    
+    data.forEach((row, index) => {
+      let rowValid = true;
+      
+      // Check required fields
+      requiredFields.forEach(field => {
+        if (!row[field] || row[field].toString().trim() === '') {
+          results.errors.push(`Row ${index + 1}: Missing required field '${field}'`);
+          results.stats.missingRequired++;
+          rowValid = false;
+        }
+      });
+
+      // Validate account type
+      if (row.type) {
+        const typeStr = row.type.toString().toLowerCase().trim();
+        const isValidType = validAccountTypes.some(validType => 
+          validType.toLowerCase() === typeStr || 
+          typeStr.includes(validType.toLowerCase().split(' ')[0])
+        );
+        if (!isValidType) {
+          results.warnings.push(`Row ${index + 1}: Account type '${row.type}' will be normalized. Valid types: ${validAccountTypes.join(', ')}`);
+        }
+      }
+
+      // Validate balance is numeric if provided
+      if (row.balance && row.balance.toString().trim() !== '' && isNaN(parseFloat(row.balance.toString()))) {
+        results.errors.push(`Row ${index + 1}: Balance '${row.balance}' is not a valid number`);
+        rowValid = false;
+      }
+
+      if (rowValid) {
+        results.stats.validRows++;
+      } else {
+        results.stats.invalidRows++;
+        results.isValid = false;
+      }
+    });
+  } else if (dataType === 'categories') {
+    const requiredFields = ['name', 'type'];
+    const validCategoryTypes = ['Income', 'Expense'];
+    
+    data.forEach((row, index) => {
+      let rowValid = true;
+      
+      // Check required fields
+      requiredFields.forEach(field => {
+        if (!row[field] || row[field].toString().trim() === '') {
+          results.errors.push(`Row ${index + 1}: Missing required field '${field}'`);
+          results.stats.missingRequired++;
+          rowValid = false;
+        }
+      });
+
+      // Validate category type
+      if (row.type) {
+        const typeStr = row.type.toString().toLowerCase().trim();
+        const isValidType = validCategoryTypes.some(validType => 
+          validType.toLowerCase() === typeStr || typeStr.includes(validType.toLowerCase())
+        );
+        if (!isValidType) {
+          results.warnings.push(`Row ${index + 1}: Category type '${row.type}' will be normalized. Valid types: ${validCategoryTypes.join(', ')}`);
+        }
+      }
+
+      if (rowValid) {
+        results.stats.validRows++;
+      } else {
+        results.stats.invalidRows++;
+        results.isValid = false;
+      }
+    });
   }
 
   return results;

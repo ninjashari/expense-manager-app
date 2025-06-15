@@ -100,6 +100,13 @@ Database fields:
     const headers = Object.keys(csvData[0] || {});
     const sampleRow = csvData[0] || {};
     
+    console.log('🔍 Enhanced pattern analysis started:', {
+      fileName,
+      headers,
+      sampleRow,
+      totalRows: csvData.length
+    });
+    
     // Enhanced pattern matching with data type detection
     const mappings: Record<string, string> = {};
     let dataType: AnalysisResult['dataType'] = 'unknown';
@@ -130,26 +137,38 @@ Database fields:
       type: /type|kind|income|expense/i,
     };
 
-    // Score each data type
+    // Score each data type and create mappings
     let transactionScore = 0;
     let accountScore = 0;
     let categoryScore = 0;
 
+    // Track mappings for each data type
+    const transactionMappings: Record<string, string> = {};
+    const accountMappings: Record<string, string> = {};
+    const categoryMappings: Record<string, string> = {};
+
+    console.log('🔍 Starting pattern matching for headers:', headers);
+
     headers.forEach(header => {
       const sampleValue = String(sampleRow[header] || '').toLowerCase();
+      
+      console.log(`📊 Analyzing header "${header}" with sample value "${sampleValue}"`);
 
       // Check transaction patterns
       for (const [field, pattern] of Object.entries(transactionPatterns)) {
         if (pattern.test(header)) {
-          mappings[header] = field;
+          transactionMappings[header] = field;
           transactionScore++;
+          console.log(`✅ Transaction match: "${header}" → "${field}" (score: ${transactionScore})`);
           
           // Additional validation based on sample data
           if (field === 'amount' && sampleValue && !isNaN(Number(sampleValue.replace(/[^0-9.-]/g, '')))) {
             transactionScore += 0.5;
+            console.log(`💰 Amount validation passed, bonus score: ${transactionScore}`);
           }
           if (field === 'date' && this.isDateLike(sampleValue)) {
             transactionScore += 0.5;
+            console.log(`📅 Date validation passed, bonus score: ${transactionScore}`);
           }
         }
       }
@@ -157,51 +176,99 @@ Database fields:
       // Check account patterns
       for (const [fieldName, pattern] of Object.entries(accountPatterns)) {
         if (pattern.test(header)) {
+          accountMappings[header] = fieldName;
           accountScore++;
+          console.log(`✅ Account match: "${header}" → "${fieldName}" (score: ${accountScore})`);
           if (fieldName === 'type' && /checking|savings|credit|cash|investment/i.test(sampleValue)) {
             accountScore += 0.5;
+            console.log(`🏦 Account type validation passed, bonus score: ${accountScore}`);
           }
         }
       }
 
       // Check category patterns
-      for (const [, pattern] of Object.entries(categoryPatterns)) {
+      for (const [fieldName, pattern] of Object.entries(categoryPatterns)) {
         if (pattern.test(header)) {
+          categoryMappings[header] = fieldName;
           categoryScore++;
+          console.log(`✅ Category match: "${header}" → "${fieldName}" (score: ${categoryScore})`);
         }
       }
     });
 
-    // Determine data type based on scores
-    if (transactionScore >= 3) {
-      dataType = 'transactions';
-      suggestions.push('Detected transaction data - ensure date and amount formats are consistent');
-      if (!mappings.date) warnings.push('No date column detected - this is required for transactions');
-      if (!mappings.amount) warnings.push('No amount column detected - this is required for transactions');
-      if (!mappings.payee) warnings.push('No payee/description column detected - this is required for transactions');
-    } else if (accountScore >= 2) {
-      dataType = 'accounts';
-      suggestions.push('Detected account data - verify account types and currency codes');
-    } else if (categoryScore >= 1) {
-      dataType = 'categories';
-      suggestions.push('Detected category data - ensure category types are specified');
+    console.log('📊 Pattern matching scores:', {
+      transactionScore,
+      accountScore,
+      categoryScore,
+      transactionMappings,
+      accountMappings,
+      categoryMappings
+    });
+
+    // Determine data type based on scores and assign appropriate mappings
+    // Prioritize the highest score
+    const scores = [
+      { type: 'accounts', score: accountScore, mappings: accountMappings },
+      { type: 'transactions', score: transactionScore, mappings: transactionMappings },
+      { type: 'categories', score: categoryScore, mappings: categoryMappings }
+    ];
+    
+    // Sort by score descending
+    scores.sort((a, b) => b.score - a.score);
+    const topScore = scores[0];
+    
+    console.log('🏆 Score ranking:', scores.map(s => `${s.type}: ${s.score}`));
+    
+    if (topScore.score >= 2) {
+      dataType = topScore.type as AnalysisResult['dataType'];
+      Object.assign(mappings, topScore.mappings);
+      
+      if (dataType === 'transactions') {
+        suggestions.push('Detected transaction data - ensure date and amount formats are consistent');
+        if (!mappings.date) warnings.push('No date column detected - this is required for transactions');
+        if (!mappings.amount) warnings.push('No amount column detected - this is required for transactions');
+        if (!mappings.payee) warnings.push('No payee/description column detected - this is required for transactions');
+      } else if (dataType === 'accounts') {
+        suggestions.push('Detected account data - verify account types and currency codes');
+        if (!mappings.name) warnings.push('No name column detected - this is required for accounts');
+        if (!mappings.type) warnings.push('No type column detected - this is required for accounts');
+        if (!mappings.currency) warnings.push('No currency column detected - this is required for accounts');
+      } else if (dataType === 'categories') {
+        suggestions.push('Detected category data - ensure category types are specified');
+        if (!mappings.name) warnings.push('No name column detected - this is required for categories');
+        if (!mappings.type) warnings.push('No type column detected - this is required for categories');
+      }
     } else {
       dataType = 'unknown';
       warnings.push('Could not determine data type automatically');
       suggestions.push('Please manually map columns to appropriate fields');
     }
 
-    // File name hints
+    // File name hints - can override low-confidence detection
     const fileNameLower = fileName.toLowerCase();
-    if (fileNameLower.includes('transaction') || fileNameLower.includes('expense') || fileNameLower.includes('income')) {
-      if (dataType === 'unknown') {
-        dataType = 'transactions';
-        suggestions.push('File name suggests transaction data');
+    console.log('🔍 Checking filename hints:', { fileName, fileNameLower });
+    
+    // Check for categories first (most specific)
+    if (fileNameLower.includes('categor') || fileNameLower.includes('category')) {
+      if (dataType === 'unknown' || topScore.score <= 2) {
+        dataType = 'categories';
+        Object.assign(mappings, categoryMappings);
+        suggestions.push('File name suggests category data');
+        console.log('📝 Filename hint: overriding to categories');
       }
     } else if (fileNameLower.includes('account') || fileNameLower.includes('bank')) {
-      if (dataType === 'unknown') {
+      if (dataType === 'unknown' || (dataType === 'transactions' && topScore.score < 4)) {
         dataType = 'accounts';
+        Object.assign(mappings, accountMappings);
         suggestions.push('File name suggests account data');
+        console.log('📝 Filename hint: overriding to accounts');
+      }
+    } else if (fileNameLower.includes('transaction') || fileNameLower.includes('expense') || fileNameLower.includes('income')) {
+      if (dataType === 'unknown') {
+        dataType = 'transactions';
+        Object.assign(mappings, transactionMappings);
+        suggestions.push('File name suggests transaction data');
+        console.log('📝 Filename hint: detected as transactions');
       }
     }
 
@@ -217,7 +284,7 @@ Database fields:
       suggestions.push('Large dataset detected - import may take some time');
     }
 
-    return {
+    const result = {
       dataType,
       columnMappings: mappings,
       confidence,
@@ -225,6 +292,10 @@ Database fields:
       warnings,
       detectedColumns: headers,
     };
+
+    console.log('✅ Pattern analysis completed:', result);
+
+    return result;
   }
 
   private getBasicFallbackAnalysis(csvData: Record<string, unknown>[]): AnalysisResult {
