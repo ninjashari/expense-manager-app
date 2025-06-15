@@ -56,7 +56,24 @@ const TransactionSchema: Schema = new Schema({
   notes: {
     type: String,
   },
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  // Add compound indexes for efficient querying
+  indexes: [
+    { userId: 1, date: -1 }, // User transactions by date (most recent first)
+    { userId: 1, account: 1, date: -1 }, // Account transactions by date
+    { userId: 1, category: 1, date: -1 }, // Category transactions by date
+    { userId: 1, type: 1, date: -1 }, // Transaction type by date
+    { account: 1, date: 1 }, // Account transactions for bill generation
+    { userId: 1, createdAt: -1 }, // Recent transactions for dashboard
+  ]
+});
+
+// Add individual indexes for frequently queried fields
+TransactionSchema.index({ userId: 1 });
+TransactionSchema.index({ account: 1 });
+TransactionSchema.index({ date: -1 });
+TransactionSchema.index({ type: 1 });
 
 const Transaction = models.Transaction || mongoose.model<ITransaction>('Transaction', TransactionSchema);
 
