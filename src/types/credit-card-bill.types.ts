@@ -75,6 +75,15 @@ export interface BillGenerationSettings {
   billDueDay: number; // Day of month (1-31)
   interestRate?: number; // Annual rate as decimal
   minimumPaymentPercentage?: number; // Percentage as decimal
+  gracePeriodDays?: number; // Grace period in days
+  lateFeeAmount?: number; // Late fee amount
+  enableAutoGeneration?: boolean; // Enable automatic bill generation
+  enableNotifications?: boolean; // Enable bill notifications
+  notificationDays?: number[]; // Days before due date to send notifications
+  enableEmailNotifications?: boolean; // Enable email notifications
+  enableSmsNotifications?: boolean; // Enable SMS notifications
+  currency?: string; // Currency for the account
+  notes?: string; // Additional notes
 }
 
 // Bill summary for dashboard
