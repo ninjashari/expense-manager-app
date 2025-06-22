@@ -1,0 +1,4 @@
+{
+  "_comment": "This file contains the configuration for ESLint. It is used to enforce code quality and style rules in the project. This configuration extends the recommended Next.js ESLint settings.",
+  "extends": "next/core-web-vitals"
+} 
