@@ -1,36 +1,279 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💰 Expense Manager App
 
-## Getting Started
+A modern, full-featured personal expense management application built with Next.js, TypeScript, and Supabase. Track your income, expenses, and transfers across multiple accounts with powerful filtering and categorization features.
 
-First, run the development server:
+[![Next.js](https://img.shields.io/badge/Next.js-15.3.4-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Latest-green?style=flat-square&logo=supabase)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.1.10-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## ✨ Features
+
+### 🏦 Account Management
+- **Multiple Account Types**: Support for savings, checking, credit cards, investments, cash, loans, and more
+- **Multi-Currency Support**: Track accounts in INR, USD, EUR, and GBP
+- **Credit Card Management**: Specialized features for credit limit tracking, due dates, and usage monitoring
+- **Real-time Balance Updates**: Automatic balance calculations with transaction processing
+
+### 💸 Transaction Management
+- **Three Transaction Types**: 
+  - **Deposits**: Income and money received
+  - **Withdrawals**: Expenses and money spent
+  - **Transfers**: Money moved between your accounts
+- **Smart Categorization**: Organize expenses with custom categories
+- **Payee Management**: Track who you pay or receive money from
+- **Advanced Filtering**: Filter by accounts (multi-select), transaction type, status, and search
+- **Bulk Operations**: Edit and manage multiple transactions efficiently
+
+### 📊 Reporting & Analytics
+- **Transaction History**: Comprehensive view of all financial activities
+- **Account Balances**: Real-time balance tracking across all accounts
+- **Category Insights**: Understand spending patterns by category
+- **Date Range Filtering**: Analyze transactions over specific periods
+
+### 🔐 Security & Privacy
+- **User Authentication**: Secure login with Supabase Auth
+- **Row Level Security**: Data isolation between users
+- **Protected Routes**: Secure access to sensitive financial data
+- **Data Encryption**: All sensitive data encrypted at rest
+
+### 🎨 Modern UI/UX
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
+- **Dark/Light Mode**: Comfortable viewing in any lighting condition
+- **Accessible**: Built with accessibility best practices
+- **Intuitive Interface**: Clean, modern design with excellent user experience
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js** 20.19.2 or higher
+- **npm** or **yarn** package manager
+- **Supabase** account and project
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/expense-manager-app.git
+   cd expense-manager-app
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
+
+3. **Set up environment variables**
+   
+   Create a `.env.local` file in the root directory:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. **Set up the database**
+   
+   Run the SQL schema in your Supabase SQL editor:
+   ```bash
+   # Copy the contents of src/lib/database-schema.sql
+   # and execute it in your Supabase project's SQL editor
+   ```
+
+5. **Start the development server**
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
+
+6. **Open your browser**
+   
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+## 🛠️ Technology Stack
+
+### Frontend
+- **[Next.js 15.3.4](https://nextjs.org/)** - React framework with App Router
+- **[TypeScript](https://www.typescriptlang.org/)** - Type-safe JavaScript
+- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
+- **[Radix UI](https://www.radix-ui.com/)** - Accessible component primitives
+- **[Shadcn/ui](https://ui.shadcn.com/)** - Beautiful component library
+
+### Backend & Database
+- **[Supabase](https://supabase.com/)** - Backend-as-a-Service with PostgreSQL
+- **[PostgreSQL](https://www.postgresql.org/)** - Robust relational database
+- **Row Level Security** - Database-level security policies
+
+### Form & Validation
+- **[React Hook Form](https://react-hook-form.com/)** - Performant forms with easy validation
+- **[Zod](https://zod.dev/)** - TypeScript-first schema validation
+- **[@hookform/resolvers](https://github.com/react-hook-form/resolvers)** - Validation resolver for React Hook Form
+
+### UI & Icons
+- **[Lucide React](https://lucide.dev/)** - Beautiful & consistent icon set
+- **[date-fns](https://date-fns.org/)** - Modern JavaScript date utility library
+- **[cmdk](https://cmdk.paco.me/)** - Command palette component
+- **[Sonner](https://sonner.emilkowal.ski/)** - Toast notifications
+
+## 📁 Project Structure
+
+```
+expense-manager-app/
+├── src/
+│   ├── app/                    # Next.js App Router pages
+│   │   ├── accounts/          # Account management page
+│   │   ├── categories/        # Category management page  
+│   │   ├── dashboard/         # Main dashboard
+│   │   ├── payees/           # Payee management page
+│   │   ├── reports/          # Reports and analytics
+│   │   └── transactions/     # Transaction management page
+│   ├── components/            # Reusable React components
+│   │   ├── accounts/         # Account-specific components
+│   │   ├── auth/             # Authentication components
+│   │   ├── categories/       # Category components
+│   │   ├── layout/           # Layout components
+│   │   ├── payees/           # Payee components
+│   │   ├── transactions/     # Transaction components
+│   │   └── ui/               # Base UI components (shadcn/ui)
+│   ├── hooks/                # Custom React hooks
+│   ├── lib/                  # Utility libraries and configurations
+│   │   ├── services/         # API service functions
+│   │   └── validations/      # Zod validation schemas
+│   └── types/                # TypeScript type definitions
+├── public/                   # Static assets
+└── docs/                     # Documentation files
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🎯 Usage
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Managing Accounts
+1. Navigate to **Accounts** page
+2. Click **Add Account** to create new accounts
+3. Configure account type, currency, and initial balance
+4. For credit cards, set credit limits and payment dates
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Recording Transactions
+1. Go to **Transactions** page
+2. Click **Add Transaction**
+3. Choose transaction type:
+   - **Deposit**: Money coming in
+   - **Withdrawal**: Money going out  
+   - **Transfer**: Moving money between accounts
+4. Fill in details and save
 
-## Learn More
+### Filtering & Search
+- Use the **search bar** to find specific transactions
+- Filter by **transaction type** (deposit, withdrawal, transfer)
+- Filter by **status** (completed, pending, cancelled)
+- Use **multi-select accounts filter** to view transactions from specific accounts
 
-To learn more about Next.js, take a look at the following resources:
+### Categories & Payees
+- Create **categories** to organize your expenses
+- Add **payees** to track who you transact with
+- Categories and payees can be created on-the-fly when adding transactions
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔧 Available Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# Development
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
 
-## Deploy on Vercel
+# Type checking
+npx tsc --noEmit     # Check TypeScript types
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🌐 Environment Variables
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Create a `.env.local` file with the following variables:
+
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Optional: Custom configuration
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+## 🚀 Deployment
+
+### Deploy on Vercel
+
+1. Push your code to GitHub
+2. Connect your repository to [Vercel](https://vercel.com)
+3. Set environment variables in Vercel dashboard
+4. Deploy automatically on every push
+
+### Deploy on Netlify
+
+1. Build the application: `npm run build`
+2. Deploy the `out` folder to Netlify
+3. Configure environment variables
+4. Set up continuous deployment
+
+### Self-Hosted
+
+1. Build the application: `npm run build`
+2. Start the production server: `npm run start`
+3. Configure reverse proxy (nginx/Apache)
+4. Set up SSL certificates
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. **Fork the repository**
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Make your changes**
+4. **Commit your changes**
+   ```bash
+   git commit -m 'Add some amazing feature'
+   ```
+5. **Push to the branch**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+6. **Open a Pull Request**
+
+### Development Guidelines
+
+- Follow TypeScript best practices
+- Use meaningful commit messages
+- Add tests for new features
+- Update documentation as needed
+- Follow the existing code style
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **[Next.js](https://nextjs.org/)** for the amazing React framework
+- **[Supabase](https://supabase.com/)** for the backend infrastructure
+- **[Shadcn/ui](https://ui.shadcn.com/)** for the beautiful component library
+- **[Vercel](https://vercel.com/)** for hosting and deployment platform
+
+## 📞 Support
+
+If you have any questions or need help:
+
+- 📧 **Email**: your-email@example.com
+- 💬 **Issues**: [GitHub Issues](https://github.com/your-username/expense-manager-app/issues)
+- 📖 **Documentation**: [Wiki](https://github.com/your-username/expense-manager-app/wiki)
+
+---
+
+<div align="center">
+  <p>Made with ❤️ for better financial management</p>
+  <p>⭐ Star this repo if you find it helpful!</p>
+</div>
