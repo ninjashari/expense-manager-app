@@ -105,6 +105,58 @@ CREATE TRIGGER update_accounts_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- Create categories table
+CREATE TABLE categories (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(100) NOT NULL, -- Auto-generated backend name (slug-like)
+  display_name VARCHAR(50) NOT NULL, -- User-provided display name
+  description TEXT,
+  is_active BOOLEAN DEFAULT TRUE NOT NULL,
+  
+  -- Timestamps
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  
+  -- Constraints
+  CONSTRAINT unique_category_name_per_user UNIQUE(user_id, name),
+  CONSTRAINT unique_display_name_per_user UNIQUE(user_id, display_name),
+  CONSTRAINT valid_name_format CHECK (name ~ '^[a-z0-9-]+$' AND length(name) >= 2),
+  CONSTRAINT valid_display_name CHECK (length(trim(display_name)) >= 2)
+);
+
+-- Create indexes for categories
+CREATE INDEX idx_categories_user_id ON categories(user_id);
+CREATE INDEX idx_categories_name ON categories(name);
+CREATE INDEX idx_categories_is_active ON categories(is_active);
+CREATE INDEX idx_categories_created_at ON categories(created_at);
+
+-- Enable Row Level Security (RLS) for categories
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for categories
+CREATE POLICY "Users can view own categories"
+  ON categories FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own categories"
+  ON categories FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own categories"
+  ON categories FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own categories"
+  ON categories FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Create trigger to automatically update updated_at for categories
+CREATE TRIGGER update_categories_updated_at
+  BEFORE UPDATE ON categories
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 -- Insert sample data (optional - for development)
 -- Note: Replace 'your-user-id' with actual user ID from auth.users
 /*
@@ -114,4 +166,11 @@ INSERT INTO accounts (user_id, name, type, status, initial_balance, current_bala
 
 INSERT INTO accounts (user_id, name, type, status, initial_balance, current_balance, currency, account_opening_date, notes, credit_limit, payment_due_date, bill_generation_date, current_bill_paid) VALUES
   ('your-user-id', 'ICICI Credit Card', 'credit_card', 'active', 0.00, -25000.00, 'INR', '2021-06-10', 'Primary credit card for online purchases and EMIs', 200000.00, 15, 20, false);
+
+INSERT INTO categories (user_id, name, display_name, description, is_active) VALUES
+  ('your-user-id', 'groceries', 'Groceries', 'Food and household items', true),
+  ('your-user-id', 'transportation', 'Transportation', 'Vehicle fuel, public transport, taxi', true),
+  ('your-user-id', 'utilities', 'Utilities', 'Electricity, water, internet, phone bills', true),
+  ('your-user-id', 'entertainment', 'Entertainment', 'Movies, dining out, subscriptions', true),
+  ('your-user-id', 'healthcare', 'Healthcare', 'Medical expenses, medicines, insurance', true);
 */ 
