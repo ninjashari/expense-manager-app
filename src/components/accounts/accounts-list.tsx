@@ -19,7 +19,8 @@ import {
   TrendingUp,
   Banknote,
   DollarSign,
-  Plus
+  Plus,
+  RefreshCw
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -72,6 +73,7 @@ interface AccountsListProps {
   onDelete: (accountId: string) => void
   onView: (account: Account) => void
   onAdd: () => void
+  onRefresh?: () => void
   isLoading?: boolean
 }
 
@@ -123,6 +125,7 @@ function getStatusBadgeVariant(status: string): "default" | "secondary" | "destr
  * @param onDelete - Function to handle delete action
  * @param onView - Function to handle view action
  * @param onAdd - Function to handle add new account action
+ * @param onRefresh - Function to handle refresh/recalculate balances action
  * @param isLoading - Loading state indicator
  * @returns JSX element containing the accounts list
  */
@@ -132,6 +135,7 @@ export function AccountsList({
   onDelete, 
   onView, 
   onAdd, 
+  onRefresh,
   isLoading = false 
 }: AccountsListProps) {
   const [searchTerm, setSearchTerm] = useState('')
@@ -214,10 +218,18 @@ export function AccountsList({
                 Manage your bank accounts, credit cards, and wallets. Total: {accounts.length} accounts
               </CardDescription>
             </div>
-            <Button onClick={onAdd}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Account
-            </Button>
+            <div className="flex gap-2">
+              {onRefresh && (
+                <Button variant="outline" onClick={onRefresh} disabled={isLoading}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh Balances
+                </Button>
+              )}
+              <Button onClick={onAdd}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Account
+              </Button>
+            </div>
           </div>
         </CardHeader>
         
@@ -335,8 +347,23 @@ export function AccountsList({
                           {formatAccountBalance(account)}
                         </div>
                         {account.type === 'credit_card' && account.creditCardInfo && (
-                          <div className="text-sm text-muted-foreground">
-                            Limit: {formatAccountBalance({ ...account, currentBalance: account.creditCardInfo.creditLimit })}
+                          <div className="text-sm text-muted-foreground space-y-1">
+                            <div>
+                              Limit: {formatAccountBalance({ ...account, currentBalance: account.creditCardInfo.creditLimit })}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span>Usage: {account.creditUsagePercentage?.toFixed(1) || '0.0'}%</span>
+                              <div className="flex-1 bg-muted rounded-full h-1.5 max-w-[60px]">
+                                <div 
+                                  className={cn(
+                                    "h-1.5 rounded-full transition-all",
+                                    (account.creditUsagePercentage || 0) > 80 ? "bg-destructive" :
+                                    (account.creditUsagePercentage || 0) > 60 ? "bg-yellow-500" : "bg-primary"
+                                  )}
+                                  style={{ width: `${Math.min(account.creditUsagePercentage || 0, 100)}%` }}
+                                />
+                              </div>
+                            </div>
                           </div>
                         )}
                       </TableCell>
