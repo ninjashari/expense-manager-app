@@ -157,6 +157,60 @@ CREATE TRIGGER update_categories_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- Create payees table
+CREATE TABLE payees (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(150) NOT NULL, -- Auto-generated backend name (slug-like)
+  display_name VARCHAR(100) NOT NULL, -- User-provided display name
+  description TEXT,
+  category VARCHAR(50), -- Optional category for grouping payees
+  is_active BOOLEAN DEFAULT TRUE NOT NULL,
+  
+  -- Timestamps
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  
+  -- Constraints
+  CONSTRAINT unique_payee_name_per_user UNIQUE(user_id, name),
+  CONSTRAINT unique_display_name_per_user_payee UNIQUE(user_id, display_name),
+  CONSTRAINT valid_payee_name_format CHECK (name ~ '^[a-z0-9-]+$' AND length(name) >= 2),
+  CONSTRAINT valid_payee_display_name CHECK (length(trim(display_name)) >= 2)
+);
+
+-- Create indexes for payees
+CREATE INDEX idx_payees_user_id ON payees(user_id);
+CREATE INDEX idx_payees_name ON payees(name);
+CREATE INDEX idx_payees_category ON payees(category);
+CREATE INDEX idx_payees_is_active ON payees(is_active);
+CREATE INDEX idx_payees_created_at ON payees(created_at);
+
+-- Enable Row Level Security (RLS) for payees
+ALTER TABLE payees ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for payees
+CREATE POLICY "Users can view own payees"
+  ON payees FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own payees"
+  ON payees FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own payees"
+  ON payees FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own payees"
+  ON payees FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Create trigger to automatically update updated_at for payees
+CREATE TRIGGER update_payees_updated_at
+  BEFORE UPDATE ON payees
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 -- Insert sample data (optional - for development)
 -- Note: Replace 'your-user-id' with actual user ID from auth.users
 /*
@@ -173,4 +227,14 @@ INSERT INTO categories (user_id, name, display_name, description, is_active) VAL
   ('your-user-id', 'utilities', 'Utilities', 'Electricity, water, internet, phone bills', true),
   ('your-user-id', 'entertainment', 'Entertainment', 'Movies, dining out, subscriptions', true),
   ('your-user-id', 'healthcare', 'Healthcare', 'Medical expenses, medicines, insurance', true);
+
+INSERT INTO payees (user_id, name, display_name, description, category, is_active) VALUES
+  ('your-user-id', 'big-bazaar', 'Big Bazaar', 'Large retail chain for groceries and household items', 'retail', true),
+  ('your-user-id', 'uber', 'Uber', 'Ride-sharing service for transportation', 'transportation', true),
+  ('your-user-id', 'adani-electricity', 'Adani Electricity', 'Monthly electricity bill payment', 'utilities', true),
+  ('your-user-id', 'netflix', 'Netflix', 'Monthly streaming subscription', 'entertainment', true),
+  ('your-user-id', 'apollo-pharmacy', 'Apollo Pharmacy', 'Medicine and healthcare products', 'healthcare', true),
+  ('your-user-id', 'zomato', 'Zomato', 'Food delivery service', 'dining', true),
+  ('your-user-id', 'amazon', 'Amazon', 'Online shopping and retail', 'retail', true),
+  ('your-user-id', 'indian-oil', 'Indian Oil', 'Fuel station for vehicle refueling', 'transportation', true);
 */ 

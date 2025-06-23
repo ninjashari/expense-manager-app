@@ -1,76 +1,89 @@
 /**
- * @file categories-list.tsx
- * @description This file contains the categories list component for displaying all user categories.
- * It provides functionality to view, edit, delete, and toggle status of categories.
+ * @file payees-list.tsx
+ * @description This file contains the payees list component for displaying all user payees.
+ * It provides functionality to view, edit, delete, and toggle status of payees.
  */
 
 "use client"
 
 import { useState } from "react"
-import { MoreHorizontal, Edit, Trash2, Eye, EyeOff } from "lucide-react"
+import { MoreHorizontal, Edit, Trash2, Eye, EyeOff, Building2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Payee } from "@/types/payee"
 import { Category } from "@/types/category"
 
 /**
- * Props interface for CategoriesList component
- * @description Defines the properties passed to the CategoriesList component
+ * Props interface for PayeesList component
+ * @description Defines the properties passed to the PayeesList component
  */
-interface CategoriesListProps {
+interface PayeesListProps {
+  payees: Payee[]
   categories: Category[]
-  onEdit: (category: Category) => void
-  onDelete: (categoryId: string) => Promise<void>
-  onToggleStatus: (categoryId: string) => Promise<void>
+  onEdit: (payee: Payee) => void
+  onDelete: (payeeId: string) => Promise<void>
+  onToggleStatus: (payeeId: string) => Promise<void>
 }
 
 /**
- * CategoriesList component
- * @description Renders a table of categories with management actions
- * @param categories - Array of categories to display
- * @param onEdit - Function called when editing a category
- * @param onDelete - Function called when deleting a category
- * @param onToggleStatus - Function called when toggling category status
- * @param isLoading - Whether the list is in a loading state
- * @returns JSX element containing the categories list
+ * PayeesList component
+ * @description Renders a table of payees with management actions
+ * @param payees - Array of payees to display
+ * @param onEdit - Function called when editing a payee
+ * @param onDelete - Function called when deleting a payee
+ * @param onToggleStatus - Function called when toggling payee status
+ * @returns JSX element containing the payees list
  */
-export function CategoriesList({ 
-  categories, 
+export function PayeesList({ 
+  payees, 
+  categories,
   onEdit, 
   onDelete, 
   onToggleStatus
-}: CategoriesListProps) {
+}: PayeesListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
+  const [payeeToDelete, setPayeeToDelete] = useState<Payee | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  /**
+   * Get category display name by category name
+   * @description Finds the category display name from the categories list
+   * @param categoryName - Category name to look up
+   * @returns Category display name or the original name if not found
+   */
+  const getCategoryDisplayName = (categoryName: string): string => {
+    const category = categories.find(cat => cat.name === categoryName)
+    return category ? category.displayName : categoryName
+  }
 
   /**
    * Handle delete confirmation
    * @description Opens the delete confirmation dialog
-   * @param category - Category to delete
+   * @param payee - Payee to delete
    */
-  const handleDeleteClick = (category: Category) => {
-    setCategoryToDelete(category)
+  const handleDeleteClick = (payee: Payee) => {
+    setPayeeToDelete(payee)
     setDeleteDialogOpen(true)
   }
 
   /**
    * Handle delete confirmation
-   * @description Confirms and processes category deletion
+   * @description Confirms and processes payee deletion
    */
   const handleDeleteConfirm = async () => {
-    if (!categoryToDelete) return
+    if (!payeeToDelete) return
 
-    setActionLoading(`delete-${categoryToDelete.id}`)
+    setActionLoading(`delete-${payeeToDelete.id}`)
     try {
-      await onDelete(categoryToDelete.id)
+      await onDelete(payeeToDelete.id)
       setDeleteDialogOpen(false)
-      setCategoryToDelete(null)
+      setPayeeToDelete(null)
     } catch (error) {
-      console.error('Error deleting category:', error)
+      console.error('Error deleting payee:', error)
     } finally {
       setActionLoading(null)
     }
@@ -78,15 +91,15 @@ export function CategoriesList({
 
   /**
    * Handle status toggle
-   * @description Toggles the active status of a category
-   * @param category - Category to toggle
+   * @description Toggles the active status of a payee
+   * @param payee - Payee to toggle
    */
-  const handleToggleStatus = async (category: Category) => {
-    setActionLoading(`toggle-${category.id}`)
+  const handleToggleStatus = async (payee: Payee) => {
+    setActionLoading(`toggle-${payee.id}`)
     try {
-      await onToggleStatus(category.id)
+      await onToggleStatus(payee.id)
     } catch (error) {
-      console.error('Error toggling category status:', error)
+      console.error('Error toggling payee status:', error)
     } finally {
       setActionLoading(null)
     }
@@ -106,20 +119,44 @@ export function CategoriesList({
     }).format(date)
   }
 
-  if (categories.length === 0) {
+  /**
+   * Get category badge variant based on category
+   * @description Returns appropriate badge variant for category
+   * @param category - Category string
+   * @returns Badge variant
+   */
+  const getCategoryVariant = (category?: string) => {
+    if (!category) return "outline"
+    const variants: Record<string, "default" | "secondary" | "outline"> = {
+      retail: "default",
+      utilities: "secondary",
+      healthcare: "default",
+      transportation: "secondary",
+      dining: "default",
+      entertainment: "secondary",
+      services: "default",
+      government: "secondary",
+      financial: "default",
+      personal: "secondary",
+    }
+    return variants[category] || "outline"
+  }
+
+  if (payees.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Categories</CardTitle>
+          <CardTitle>Payees</CardTitle>
           <CardDescription>
-            Organize your expenses into categories for better tracking and reporting.
+            Manage who you make payments to for better transaction tracking.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex h-[400px] items-center justify-center text-muted-foreground">
             <div className="text-center">
-              <p className="text-lg font-medium">No categories yet</p>
-              <p className="text-sm">Create your first category to organize expenses</p>
+              <Building2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
+              <p className="text-lg font-medium">No payees yet</p>
+              <p className="text-sm">Create your first payee to track payments</p>
             </div>
           </div>
         </CardContent>
@@ -131,9 +168,9 @@ export function CategoriesList({
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Categories ({categories.length})</CardTitle>
+          <CardTitle>Payees ({payees.length})</CardTitle>
           <CardDescription>
-            Manage your expense categories for better organization and reporting.
+            Manage your payees for better transaction tracking and reporting.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -142,6 +179,7 @@ export function CategoriesList({
                              <TableHeader>
                  <TableRow>
                    <TableHead>Display Name</TableHead>
+                   <TableHead>Category</TableHead>
                    <TableHead>Description</TableHead>
                    <TableHead>Status</TableHead>
                    <TableHead>Created</TableHead>
@@ -149,36 +187,45 @@ export function CategoriesList({
                  </TableRow>
                </TableHeader>
               <TableBody>
-                {categories.map((category) => (
-                                     <TableRow key={category.id}>
+                {payees.map((payee) => (
+                                     <TableRow key={payee.id}>
                      <TableCell className="font-medium">
-                       {category.displayName}
+                       {payee.displayName}
                      </TableCell>
-                     <TableCell className="max-w-[200px]">
+                                          <TableCell>
+                       {payee.category ? (
+                         <Badge variant={getCategoryVariant(payee.category)} className="text-xs">
+                           {getCategoryDisplayName(payee.category)}
+                         </Badge>
+                       ) : (
+                         <span className="text-muted-foreground text-sm">No category</span>
+                       )}
+                     </TableCell>
+                    <TableCell className="max-w-[200px]">
                       <div className="truncate">
-                        {category.description || (
+                        {payee.description || (
                           <span className="text-muted-foreground text-sm">No description</span>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge 
-                        variant={category.isActive ? "default" : "secondary"}
+                        variant={payee.isActive ? "default" : "secondary"}
                         className="cursor-pointer"
-                        onClick={() => handleToggleStatus(category)}
+                        onClick={() => handleToggleStatus(payee)}
                       >
-                        {actionLoading === `toggle-${category.id}` ? (
+                        {actionLoading === `toggle-${payee.id}` ? (
                           <div className="mr-1 h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
-                        ) : category.isActive ? (
+                        ) : payee.isActive ? (
                           <Eye className="mr-1 h-3 w-3" />
                         ) : (
                           <EyeOff className="mr-1 h-3 w-3" />
                         )}
-                        {category.isActive ? 'Active' : 'Inactive'}
+                        {payee.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(category.createdAt)}
+                      {formatDate(payee.createdAt)}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -191,15 +238,15 @@ export function CategoriesList({
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => onEdit(category)}>
+                          <DropdownMenuItem onClick={() => onEdit(payee)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={() => handleToggleStatus(category)}
-                            disabled={actionLoading === `toggle-${category.id}`}
+                            onClick={() => handleToggleStatus(payee)}
+                            disabled={actionLoading === `toggle-${payee.id}`}
                           >
-                            {category.isActive ? (
+                            {payee.isActive ? (
                               <>
                                 <EyeOff className="mr-2 h-4 w-4" />
                                 Deactivate
@@ -213,7 +260,7 @@ export function CategoriesList({
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
-                            onClick={() => handleDeleteClick(category)}
+                            onClick={() => handleDeleteClick(payee)}
                             className="text-red-600 focus:text-red-600"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -234,29 +281,29 @@ export function CategoriesList({
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Category</DialogTitle>
-                         <DialogDescription>
-               Are you sure you want to delete &ldquo;{categoryToDelete?.displayName}&rdquo;? 
-               This action cannot be undone and may affect your transaction history.
-             </DialogDescription>
+            <DialogTitle>Delete Payee</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &ldquo;{payeeToDelete?.displayName}&rdquo;? 
+              This action cannot be undone and may affect your transaction history.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
                 setDeleteDialogOpen(false)
-                setCategoryToDelete(null)
+                setPayeeToDelete(null)
               }}
-              disabled={actionLoading === `delete-${categoryToDelete?.id}`}
+              disabled={actionLoading === `delete-${payeeToDelete?.id}`}
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={handleDeleteConfirm}
-              disabled={actionLoading === `delete-${categoryToDelete?.id}`}
+              disabled={actionLoading === `delete-${payeeToDelete?.id}`}
             >
-              {actionLoading === `delete-${categoryToDelete?.id}` ? (
+              {actionLoading === `delete-${payeeToDelete?.id}` ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   Deleting...
