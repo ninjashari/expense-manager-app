@@ -7,7 +7,7 @@
 
 import { supabase } from '@/lib/supabase'
 import { Transaction, TransactionFormData, isTransferFormData } from '@/types/transaction'
-import { createCategory } from './supabase-category-service'
+import { createCategory, getCategoryById } from './supabase-category-service'
 import { createPayee } from './supabase-payee-service'
 import { generateCategoryName } from '@/types/category'
 import { generatePayeeName } from '@/types/payee'
@@ -228,6 +228,7 @@ export async function getTransactionById(transactionId: string, userId: string):
  */
 export async function createTransaction(transactionData: TransactionFormData, userId: string): Promise<Transaction> {
   let finalCategoryId: string | undefined
+  let finalCategoryDisplayName: string | undefined
   let finalPayeeId: string | undefined
 
   // Handle category creation for deposit/withdrawal transactions
@@ -240,6 +241,7 @@ export async function createTransaction(transactionData: TransactionFormData, us
           isActive: true,
         }, userId)
         finalCategoryId = newCategory.id
+        finalCategoryDisplayName = newCategory.displayName
       } catch (error) {
         // If category already exists, try to find it
         const { data: existingCategory } = await supabase
@@ -251,6 +253,7 @@ export async function createTransaction(transactionData: TransactionFormData, us
         
         if (existingCategory) {
           finalCategoryId = existingCategory.id
+          finalCategoryDisplayName = transactionData.categoryName
         } else {
           throw error
         }
@@ -261,10 +264,17 @@ export async function createTransaction(transactionData: TransactionFormData, us
 
     // Handle new payee creation
     if (transactionData.payeeName && !transactionData.payeeId) {
+      if (finalCategoryId && !finalCategoryDisplayName) {
+        const category = await getCategoryById(finalCategoryId, userId)
+        if (category) {
+          finalCategoryDisplayName = category.displayName
+        }
+      }
       try {
         const newPayee = await createPayee({
           displayName: transactionData.payeeName,
           isActive: true,
+          category: finalCategoryDisplayName,
         }, userId)
         finalPayeeId = newPayee.id
       } catch (error) {
@@ -349,6 +359,7 @@ export async function updateTransaction(
   userId: string
 ): Promise<Transaction | null> {
   let finalCategoryId: string | undefined
+  let finalCategoryDisplayName: string | undefined
   let finalPayeeId: string | undefined
 
   // Handle category creation for deposit/withdrawal transactions
@@ -361,6 +372,7 @@ export async function updateTransaction(
           isActive: true,
         }, userId)
         finalCategoryId = newCategory.id
+        finalCategoryDisplayName = newCategory.displayName
       } catch (error) {
         // If category already exists, try to find it
         const { data: existingCategory } = await supabase
@@ -372,6 +384,7 @@ export async function updateTransaction(
         
         if (existingCategory) {
           finalCategoryId = existingCategory.id
+          finalCategoryDisplayName = transactionData.categoryName
         } else {
           throw error
         }
@@ -382,10 +395,17 @@ export async function updateTransaction(
 
     // Handle new payee creation
     if (transactionData.payeeName && !transactionData.payeeId) {
+      if (finalCategoryId && !finalCategoryDisplayName) {
+        const category = await getCategoryById(finalCategoryId, userId)
+        if (category) {
+          finalCategoryDisplayName = category.displayName
+        }
+      }
       try {
         const newPayee = await createPayee({
           displayName: transactionData.payeeName,
           isActive: true,
+          category: finalCategoryDisplayName,
         }, userId)
         finalPayeeId = newPayee.id
       } catch (error) {

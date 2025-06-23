@@ -7,7 +7,7 @@
 
 import { useAuth } from '@/components/auth/auth-provider'
 import { AuthForm } from '@/components/auth/auth-form'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 /**
@@ -16,12 +16,13 @@ import { useEffect } from 'react'
  */
 export default function Home() {
   const { user, loading } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     if (user && !loading) {
-      redirect('/dashboard')
+      router.push('/dashboard')
     }
-  }, [user, loading])
+  }, [user, loading, router])
 
   if (loading) {
     return (
