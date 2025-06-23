@@ -10,6 +10,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   BarChart3,
+  Building2,
   CreditCard,
   Home,
   Receipt,
@@ -60,6 +61,12 @@ const navigationItems = [
     url: "/categories",
     icon: Tag,
     description: "Organize expenses by categories"
+  },
+  {
+    title: "Payees",
+    url: "/payees",
+    icon: Building2,
+    description: "Manage who you make payments to"
   },
   {
     title: "Reports",

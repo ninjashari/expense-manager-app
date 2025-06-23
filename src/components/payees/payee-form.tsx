@@ -1,7 +1,7 @@
 /**
- * @file category-form.tsx
- * @description This file contains the category form component for creating and editing categories.
- * It provides a form interface with validation for category management.
+ * @file payee-form.tsx
+ * @description This file contains the payee form component for creating and editing payees.
+ * It provides a form interface with validation for payee management.
  */
 
 "use client"
@@ -12,39 +12,43 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { categoryFormSchema } from "@/lib/validations/category"
-import { CategoryFormData } from "@/types/category"
+import { payeeFormSchema } from "@/lib/validations/payee"
+import { PayeeFormData } from "@/types/payee"
+import { Payee } from "@/types/payee"
 import { Category } from "@/types/category"
 
 /**
- * Props interface for CategoryForm component
- * @description Defines the properties passed to the CategoryForm component
+ * Props interface for PayeeForm component
+ * @description Defines the properties passed to the PayeeForm component
  */
-interface CategoryFormProps {
-  category?: Category
-  onSubmit: (data: CategoryFormData) => Promise<void>
+interface PayeeFormProps {
+  payee?: Payee
+  categories: Category[]
+  onSubmit: (data: PayeeFormData) => Promise<void>
   onCancel?: () => void
   isLoading?: boolean
 }
 
 /**
- * CategoryForm component
- * @description Renders a form for creating or editing categories with validation
- * @param category - Optional existing category data for editing
+ * PayeeForm component
+ * @description Renders a form for creating or editing payees with validation
+ * @param payee - Optional existing payee data for editing
  * @param onSubmit - Function called when form is submitted with valid data
  * @param onCancel - Optional function called when form is cancelled
  * @param isLoading - Whether the form is in a loading state
- * @returns JSX element containing the category form
+ * @returns JSX element containing the payee form
  */
-export function CategoryForm({ category, onSubmit, onCancel, isLoading = false }: CategoryFormProps) {
-  const form = useForm<CategoryFormData>({
-    resolver: zodResolver(categoryFormSchema),
+export function PayeeForm({ payee, categories, onSubmit, onCancel, isLoading = false }: PayeeFormProps) {
+  const form = useForm<PayeeFormData>({
+    resolver: zodResolver(payeeFormSchema),
     defaultValues: {
-      displayName: category?.displayName || "",
-      description: category?.description || "",
-      isActive: category?.isActive !== undefined ? category.isActive : true,
+      displayName: payee?.displayName || "",
+      description: payee?.description || "",
+      category: payee?.category || "",
+      isActive: payee?.isActive !== undefined ? payee.isActive : true,
     },
   })
 
@@ -53,25 +57,25 @@ export function CategoryForm({ category, onSubmit, onCancel, isLoading = false }
    * @description Processes form data and calls onSubmit function
    * @param data - Validated form data
    */
-  const handleSubmit = async (data: CategoryFormData) => {
+  const handleSubmit = async (data: PayeeFormData) => {
     try {
       await onSubmit(data)
     } catch (error) {
-      console.error('Error submitting category form:', error)
+      console.error('Error submitting payee form:', error)
       // Form error handling is managed by the parent component
     }
   }
 
-  const isEditing = !!category
+  const isEditing = !!payee
 
   return (
     <Card className="w-full max-w-2xl">
       <CardHeader>
-        <CardTitle>{isEditing ? 'Edit Category' : 'Create New Category'}</CardTitle>
+        <CardTitle>{isEditing ? 'Edit Payee' : 'Create New Payee'}</CardTitle>
         <CardDescription>
           {isEditing 
-            ? 'Update the details of your expense category.'
-            : 'Add a new category to organize your expenses.'
+            ? 'Update the details of your payee.'
+            : 'Add a new payee to track who you make payments to.'
           }
         </CardDescription>
       </CardHeader>
@@ -87,13 +91,13 @@ export function CategoryForm({ category, onSubmit, onCancel, isLoading = false }
                   <FormLabel>Display Name *</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g., Groceries, Transportation, Entertainment"
+                      placeholder="e.g., Amazon, Netflix, Apollo Pharmacy"
                       {...field}
                       disabled={isLoading}
                     />
                   </FormControl>
                   <FormDescription>
-                    This is the name that will be displayed throughout the app.
+                    The name of the merchant, service provider, or person you pay.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -101,6 +105,39 @@ export function CategoryForm({ category, onSubmit, onCancel, isLoading = false }
             />
 
             
+
+            {/* Category Field */}
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value || undefined}
+                    disabled={isLoading}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category (optional)" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.name}>
+                          {category.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Categorize your payee for better organization and reporting.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Description Field */}
             <FormField
@@ -111,7 +148,7 @@ export function CategoryForm({ category, onSubmit, onCancel, isLoading = false }
                   <FormLabel>Description</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Optional description for this category..."
+                      placeholder="Optional description about this payee..."
                       className="resize-none"
                       rows={3}
                       {...field}
@@ -119,7 +156,7 @@ export function CategoryForm({ category, onSubmit, onCancel, isLoading = false }
                     />
                   </FormControl>
                   <FormDescription>
-                    Add details about what expenses belong to this category.
+                    Add details about this payee, what you typically pay them for, etc.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -135,8 +172,8 @@ export function CategoryForm({ category, onSubmit, onCancel, isLoading = false }
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">Active Status</FormLabel>
                     <FormDescription>
-                      Active categories are available for new transactions.
-                      Inactive categories are hidden but preserve historical data.
+                      Active payees are available for new transactions.
+                      Inactive payees are hidden but preserve historical data.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -169,7 +206,7 @@ export function CategoryForm({ category, onSubmit, onCancel, isLoading = false }
                     {isEditing ? 'Updating...' : 'Creating...'}
                   </>
                 ) : (
-                  isEditing ? 'Update Category' : 'Create Category'
+                  isEditing ? 'Update Payee' : 'Create Payee'
                 )}
               </Button>
             </div>
