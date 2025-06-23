@@ -8,7 +8,7 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { MoreHorizontal, Edit, Trash2, ArrowUpRight, ArrowDownLeft, ArrowLeftRight } from "lucide-react"
+import { MoreHorizontal, Edit, Trash2, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, ChevronsUpDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,9 +17,12 @@ import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Checkbox } from "@/components/ui/checkbox"
 
 import { Transaction, getTransactionTypeLabel, getTransactionStatusLabel, isTransferTransaction } from "@/types/transaction"
-import { getCurrencySymbol } from "@/types/account"
+import { Account, getCurrencySymbol } from "@/types/account"
 
 /**
  * Props interface for TransactionsList component
@@ -30,6 +33,10 @@ interface TransactionsListProps {
    * Array of transactions to display
    */
   transactions: Transaction[]
+  /**
+   * Array of accounts available for filtering
+   */
+  accounts: Account[]
   /**
    * Loading state for the transactions list
    */
@@ -58,6 +65,7 @@ interface FilterOptions {
   search: string
   type: 'all' | 'deposit' | 'withdrawal' | 'transfer'
   status: 'all' | 'pending' | 'completed' | 'cancelled'
+  accountIds: string[] // Array of selected account IDs
 }
 
 /**
@@ -68,6 +76,7 @@ interface FilterOptions {
  */
 export function TransactionsList({
   transactions,
+  accounts,
   isLoading = false,
   onEdit,
   onDelete
@@ -75,8 +84,11 @@ export function TransactionsList({
   const [filters, setFilters] = useState<FilterOptions>({
     search: '',
     type: 'all',
-    status: 'all'
+    status: 'all',
+    accountIds: []
   })
+
+  const [accountsPopoverOpen, setAccountsPopoverOpen] = useState(false)
 
   /**
    * Filter transactions based on current filter options
@@ -96,7 +108,7 @@ export function TransactionsList({
         transaction.category?.displayName,
         transaction.amount.toString()
       ].filter(Boolean).join(' ').toLowerCase()
-      
+
       if (!searchFields.includes(searchTerm)) {
         return false
       }
@@ -110,6 +122,23 @@ export function TransactionsList({
     // Status filter
     if (filters.status !== 'all' && transaction.status !== filters.status) {
       return false
+    }
+
+    // Account filter
+    if (filters.accountIds.length > 0) {
+      const transactionAccountIds = [
+        transaction.accountId,
+        transaction.fromAccountId,
+        transaction.toAccountId
+      ].filter(Boolean)
+
+      const hasMatchingAccount = transactionAccountIds.some(accountId =>
+        filters.accountIds.includes(accountId!)
+      )
+
+      if (!hasMatchingAccount) {
+        return false
+      }
     }
 
     return true
@@ -163,7 +192,7 @@ export function TransactionsList({
     const currency = transaction.account?.currency || transaction.fromAccount?.currency || 'INR'
     const symbol = getCurrencySymbol(currency)
     const amount = `${symbol}${transaction.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-    
+
     let colorClass = ''
     if (transaction.type === 'deposit') {
       colorClass = 'text-green-600'
@@ -172,30 +201,76 @@ export function TransactionsList({
     } else {
       colorClass = 'text-blue-600'
     }
-    
+
     return { amount, colorClass }
   }
 
   /**
-   * Get transaction description
-   * @description Returns appropriate description based on transaction type
+   * Get account display for transaction
+   * @description Returns appropriate account display based on transaction type
    * @param transaction - Transaction object
-   * @returns Description string
+   * @returns Account display string
    */
-  const getTransactionDescription = (transaction: Transaction) => {
+  const getAccountDisplay = (transaction: Transaction) => {
     if (isTransferTransaction(transaction)) {
       return `${transaction.fromAccount?.name || 'Unknown'} → ${transaction.toAccount?.name || 'Unknown'}`
     }
-    
-    const parts = []
-    if (transaction.payee?.displayName) {
-      parts.push(transaction.payee.displayName)
+
+    return transaction.account?.name || 'Unknown'
+  }
+
+  /**
+   * Get payee display for transaction
+   * @description Returns payee display name or appropriate fallback
+   * @param transaction - Transaction object
+   * @returns Payee display string
+   */
+  const getPayeeDisplay = (transaction: Transaction) => {
+    if (isTransferTransaction(transaction)) {
+      return '—' // No payee for transfers
     }
-    if (transaction.account?.name) {
-      parts.push(`(${transaction.account.name})`)
+
+    return transaction.payee?.displayName || 'Unknown'
+  }
+
+  /**
+   * Handle account filter selection
+   * @description Updates the selected accounts filter
+   * @param accountId - Account ID to toggle
+   */
+  const handleAccountToggle = (accountId: string) => {
+    setFilters(prev => ({
+      ...prev,
+      accountIds: prev.accountIds.includes(accountId)
+        ? prev.accountIds.filter(id => id !== accountId)
+        : [...prev.accountIds, accountId]
+    }))
+  }
+
+  /**
+   * Clear all account filters
+   * @description Removes all selected accounts from filter
+   */
+  const clearAccountFilters = () => {
+    setFilters(prev => ({ ...prev, accountIds: [] }))
+  }
+
+  /**
+   * Get selected accounts display text
+   * @description Returns display text for selected accounts
+   * @returns Display text string
+   */
+  const getSelectedAccountsText = () => {
+    if (filters.accountIds.length === 0) {
+      return 'All Accounts'
     }
-    
-    return parts.join(' ') || 'Unknown'
+
+    if (filters.accountIds.length === 1) {
+      const account = accounts.find(acc => acc.id === filters.accountIds[0])
+      return account?.name || 'Unknown Account'
+    }
+
+    return `${filters.accountIds.length} accounts selected`
   }
 
   if (isLoading) {
@@ -224,13 +299,13 @@ export function TransactionsList({
       </CardHeader>
       <CardContent>
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Input
             placeholder="Search transactions..."
             value={filters.search}
             onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
           />
-          
+
           <Select
             value={filters.type}
             onValueChange={(value) => setFilters(prev => ({ ...prev, type: value as FilterOptions['type'] }))}
@@ -245,7 +320,7 @@ export function TransactionsList({
               <SelectItem value="transfer">Transfers</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Select
             value={filters.status}
             onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as FilterOptions['status'] }))}
@@ -260,6 +335,61 @@ export function TransactionsList({
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Accounts Multi-Select Filter */}
+          <Popover open={accountsPopoverOpen} onOpenChange={setAccountsPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={accountsPopoverOpen}
+                className="justify-between"
+              >
+                {getSelectedAccountsText()}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0">
+              <Command>
+                <CommandInput placeholder="Search accounts..." />
+                <CommandList>
+                  <CommandEmpty>No accounts found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      onSelect={clearAccountFilters}
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={filters.accountIds.length === 0}
+                          onChange={() => { }}
+                        />
+                        <span>All Accounts</span>
+                      </div>
+                    </CommandItem>
+                    {accounts.map((account) => (
+                      <CommandItem
+                        key={account.id}
+                        onSelect={() => handleAccountToggle(account.id)}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            checked={filters.accountIds.includes(account.id)}
+                            onChange={() => { }}
+                          />
+                          <span>{account.name}</span>
+                          <Badge variant="outline" className="ml-auto">
+                            {account.type}
+                          </Badge>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Transactions Table */}
@@ -267,7 +397,7 @@ export function TransactionsList({
           <div className="text-center py-12">
             <p className="text-lg font-medium">No transactions found</p>
             <p className="text-muted-foreground">
-              {transactions.length === 0 
+              {transactions.length === 0
                 ? "Add your first transaction to get started"
                 : "Try adjusting your filters"
               }
@@ -280,7 +410,8 @@ export function TransactionsList({
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Description</TableHead>
+                  <TableHead>Payee</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
@@ -290,7 +421,7 @@ export function TransactionsList({
               <TableBody>
                 {filteredTransactions.map((transaction) => {
                   const { amount, colorClass } = formatAmount(transaction)
-                  
+
                   return (
                     <TableRow key={transaction.id}>
                       <TableCell className="font-medium">
@@ -304,13 +435,16 @@ export function TransactionsList({
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{getTransactionDescription(transaction)}</div>
-                          {transaction.notes && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              {transaction.notes}
-                            </div>
-                          )}
+                          <div className="font-medium">{getPayeeDisplay(transaction)}</div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{getAccountDisplay(transaction)}</div>
+                        {transaction.notes && (
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {transaction.notes}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         {transaction.category ? (
@@ -343,7 +477,7 @@ export function TransactionsList({
                               </DropdownMenuItem>
                             )}
                             {onDelete && (
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => onDelete(transaction)}
                                 className="text-red-600"
                               >

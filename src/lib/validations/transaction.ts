@@ -52,29 +52,33 @@ export const depositWithdrawalTransactionSchema = baseTransactionSchema.extend({
   payeeId: z
     .string()
     .uuid('Invalid payee ID')
-    .optional(),
+    .optional()
+    .or(z.literal('')),
   
   payeeName: z
     .string()
     .min(2, 'Payee name must be at least 2 characters')
     .max(100, 'Payee name must be less than 100 characters')
-    .optional(),
+    .optional()
+    .or(z.literal('')),
   
   categoryId: z
     .string()
     .uuid('Invalid category ID')
-    .optional(),
+    .optional()
+    .or(z.literal('')),
   
   categoryName: z
     .string()
     .min(2, 'Category name must be at least 2 characters')
     .max(50, 'Category name must be less than 50 characters')
-    .optional(),
+    .optional()
+    .or(z.literal('')),
 }).refine(
   (data) => {
     // Either payeeId or payeeName should be provided, but not both
-    const hasPayeeId = !!data.payeeId
-    const hasPayeeName = !!data.payeeName?.trim()
+    const hasPayeeId = !!data.payeeId && data.payeeId.trim() !== ''
+    const hasPayeeName = !!data.payeeName && data.payeeName.trim() !== ''
     return hasPayeeId || hasPayeeName
   },
   {
@@ -85,8 +89,8 @@ export const depositWithdrawalTransactionSchema = baseTransactionSchema.extend({
   (data) => {
     // Either categoryId or categoryName should be provided for withdrawal transactions
     if (data.type === 'withdrawal') {
-      const hasCategoryId = !!data.categoryId
-      const hasCategoryName = !!data.categoryName?.trim()
+      const hasCategoryId = !!data.categoryId && data.categoryId.trim() !== ''
+      const hasCategoryName = !!data.categoryName && data.categoryName.trim() !== ''
       return hasCategoryId || hasCategoryName
     }
     return true
