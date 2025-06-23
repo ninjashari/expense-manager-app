@@ -12,6 +12,7 @@ import { createPayee } from './supabase-payee-service'
 import { generateCategoryName } from '@/types/category'
 import { generatePayeeName } from '@/types/payee'
 import { AccountType } from '@/types/account'
+import { formatDateForDatabase, parseDateFromDatabase } from '@/lib/utils'
 
 /**
  * Database row interface for transactions table
@@ -74,7 +75,7 @@ function transformRowToTransaction(row: TransactionRowWithJoins): Transaction {
   return {
     id: row.id,
     userId: row.user_id,
-    date: new Date(row.date),
+    date: parseDateFromDatabase(row.date),
     status: row.status,
     type: row.type,
     amount: row.amount,
@@ -300,7 +301,7 @@ export async function createTransaction(transactionData: TransactionFormData, us
   // Prepare transaction data for insertion
   const insertData = isTransferFormData(transactionData) ? {
     user_id: userId,
-    date: transactionData.date.toISOString().split('T')[0],
+    date: formatDateForDatabase(transactionData.date),
     status: transactionData.status,
     type: transactionData.type,
     amount: transactionData.amount,
@@ -312,7 +313,7 @@ export async function createTransaction(transactionData: TransactionFormData, us
     category_id: null,
   } : {
     user_id: userId,
-    date: transactionData.date.toISOString().split('T')[0],
+    date: formatDateForDatabase(transactionData.date),
     status: transactionData.status,
     type: transactionData.type,
     amount: transactionData.amount,
@@ -430,7 +431,7 @@ export async function updateTransaction(
 
   // Prepare transaction data for update
   const updateData = isTransferFormData(transactionData) ? {
-    date: transactionData.date.toISOString().split('T')[0],
+    date: formatDateForDatabase(transactionData.date),
     status: transactionData.status,
     type: transactionData.type,
     amount: transactionData.amount,
@@ -441,7 +442,7 @@ export async function updateTransaction(
     payee_id: null,
     category_id: null,
   } : {
-    date: transactionData.date.toISOString().split('T')[0],
+    date: formatDateForDatabase(transactionData.date),
     status: transactionData.status,
     type: transactionData.type,
     amount: transactionData.amount,

@@ -253,21 +253,40 @@ export default function TransactionsPage() {
               </DialogTitle>
             </DialogHeader>
             <TransactionForm
-              initialData={editingTransaction ? {
-                date: editingTransaction.date,
-                status: editingTransaction.status,
-                type: editingTransaction.type,
-                amount: editingTransaction.amount,
-                notes: editingTransaction.notes,
-                ...(editingTransaction.type === 'transfer' ? {
-                  fromAccountId: editingTransaction.fromAccountId || '',
-                  toAccountId: editingTransaction.toAccountId || '',
-                } : {
-                  accountId: editingTransaction.accountId || '',
-                  payeeId: editingTransaction.payeeId,
-                  categoryId: editingTransaction.categoryId,
-                })
-              } as TransactionFormData : undefined}
+              initialData={editingTransaction ? (() => {
+                const baseData = {
+                  date: editingTransaction.date,
+                  status: editingTransaction.status,
+                  type: editingTransaction.type,
+                  amount: editingTransaction.amount,
+                  notes: editingTransaction.notes || '',
+                }
+                
+                if (editingTransaction.type === 'transfer') {
+                  return {
+                    ...baseData,
+                    fromAccountId: editingTransaction.fromAccountId || '',
+                    toAccountId: editingTransaction.toAccountId || '',
+                  } as TransactionFormData
+                } else {
+                  const depositWithdrawalData = {
+                    ...baseData,
+                    accountId: editingTransaction.accountId || '',
+                    payeeId: editingTransaction.payeeId || undefined,
+                    categoryId: editingTransaction.categoryId || undefined,
+                    payeeName: undefined,
+                    categoryName: undefined,
+                  } as TransactionFormData
+                  
+                  // For withdrawal transactions, ensure we have either categoryId or categoryName
+                  if (editingTransaction.type === 'withdrawal' && !editingTransaction.categoryId) {
+                    // If no category is set, we'll let the user select one in the form
+                    // The form validation will handle this requirement
+                  }
+                  
+                  return depositWithdrawalData
+                }
+              })() : undefined}
               accounts={accounts}
               categories={categories}
               payees={payees}

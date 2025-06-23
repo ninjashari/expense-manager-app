@@ -6,6 +6,7 @@
 
 import { supabase, formatCurrency } from '@/lib/supabase'
 import { Account, AccountFormData } from '@/types/account'
+import { formatDateForDatabase, parseDateFromDatabase } from '@/lib/utils'
 
 /**
  * Database row interface for accounts table
@@ -47,7 +48,7 @@ function transformRowToAccount(row: AccountRow): Account {
     initialBalance: row.initial_balance,
     currentBalance: row.current_balance,
     currency: row.currency as Account['currency'],
-    accountOpeningDate: new Date(row.account_opening_date),
+    accountOpeningDate: parseDateFromDatabase(row.account_opening_date),
     notes: row.notes || undefined,
     creditCardInfo: row.type === 'credit_card' && row.credit_limit && row.payment_due_date && row.bill_generation_date ? {
       creditLimit: row.credit_limit,
@@ -78,7 +79,7 @@ function transformFormDataToRow(formData: AccountFormData, userId: string) {
     initial_balance: formData.initialBalance,
     current_balance: formData.initialBalance, // Initially same as initial balance
     currency: formData.currency,
-    account_opening_date: formData.accountOpeningDate.toISOString().split('T')[0],
+    account_opening_date: formatDateForDatabase(formData.accountOpeningDate),
     notes: formData.notes || null,
     credit_limit: formData.type === 'credit_card' ? formData.creditLimit : null,
     payment_due_date: formData.type === 'credit_card' ? formData.paymentDueDate : null,
@@ -179,7 +180,7 @@ export async function updateAccount(
     status: accountData.status,
     initial_balance: accountData.initialBalance,
     currency: accountData.currency,
-    account_opening_date: accountData.accountOpeningDate.toISOString().split('T')[0],
+    account_opening_date: formatDateForDatabase(accountData.accountOpeningDate),
     notes: accountData.notes || null,
     credit_limit: accountData.type === 'credit_card' ? accountData.creditLimit : null,
     payment_due_date: accountData.type === 'credit_card' ? accountData.paymentDueDate : null,
