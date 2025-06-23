@@ -211,6 +211,91 @@ CREATE TRIGGER update_payees_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- Create transaction types enum
+CREATE TYPE transaction_type AS ENUM (
+  'deposit',
+  'withdrawal',
+  'transfer'
+);
+
+CREATE TYPE transaction_status AS ENUM (
+  'pending',
+  'completed',
+  'cancelled'
+);
+
+-- Create transactions table
+CREATE TABLE transactions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  date DATE NOT NULL,
+  status transaction_status DEFAULT 'completed' NOT NULL,
+  type transaction_type NOT NULL,
+  amount DECIMAL(15,2) NOT NULL,
+  
+  -- For deposit/withdrawal transactions
+  account_id UUID REFERENCES accounts(id) ON DELETE CASCADE,
+  payee_id UUID REFERENCES payees(id) ON DELETE SET NULL,
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  
+  -- For transfer transactions
+  from_account_id UUID REFERENCES accounts(id) ON DELETE CASCADE,
+  to_account_id UUID REFERENCES accounts(id) ON DELETE CASCADE,
+  
+  notes TEXT,
+  
+  -- Timestamps
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  
+  -- Constraints
+  CONSTRAINT positive_amount CHECK (amount > 0),
+  CONSTRAINT valid_transaction_fields CHECK (
+    -- For transfer transactions
+    (type = 'transfer' AND from_account_id IS NOT NULL AND to_account_id IS NOT NULL AND from_account_id != to_account_id AND account_id IS NULL AND payee_id IS NULL) OR
+    -- For deposit/withdrawal transactions
+    (type IN ('deposit', 'withdrawal') AND account_id IS NOT NULL AND from_account_id IS NULL AND to_account_id IS NULL)
+  )
+);
+
+-- Create indexes for transactions
+CREATE INDEX idx_transactions_user_id ON transactions(user_id);
+CREATE INDEX idx_transactions_date ON transactions(date);
+CREATE INDEX idx_transactions_type ON transactions(type);
+CREATE INDEX idx_transactions_status ON transactions(status);
+CREATE INDEX idx_transactions_account_id ON transactions(account_id);
+CREATE INDEX idx_transactions_from_account_id ON transactions(from_account_id);
+CREATE INDEX idx_transactions_to_account_id ON transactions(to_account_id);
+CREATE INDEX idx_transactions_payee_id ON transactions(payee_id);
+CREATE INDEX idx_transactions_category_id ON transactions(category_id);
+CREATE INDEX idx_transactions_created_at ON transactions(created_at);
+
+-- Enable Row Level Security (RLS) for transactions
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for transactions
+CREATE POLICY "Users can view own transactions"
+  ON transactions FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own transactions"
+  ON transactions FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own transactions"
+  ON transactions FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own transactions"
+  ON transactions FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Create trigger to automatically update updated_at for transactions
+CREATE TRIGGER update_transactions_updated_at
+  BEFORE UPDATE ON transactions
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 -- Insert sample data (optional - for development)
 -- Note: Replace 'your-user-id' with actual user ID from auth.users
 /*
