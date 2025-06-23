@@ -181,8 +181,20 @@ export function AccountDetails({ account, onEdit, onClose }: AccountDetailsProps
                   <div className="text-sm font-medium text-muted-foreground mb-1">
                     Credit Utilization
                   </div>
-                  <div className="text-xl font-semibold">
-                    {Math.round((Math.abs(account.currentBalance) / account.creditCardInfo.creditLimit) * 100)}%
+                  <div className="flex items-center gap-3">
+                    <div className="text-xl font-semibold">
+                      {account.creditUsagePercentage?.toFixed(1) || '0.0'}%
+                    </div>
+                    <div className="flex-1 bg-muted rounded-full h-2 max-w-[120px]">
+                      <div 
+                        className={cn(
+                          "h-2 rounded-full transition-all",
+                          (account.creditUsagePercentage || 0) > 80 ? "bg-destructive" :
+                          (account.creditUsagePercentage || 0) > 60 ? "bg-yellow-500" : "bg-primary"
+                        )}
+                        style={{ width: `${Math.min(account.creditUsagePercentage || 0, 100)}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

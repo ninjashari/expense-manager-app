@@ -17,6 +17,8 @@ import { Account } from '@/types/account'
 import { AccountFormData } from '@/lib/validations/account'
 import { 
   getAccounts, 
+  getAccountsWithFreshBalances,
+  recalculateAccountBalances,
   createAccount, 
   updateAccount, 
   deleteAccount 
@@ -44,14 +46,14 @@ export default function AccountsPage() {
 
   /**
    * Load accounts from service
-   * @description Fetches all accounts for the current user
+   * @description Fetches all accounts for the current user with fresh balance calculations
    */
   const loadAccounts = useCallback(async () => {
     if (!user) return
     
     try {
       setLoading(true)
-      const userAccounts = await getAccounts(user.id)
+      const userAccounts = await getAccountsWithFreshBalances(user.id)
       setAccounts(userAccounts)
     } catch (error) {
       console.error('Failed to load accounts:', error)
@@ -187,6 +189,35 @@ export default function AccountsPage() {
   }
 
   /**
+   * Handle refresh balances
+   * @description Manually recalculates account balances and reloads accounts
+   */
+  const handleRefresh = async () => {
+    if (!user) return
+    
+    try {
+      setLoading(true)
+      toast.info('Recalculating account balances...')
+      
+      // Recalculate balances first
+      const success = await recalculateAccountBalances(user.id)
+      if (success) {
+        // Then reload accounts
+        const userAccounts = await getAccounts(user.id)
+        setAccounts(userAccounts)
+        toast.success('Account balances updated successfully')
+      } else {
+        toast.error('Failed to recalculate balances')
+      }
+    } catch (error) {
+      console.error('Failed to refresh balances:', error)
+      toast.error('Failed to refresh balances')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  /**
    * Render content based on current view mode
    * @description Returns appropriate component based on view mode
    */
@@ -223,6 +254,7 @@ export default function AccountsPage() {
             onEdit={handleEdit}
             onView={handleView}
             onDelete={handleDelete}
+            onRefresh={handleRefresh}
             isLoading={loading}
           />
         )

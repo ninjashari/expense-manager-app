@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { transactionFormSchema, TransactionFormData } from "@/lib/validations/transaction"
-import { TRANSACTION_TYPE_OPTIONS, TRANSACTION_STATUS_OPTIONS } from "@/types/transaction"
+import { TRANSACTION_TYPE_OPTIONS, TRANSACTION_STATUS_OPTIONS, TransferFormData, DepositWithdrawalFormData } from "@/types/transaction"
 import { Account, ACCOUNT_TYPE_OPTIONS } from "@/types/account"
 import { Category } from "@/types/category"
 import { Payee } from "@/types/payee"
@@ -91,13 +91,17 @@ export function TransactionForm({
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
-      date: initialData?.date || new Date(),
-      status: initialData?.status || 'completed',
-      type: initialData?.type || 'deposit',
-      amount: initialData?.amount || 0,
-      notes: initialData?.notes || '',
-      // Type-specific defaults will be set when type changes
-    }
+      date: new Date(),
+      status: 'completed',
+      type: 'deposit',
+      amount: 0,
+      notes: '',
+      accountId: '',
+      payeeId: '',
+      categoryId: '',
+      payeeName: '',
+      categoryName: '',
+    } as DepositWithdrawalFormData
   })
 
   // Watch form values for dynamic updates
@@ -106,18 +110,75 @@ export function TransactionForm({
   // Update selectedType when form type changes
   useEffect(() => {
     setSelectedType(watchedType as 'deposit' | 'withdrawal' | 'transfer')
-    // Reset type-specific fields when type changes
-    if (watchedType === 'transfer') {
-      form.setValue('accountId', '')
-      form.setValue('payeeId', '')
-      form.setValue('categoryId', '')
-      form.setValue('payeeName', '')
-      form.setValue('categoryName', '')
-    } else {
-      form.setValue('fromAccountId', '')
-      form.setValue('toAccountId', '')
+    
+    // Only reset type-specific fields when type changes AND we're not in initial load
+    if (!initialData || watchedType !== initialData.type) {
+      if (watchedType === 'transfer') {
+        form.setValue('accountId', '')
+        form.setValue('payeeId', '')
+        form.setValue('categoryId', '')
+        form.setValue('payeeName', '')
+        form.setValue('categoryName', '')
+      } else {
+        form.setValue('fromAccountId', '')
+        form.setValue('toAccountId', '')
+      }
     }
-  }, [watchedType, form])
+  }, [watchedType, form, initialData])
+
+  // Set form values when initialData changes (for editing)
+  useEffect(() => {
+    if (initialData) {
+      // Set basic fields
+      form.setValue('date', initialData.date || new Date())
+      form.setValue('status', initialData.status || 'completed')
+      form.setValue('type', initialData.type || 'deposit')
+      form.setValue('amount', initialData.amount || 0)
+      form.setValue('notes', initialData.notes || '')
+      
+      // Set type-specific fields
+      if (initialData.type === 'transfer') {
+        const transferData = initialData as TransferFormData
+        form.setValue('fromAccountId', transferData.fromAccountId || '')
+        form.setValue('toAccountId', transferData.toAccountId || '')
+        // Clear deposit/withdrawal fields
+        form.setValue('accountId', '')
+        form.setValue('payeeId', '')
+        form.setValue('categoryId', '')
+        form.setValue('payeeName', '')
+        form.setValue('categoryName', '')
+      } else {
+        const depositWithdrawalData = initialData as DepositWithdrawalFormData
+        form.setValue('accountId', depositWithdrawalData.accountId || '')
+        form.setValue('payeeId', depositWithdrawalData.payeeId || '')
+        form.setValue('categoryId', depositWithdrawalData.categoryId || '')
+        form.setValue('payeeName', '')
+        form.setValue('categoryName', '')
+        // Clear transfer fields
+        form.setValue('fromAccountId', '')
+        form.setValue('toAccountId', '')
+      }
+      
+      // Update the selected type to match
+      setSelectedType(initialData.type as 'deposit' | 'withdrawal' | 'transfer')
+    } else {
+      // Reset form when no initial data (new transaction)
+      const defaultDepositData: DepositWithdrawalFormData = {
+        date: new Date(),
+        status: 'completed',
+        type: 'deposit',
+        amount: 0,
+        notes: '',
+        accountId: '',
+        payeeId: '',
+        categoryId: '',
+        payeeName: '',
+        categoryName: '',
+      }
+      form.reset(defaultDepositData)
+      setSelectedType('deposit')
+    }
+  }, [initialData, form])
 
   /**
    * Form submission handler
@@ -129,6 +190,8 @@ export function TransactionForm({
       await onSubmit(data)
     } catch (error) {
       console.error('Transaction form submission error:', error)
+      // Re-throw the error so the parent component can handle it
+      throw error
     }
   }
 
@@ -176,7 +239,7 @@ export function TransactionForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Transaction Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select transaction type" />
@@ -247,7 +310,7 @@ export function TransactionForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
@@ -300,7 +363,7 @@ export function TransactionForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>From Account</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select source account" />
@@ -325,7 +388,7 @@ export function TransactionForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>To Account</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select destination account" />
@@ -355,7 +418,7 @@ export function TransactionForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Account</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select account" />
@@ -392,7 +455,7 @@ export function TransactionForm({
                         name="payeeId"
                         render={({ field }) => (
                           <FormItem>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select payee" />
@@ -451,7 +514,7 @@ export function TransactionForm({
                         name="categoryId"
                         render={({ field }) => (
                           <FormItem>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select category" />
@@ -524,7 +587,10 @@ export function TransactionForm({
                   Cancel
                 </Button>
               )}
-              <Button type="submit" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                disabled={isLoading}
+              >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {initialData ? 'Update Transaction' : 'Create Transaction'}
               </Button>

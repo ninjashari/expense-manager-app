@@ -38,6 +38,7 @@ export interface CreditCardInfo {
   paymentDueDate: number // Day of month (1-31)
   billGenerationDate: number // Day of month (1-31)
   currentBillPaid: boolean // Whether current month's bill is paid
+  creditUsagePercentage: number // Percentage of credit limit used (0-100)
 }
 
 /**
@@ -56,6 +57,7 @@ export interface Account {
   accountOpeningDate: Date
   notes?: string
   creditCardInfo?: CreditCardInfo
+  creditUsagePercentage?: number // For credit cards, percentage of credit used
   createdAt: Date
   updatedAt: Date
 }
@@ -77,6 +79,7 @@ export interface AccountFormData {
   paymentDueDate?: number
   billGenerationDate?: number
   currentBillPaid?: boolean
+  creditUsagePercentage?: number
 }
 
 /**
