@@ -10,6 +10,7 @@ import "./globals.css";
 
 import { AuthProvider } from "@/components/auth/auth-provider"
 import { ConditionalLayout } from "@/components/layout/conditional-layout"
+import { Toaster } from "sonner"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
 
 /**
  * RootLayout component
- * @description Provides the main layout structure with authentication context
+ * @description Provides the main layout structure with authentication context and toast notifications
  * @param children - The page content to be rendered
  * @returns JSX element containing the complete application layout
  */
@@ -47,6 +48,12 @@ export default function RootLayout({
             {children}
           </ConditionalLayout>
         </AuthProvider>
+        <Toaster 
+          position="top-right"
+          richColors
+          closeButton
+          duration={4000}
+        />
       </body>
     </html>
   );
