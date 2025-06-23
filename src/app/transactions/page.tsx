@@ -269,22 +269,14 @@ export default function TransactionsPage() {
                     toAccountId: editingTransaction.toAccountId || '',
                   } as TransactionFormData
                 } else {
-                  const depositWithdrawalData = {
+                  return {
                     ...baseData,
                     accountId: editingTransaction.accountId || '',
-                    payeeId: editingTransaction.payeeId || undefined,
-                    categoryId: editingTransaction.categoryId || undefined,
-                    payeeName: undefined,
-                    categoryName: undefined,
+                    payeeId: editingTransaction.payeeId || '',
+                    categoryId: editingTransaction.categoryId || '',
+                    payeeName: '',
+                    categoryName: '',
                   } as TransactionFormData
-                  
-                  // For withdrawal transactions, ensure we have either categoryId or categoryName
-                  if (editingTransaction.type === 'withdrawal' && !editingTransaction.categoryId) {
-                    // If no category is set, we'll let the user select one in the form
-                    // The form validation will handle this requirement
-                  }
-                  
-                  return depositWithdrawalData
                 }
               })() : undefined}
               accounts={accounts}

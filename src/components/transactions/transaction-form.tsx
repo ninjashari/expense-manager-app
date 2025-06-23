@@ -6,7 +6,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { CalendarIcon, Loader2 } from "lucide-react"
@@ -86,84 +86,40 @@ export function TransactionForm({
   )
 
   /**
-   * Form configuration using react-hook-form with Zod validation
+   * Get default form values based on initial data or defaults
+   * @description Creates appropriate default values for the form
+   * @returns Default form values
    */
-  const form = useForm<TransactionFormData>({
-    resolver: zodResolver(transactionFormSchema),
-    defaultValues: {
-      date: new Date(),
-      status: 'completed',
-      type: 'deposit',
-      amount: 0,
-      notes: '',
-      accountId: '',
-      payeeId: '',
-      categoryId: '',
-      payeeName: '',
-      categoryName: '',
-    } as DepositWithdrawalFormData
-  })
-
-  // Watch form values for dynamic updates
-  const watchedType = form.watch('type')
-
-  // Update selectedType when form type changes
-  useEffect(() => {
-    setSelectedType(watchedType as 'deposit' | 'withdrawal' | 'transfer')
-    
-    // Only reset type-specific fields when type changes AND we're not in initial load
-    if (!initialData || watchedType !== initialData.type) {
-      if (watchedType === 'transfer') {
-        form.setValue('accountId', '')
-        form.setValue('payeeId', '')
-        form.setValue('categoryId', '')
-        form.setValue('payeeName', '')
-        form.setValue('categoryName', '')
-      } else {
-        form.setValue('fromAccountId', '')
-        form.setValue('toAccountId', '')
-      }
-    }
-  }, [watchedType, form, initialData])
-
-  // Set form values when initialData changes (for editing)
-  useEffect(() => {
+  const getDefaultValues = useCallback((): TransactionFormData => {
     if (initialData) {
-      // Set basic fields
-      form.setValue('date', initialData.date || new Date())
-      form.setValue('status', initialData.status || 'completed')
-      form.setValue('type', initialData.type || 'deposit')
-      form.setValue('amount', initialData.amount || 0)
-      form.setValue('notes', initialData.notes || '')
-      
-      // Set type-specific fields
+      // If we have initial data, use it to populate the form
       if (initialData.type === 'transfer') {
-        const transferData = initialData as TransferFormData
-        form.setValue('fromAccountId', transferData.fromAccountId || '')
-        form.setValue('toAccountId', transferData.toAccountId || '')
-        // Clear deposit/withdrawal fields
-        form.setValue('accountId', '')
-        form.setValue('payeeId', '')
-        form.setValue('categoryId', '')
-        form.setValue('payeeName', '')
-        form.setValue('categoryName', '')
+        return {
+          date: initialData.date || new Date(),
+          status: initialData.status || 'completed',
+          type: 'transfer',
+          amount: initialData.amount || 0,
+          notes: initialData.notes || '',
+          fromAccountId: (initialData as TransferFormData).fromAccountId || '',
+          toAccountId: (initialData as TransferFormData).toAccountId || '',
+        } as TransferFormData
       } else {
-        const depositWithdrawalData = initialData as DepositWithdrawalFormData
-        form.setValue('accountId', depositWithdrawalData.accountId || '')
-        form.setValue('payeeId', depositWithdrawalData.payeeId || '')
-        form.setValue('categoryId', depositWithdrawalData.categoryId || '')
-        form.setValue('payeeName', '')
-        form.setValue('categoryName', '')
-        // Clear transfer fields
-        form.setValue('fromAccountId', '')
-        form.setValue('toAccountId', '')
+        return {
+          date: initialData.date || new Date(),
+          status: initialData.status || 'completed',
+          type: initialData.type || 'deposit',
+          amount: initialData.amount || 0,
+          notes: initialData.notes || '',
+          accountId: (initialData as DepositWithdrawalFormData).accountId || '',
+          payeeId: (initialData as DepositWithdrawalFormData).payeeId || '',
+          categoryId: (initialData as DepositWithdrawalFormData).categoryId || '',
+          payeeName: '',
+          categoryName: '',
+        } as DepositWithdrawalFormData
       }
-      
-      // Update the selected type to match
-      setSelectedType(initialData.type as 'deposit' | 'withdrawal' | 'transfer')
     } else {
-      // Reset form when no initial data (new transaction)
-      const defaultDepositData: DepositWithdrawalFormData = {
+      // Default values for new transaction
+      return {
         date: new Date(),
         status: 'completed',
         type: 'deposit',
@@ -174,11 +130,32 @@ export function TransactionForm({
         categoryId: '',
         payeeName: '',
         categoryName: '',
-      }
-      form.reset(defaultDepositData)
-      setSelectedType('deposit')
+      } as DepositWithdrawalFormData
     }
-  }, [initialData, form])
+  }, [initialData])
+
+  /**
+   * Form configuration using react-hook-form with Zod validation
+   */
+  const form = useForm<TransactionFormData>({
+    resolver: zodResolver(transactionFormSchema),
+    defaultValues: getDefaultValues()
+  })
+
+  // Watch form values for dynamic updates
+  const watchedType = form.watch('type')
+
+  // Update selectedType when form type changes
+  useEffect(() => {
+    setSelectedType(watchedType as 'deposit' | 'withdrawal' | 'transfer')
+  }, [watchedType])
+
+  // Reset form when initialData changes (for editing vs new transaction)
+  useEffect(() => {
+    const defaultValues = getDefaultValues()
+    form.reset(defaultValues)
+    setSelectedType(defaultValues.type as 'deposit' | 'withdrawal' | 'transfer')
+  }, [getDefaultValues, form])
 
   /**
    * Form submission handler
