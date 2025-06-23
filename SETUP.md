@@ -8,6 +8,8 @@
 
 The app will show a setup screen with instructions if Supabase is not configured.
 
+> 📖 **For detailed database setup**: See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for comprehensive Supabase configuration including database schema, authentication, and production deployment.
+
 ## Supabase Configuration (Required for Authentication)
 
 To enable authentication and database functionality, you need to set up Supabase:

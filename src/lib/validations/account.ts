@@ -72,6 +72,12 @@ export const accountFormSchema = z.object({
     .min(1, 'Bill generation date must be between 1 and 31')
     .max(31, 'Bill generation date must be between 1 and 31')
     .optional(),
+  
+  currentBillPaid: z
+    .boolean({
+      invalid_type_error: 'Current bill paid must be a boolean',
+    })
+    .optional(),
 }).refine(
   (data) => {
     // If account type is credit card, credit card fields are required

@@ -59,7 +59,7 @@ import {
 } from '@/components/ui/dialog'
 
 import { Account, getAccountTypeLabel, getAccountStatusLabel, ACCOUNT_TYPE_OPTIONS, ACCOUNT_STATUS_OPTIONS } from '@/types/account'
-import { formatAccountBalance } from '@/lib/services/account-service'
+import { formatAccountBalance } from '@/lib/services/supabase-account-service'
 import { cn } from '@/lib/utils'
 
 /**

@@ -16,7 +16,9 @@ import {
   Banknote,
   DollarSign,
   FileText,
-  AlertCircle
+  AlertCircle,
+  CheckCircle,
+  XCircle
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -25,7 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 
 import { Account, getAccountTypeLabel, getAccountStatusLabel, getCurrencySymbol } from '@/types/account'
-import { formatAccountBalance } from '@/lib/services/account-service'
+import { formatAccountBalance } from '@/lib/services/supabase-account-service'
 import { cn } from '@/lib/utils'
 
 /**
@@ -293,6 +295,25 @@ export function AccountDetails({ account, onEdit, onClose }: AccountDetailsProps
                   <span className="font-medium">
                     {account.creditCardInfo.billGenerationDate}{getOrdinalSuffix(account.creditCardInfo.billGenerationDate)} of every month
                   </span>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm font-medium text-muted-foreground mb-1">
+                  Current Bill Status
+                </div>
+                <div className="flex items-center gap-2">
+                  {account.creditCardInfo.currentBillPaid ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="font-medium text-green-600">Paid</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4 text-red-500" />
+                      <span className="font-medium text-red-600">Unpaid</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

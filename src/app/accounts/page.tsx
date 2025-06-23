@@ -20,7 +20,7 @@ import {
   createAccount, 
   updateAccount, 
   deleteAccount 
-} from '@/lib/services/account-service'
+} from '@/lib/services/supabase-account-service'
 import { useAuth } from '@/components/auth/auth-provider'
 
 /**

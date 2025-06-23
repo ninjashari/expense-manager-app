@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
+import { Switch } from '@/components/ui/switch'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
@@ -80,6 +81,7 @@ export function AccountForm({ account, onSubmit, onCancel, isLoading = false }: 
       creditLimit: account?.creditCardInfo?.creditLimit || undefined,
       paymentDueDate: account?.creditCardInfo?.paymentDueDate || undefined,
       billGenerationDate: account?.creditCardInfo?.billGenerationDate || undefined,
+      currentBillPaid: account?.creditCardInfo?.currentBillPaid || false,
     },
   })
 
@@ -371,6 +373,30 @@ export function AccountForm({ account, onSubmit, onCancel, isLoading = false }: 
                             Day of month when bill is generated (1-31)
                           </FormDescription>
                           <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="currentBillPaid"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">
+                              Current Bill Paid
+                            </FormLabel>
+                            <FormDescription>
+                              Mark if this month&apos;s credit card bill has been paid
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              disabled={isLoading}
+                            />
+                          </FormControl>
                         </FormItem>
                       )}
                     />

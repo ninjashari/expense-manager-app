@@ -37,6 +37,7 @@ export interface CreditCardInfo {
   creditLimit: number
   paymentDueDate: number // Day of month (1-31)
   billGenerationDate: number // Day of month (1-31)
+  currentBillPaid: boolean // Whether current month's bill is paid
 }
 
 /**
@@ -75,6 +76,7 @@ export interface AccountFormData {
   creditLimit?: number
   paymentDueDate?: number
   billGenerationDate?: number
+  currentBillPaid?: boolean
 }
 
 /**
