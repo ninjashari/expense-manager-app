@@ -238,6 +238,7 @@ export default function TransactionsPage() {
         {/* Transactions List */}
         <TransactionsList
           transactions={transactions}
+          accounts={accounts}
           isLoading={isLoading}
           onEdit={handleEdit}
           onDelete={handleDelete}
