@@ -331,4 +331,134 @@ export async function togglePayeeStatus(payeeId: string, userId: string): Promis
 export async function getCurrentUserId(): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser()
   return user?.id || null
+}
+
+/**
+ * Import result interface for bulk operations
+ * @description Structure for tracking bulk import results
+ */
+export interface PayeeImportResult {
+  displayName: string
+  success: boolean
+  error?: string
+  isDuplicate?: boolean
+}
+
+/**
+ * Import payees from a list of display names
+ * @description Bulk creates payees from an array of display names with progress tracking
+ * @param displayNames - Array of payee display names to import
+ * @param userId - User ID for payee ownership
+ * @param onProgress - Optional callback for progress updates (0-100)
+ * @returns Promise resolving to array of import results
+ */
+export async function importPayeesFromList(
+  displayNames: string[],
+  userId: string,
+  onProgress?: (progress: number) => void
+): Promise<PayeeImportResult[]> {
+  const results: PayeeImportResult[] = []
+  const total = displayNames.length
+  
+  if (total === 0) {
+    return results
+  }
+
+  // Process payees in batches to avoid overwhelming the database
+  const batchSize = 10
+  const batches = []
+  
+  for (let i = 0; i < displayNames.length; i += batchSize) {
+    batches.push(displayNames.slice(i, i + batchSize))
+  }
+
+  let processed = 0
+
+  for (const batch of batches) {
+    const batchPromises = batch.map(async (displayName) => {
+      try {
+        // Validate display name
+        if (!displayName || displayName.trim().length < 2) {
+          return {
+            displayName,
+            success: false,
+            error: 'Display name must be at least 2 characters'
+          }
+        }
+
+        if (displayName.trim().length > 100) {
+          return {
+            displayName,
+            success: false,
+            error: 'Display name must not exceed 100 characters'
+          }
+        }
+
+        // Check for duplicates
+        const exists = await payeeNameExists(displayName.trim(), userId)
+        if (exists) {
+          return {
+            displayName,
+            success: false,
+            error: 'Payee already exists',
+            isDuplicate: true
+          }
+        }
+
+        // Create the payee
+        const payeeData: PayeeFormData = {
+          displayName: displayName.trim(),
+          isActive: true
+        }
+
+        await createPayee(payeeData, userId)
+        
+        return {
+          displayName,
+          success: true
+        }
+      } catch (error) {
+        console.error(`Error importing payee "${displayName}":`, error)
+        return {
+          displayName,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      }
+    })
+
+    const batchResults = await Promise.all(batchPromises)
+    results.push(...batchResults)
+    
+    processed += batch.length
+    
+    // Update progress
+    if (onProgress) {
+      const progress = Math.round((processed / total) * 100)
+      onProgress(progress)
+    }
+  }
+
+  return results
+}
+
+/**
+ * Check if multiple payee names exist for user
+ * @description Batch checks if payee names already exist for the user
+ * @param displayNames - Array of display names to check
+ * @param userId - User ID to check against
+ * @returns Promise resolving to array of boolean results
+ */
+export async function checkMultiplePayeeNames(
+  displayNames: string[],
+  userId: string
+): Promise<{ displayName: string; exists: boolean }[]> {
+  const results = await Promise.all(
+    displayNames.map(async (displayName) => ({
+      displayName,
+      exists: await payeeNameExists(displayName, userId)
+    }))
+  )
+  
+  return results
 } 

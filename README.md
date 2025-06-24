@@ -14,6 +14,7 @@ A modern, full-featured personal expense management application built with Next.
 - **Multi-Currency Support**: Track accounts in INR, USD, EUR, and GBP
 - **Credit Card Management**: Specialized features for credit limit tracking, due dates, and usage monitoring
 - **Real-time Balance Updates**: Automatic balance calculations with transaction processing
+- **Smart Sorting**: Accounts are automatically sorted by type first, then alphabetically by name for organized navigation
 
 ### 💸 Transaction Management
 - **Three Transaction Types**: 
@@ -42,6 +43,7 @@ A modern, full-featured personal expense management application built with Next.
 - **Dark/Light Mode**: Comfortable viewing in any lighting condition
 - **Accessible**: Built with accessibility best practices
 - **Intuitive Interface**: Clean, modern design with excellent user experience
+- **Enhanced Calendar**: Month and year selection with keyboard navigation and accessibility features
 
 ## 🚀 Quick Start
 
@@ -133,9 +135,9 @@ expense-manager-app/
 │   ├── components/            # Reusable React components
 │   │   ├── accounts/         # Account-specific components
 │   │   ├── auth/             # Authentication components
-│   │   ├── categories/       # Category components
+│   │   ├── categories/       # Category components (includes CSV import)
 │   │   ├── layout/           # Layout components
-│   │   ├── payees/           # Payee components
+│   │   ├── payees/           # Payee components (includes CSV import)
 │   │   ├── transactions/     # Transaction components
 │   │   └── ui/               # Base UI components (shadcn/ui)
 │   ├── hooks/                # Custom React hooks
@@ -154,6 +156,7 @@ expense-manager-app/
 2. Click **Add Account** to create new accounts
 3. Configure account type, currency, and initial balance
 4. For credit cards, set credit limits and payment dates
+5. Accounts are automatically sorted by type, then alphabetically by name for organized browsing
 
 ### Recording Transactions
 1. Go to **Transactions** page
@@ -174,6 +177,32 @@ expense-manager-app/
 - Create **categories** to organize your expenses
 - Add **payees** to track who you transact with
 - Categories and payees can be created on-the-fly when adding transactions
+
+### CSV Import
+1. Navigate to **Categories** or **Payees** page
+2. Click **Import CSV** button
+3. Select your CSV file (must have .csv extension)
+4. Review the import preview showing:
+   - Valid entries to be imported
+   - Duplicate entries (will be skipped)
+   - Invalid entries with error messages
+5. Click **Import** to process the file
+6. Monitor progress with real-time progress bar
+7. Review import results summary
+
+**CSV Format Requirements:**
+- One name per line (categories or payees)
+- Optional header row
+- Names must be 2-50 characters (categories) or 2-100 characters (payees)
+- Allowed characters: letters, numbers, spaces, and common punctuation
+
+### CSV Import Features
+- **Bulk Import**: Import multiple categories or payees at once from CSV files
+- **Progress Tracking**: Real-time progress bars during import operations
+- **Error Handling**: Detailed error messages for failed imports with validation
+- **Duplicate Detection**: Automatic detection and skipping of duplicate entries
+- **Sample Downloads**: One-click download of sample CSV templates
+- **Batch Processing**: Efficient processing of large CSV files with performance optimization
 
 ## 🔧 Available Scripts
 
@@ -262,6 +291,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **[Supabase](https://supabase.com/)** for the backend infrastructure
 - **[Shadcn/ui](https://ui.shadcn.com/)** for the beautiful component library
 - **[Vercel](https://vercel.com/)** for hosting and deployment platform
+
+## 🆕 Recent Updates
+
+### Latest Features
+- **CSV Import for Categories & Payees**: Bulk import functionality with progress tracking and error handling
+- **Enhanced Calendar Widget**: Month and year selection with improved accessibility
+- **Smart Account Sorting**: Accounts are now sorted by type first, then alphabetically by name
+- **Multi-Select Account Filtering**: Advanced filtering for transactions by multiple accounts
+- **Transaction Form Improvements**: Better validation and user experience
+
+### Performance Improvements
+- Optimized batch processing for large CSV imports
+- Enhanced database queries with proper indexing
+- Improved form validation and error handling
+- Better responsive design for mobile devices
 
 ## 📞 Support
 

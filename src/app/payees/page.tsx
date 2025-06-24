@@ -1,18 +1,19 @@
 /**
  * @file page.tsx
  * @description This file defines the payees page of the expense management application.
- * It provides complete payee management functionality including CRUD operations.
+ * It provides complete payee management functionality including CRUD operations and CSV import.
  */
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus } from "lucide-react"
+import { Plus, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { PayeeForm } from "@/components/payees/payee-form"
 import { PayeesList } from "@/components/payees/payees-list"
+import { PayeeImport } from "@/components/payees/payee-import"
 import { 
   getPayees, 
   createPayee, 
@@ -34,6 +35,7 @@ export default function PayeesPage() {
   const [payees, setPayees] = useState<Payee[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingPayee, setEditingPayee] = useState<Payee | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -202,15 +204,42 @@ export default function PayeesPage() {
     setEditingPayee(null)
   }
 
+  /**
+   * Handle import dialog opening
+   * @description Opens the import dialog
+   */
+  const handleImportPayees = () => {
+    setIsImportOpen(true)
+  }
+
+  /**
+   * Handle import completion
+   * @description Processes import results and refreshes payee list
+   * @param result - Import result summary
+   */
+  const handleImportComplete = async (result: { successful: number; failed: number; duplicates: number }) => {
+    if (result.successful > 0) {
+      await loadPayees()
+    }
+    // Import dialog will be closed automatically by the component
+    setIsImportOpen(false)
+  }
+
   return (
     <ProtectedRoute>
       <div className="flex-1 space-y-4">
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-3xl font-bold tracking-tight">Payees</h2>
-          <Button onClick={handleAddPayee}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Payee
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleImportPayees} variant="outline">
+              <Upload className="mr-2 h-4 w-4" />
+              Import CSV
+            </Button>
+            <Button onClick={handleAddPayee}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Payee
+            </Button>
+          </div>
         </div>
         
         <PayeesList
@@ -236,6 +265,22 @@ export default function PayeesPage() {
               onCancel={handleFormCancel}
               isLoading={isSubmitting}
             />
+          </DialogContent>
+        </Dialog>
+
+        {/* Payee Import Dialog */}
+        <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Import Payees from CSV</DialogTitle>
+            </DialogHeader>
+            {userId && (
+              <PayeeImport
+                userId={userId}
+                onImportComplete={handleImportComplete}
+                isLoading={isSubmitting}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </div>
