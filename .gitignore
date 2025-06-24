@@ -42,3 +42,6 @@ next-env.d.ts
 .cursorrules:Zone.Identifier
 .cursorrules
 package-lock.json
+
+*.csv
+*:Zone.Identifier

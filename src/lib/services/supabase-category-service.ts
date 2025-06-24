@@ -297,6 +297,80 @@ export async function toggleCategoryStatus(categoryId: string, userId: string): 
 }
 
 /**
+ * Bulk import result interface
+ * @description Structure for tracking individual import results
+ */
+interface ImportCategoryResult {
+  displayName: string
+  success: boolean
+  error?: string
+  categoryId?: string
+}
+
+/**
+ * Import categories from list
+ * @description Bulk imports categories from an array of display names
+ * @param displayNames - Array of category display names to import
+ * @param userId - User ID for the categories
+ * @param onProgress - Optional progress callback function
+ * @returns Promise resolving to array of import results
+ */
+export async function importCategoriesFromList(
+  displayNames: string[],
+  userId: string,
+  onProgress?: (progress: number) => void
+): Promise<ImportCategoryResult[]> {
+  const results: ImportCategoryResult[] = []
+  const total = displayNames.length
+
+  for (let i = 0; i < displayNames.length; i++) {
+    const displayName = displayNames[i].trim()
+    
+    try {
+      // Check if category already exists
+      const exists = await categoryNameExists(displayName, userId)
+      if (exists) {
+        results.push({
+          displayName,
+          success: false,
+          error: 'Category already exists'
+        })
+      } else {
+        // Create the category
+        const category = await createCategory(
+          { displayName, isActive: true },
+          userId
+        )
+        results.push({
+          displayName,
+          success: true,
+          categoryId: category.id
+        })
+      }
+    } catch (error) {
+      results.push({
+        displayName,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
+
+    // Update progress
+    if (onProgress) {
+      const progress = ((i + 1) / total) * 100
+      onProgress(progress)
+    }
+
+    // Add small delay to prevent overwhelming the database
+    if (i < displayNames.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+  }
+
+  return results
+}
+
+/**
  * Get current user ID from Supabase auth
  * @description Retrieves the current authenticated user's ID
  * @returns Promise resolving to user ID or null if not authenticated

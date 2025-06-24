@@ -6,12 +6,13 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus } from "lucide-react"
+import { Plus, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { CategoryForm } from "@/components/categories/category-form"
+import { CategoryImport } from "@/components/categories/category-import"
 import { CategoriesList } from "@/components/categories/categories-list"
 import { 
   getCategories, 
@@ -31,6 +32,7 @@ import { Category, CategoryFormData } from "@/types/category"
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -86,6 +88,14 @@ export default function CategoriesPage() {
   const handleAddCategory = () => {
     setEditingCategory(null)
     setIsFormOpen(true)
+  }
+
+  /**
+   * Handle opening import dialog
+   * @description Opens the import dialog for bulk category import
+   */
+  const handleImportCategories = () => {
+    setIsImportOpen(true)
   }
 
   /**
@@ -183,15 +193,41 @@ export default function CategoriesPage() {
     setEditingCategory(null)
   }
 
+  /**
+   * Handle import completion
+   * @description Called when import process is completed
+   * @param result - Import result summary
+   */
+  const handleImportComplete = async (result: { successful: number }) => {
+    if (result.successful > 0) {
+      await loadCategories() // Refresh the categories list
+    }
+    // Keep the dialog open to show results
+  }
+
+  /**
+   * Handle import dialog close
+   * @description Closes the import dialog
+   */
+  const handleImportClose = () => {
+    setIsImportOpen(false)
+  }
+
   return (
     <ProtectedRoute>
       <div className="flex-1 space-y-4">
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
-          <Button onClick={handleAddCategory}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Category
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleImportCategories}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import CSV
+            </Button>
+            <Button onClick={handleAddCategory}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Category
+            </Button>
+          </div>
         </div>
         
         <CategoriesList
@@ -215,6 +251,22 @@ export default function CategoriesPage() {
               onCancel={handleFormCancel}
               isLoading={isSubmitting}
             />
+          </DialogContent>
+        </Dialog>
+
+        {/* Category Import Dialog */}
+        <Dialog open={isImportOpen} onOpenChange={handleImportClose}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Import Categories from CSV</DialogTitle>
+            </DialogHeader>
+            {userId && (
+              <CategoryImport
+                userId={userId}
+                onImportComplete={handleImportComplete}
+                isLoading={isSubmitting}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </div>
