@@ -7,7 +7,7 @@
 "use client"
 
 import React, { useState, useRef, useCallback } from 'react'
-import { Upload, FileText, AlertCircle, CheckCircle2, X, Download } from 'lucide-react'
+import { Upload, FileText, AlertCircle, CheckCircle2, X, Download, FileDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import { Account } from '@/types/account'
 import { Category } from '@/types/category'
@@ -238,12 +239,17 @@ export function TransactionImport({
       const withdrawal = parseFloat(row.Withdrawal || '0') || 0
       const deposit = parseFloat(row.Deposit || '0') || 0
       
-      if (withdrawal === 0 && deposit === 0) {
-        validationErrors.push('Transaction must have either withdrawal or deposit amount')
-      }
+      // Skip amount validation for transfer transactions (they'll be validated later)
+      const isTransferTransaction = (row.Payee || '').startsWith('>')
+      
+      if (!isTransferTransaction) {
+        if (withdrawal === 0 && deposit === 0) {
+          validationErrors.push('Transaction must have either withdrawal or deposit amount')
+        }
 
-      if (withdrawal > 0 && deposit > 0) {
-        validationErrors.push('Transaction cannot have both withdrawal and deposit amounts')
+        if (withdrawal > 0 && deposit > 0) {
+          validationErrors.push('Transaction cannot have both withdrawal and deposit amounts')
+        }
       }
 
       // Determine transaction type
@@ -251,6 +257,8 @@ export function TransactionImport({
       let amount = 0
       let isTransfer = false
       let transferToAccount: string | undefined
+      let finalWithdrawal = withdrawal
+      let finalDeposit = deposit
 
       if ((row.Payee || '').startsWith('>')) {
         // Transfer transaction
@@ -258,6 +266,9 @@ export function TransactionImport({
         isTransfer = true
         amount = withdrawal > 0 ? withdrawal : deposit
         transferToAccount = (row.Payee || '').substring(1).trim()
+        // Clear withdrawal/deposit for transfers to avoid validation error
+        finalWithdrawal = 0
+        finalDeposit = 0
       } else if (withdrawal > 0) {
         type = 'withdrawal'
         amount = withdrawal
@@ -272,8 +283,8 @@ export function TransactionImport({
         account: row.Account || '',
         payee: row.Payee || '',
         category: row.Category || '',
-        withdrawal,
-        deposit,
+        withdrawal: finalWithdrawal,
+        deposit: finalDeposit,
         notes: row.Notes || '',
         type,
         amount,
@@ -385,8 +396,7 @@ export function TransactionImport({
       // Generate summary statistics
       const summary = generateImportSummary(results)
       
-      setImportResults(results)
-      setImportStats({
+      const newImportStats = {
         total: summary.total,
         successful: summary.successful,
         failed: summary.failed,
@@ -394,7 +404,10 @@ export function TransactionImport({
         transfers: summary.transfers,
         deposits: summary.deposits,
         withdrawals: summary.withdrawals
-      })
+      }
+
+      setImportResults(results)
+      setImportStats(newImportStats)
       setShowResults(true)
 
       if (summary.successful > 0) {
@@ -412,9 +425,25 @@ export function TransactionImport({
       if (summary.failed > 0) {
         toast.warning(`${summary.failed} transactions failed to import`)
       }
+      
     } catch (error) {
       console.error('Error during import:', error)
       toast.error('Import failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      
+      const errorImportStats = {
+        total: parsedTransactions.length,
+        successful: 0,
+        failed: parsedTransactions.length,
+        duplicates: 0,
+        transfers: 0,
+        deposits: 0,
+        withdrawals: 0
+      }
+
+      setImportResults([])
+      setImportStats(errorImportStats)
+      setShowResults(true)
+      
     } finally {
       setIsProcessing(false)
     }
@@ -451,10 +480,106 @@ export function TransactionImport({
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'transaction-import-errors.csv'
+    link.download = `transaction-import-errors-${new Date().toISOString().split('T')[0]}.csv`
     link.click()
     URL.revokeObjectURL(url)
+    toast.success('Error report downloaded successfully')
   }, [importResults])
+
+  /**
+   * Download complete import report
+   * @description Generates and downloads a comprehensive CSV report of all import results
+   */
+  const downloadCompleteReport = useCallback(() => {
+    if (importResults.length === 0) {
+      toast.info('No import results to report')
+      return
+    }
+
+    const headers = [
+      'Status', 'Transaction ID', 'Date', 'Account', 'Payee', 'Category', 
+      'Amount', 'Type', 'Notes', 'Created Payee', 'Created Category', 'Error Details'
+    ]
+    
+    const rows = importResults.map(result => {
+      const transaction = result.transaction
+      return [
+        result.success ? 'SUCCESS' : 'FAILED',
+        transaction.id,
+        transaction.date.toISOString().split('T')[0],
+        transaction.account,
+        transaction.isTransfer ? transaction.transferToAccount : transaction.payee,
+        transaction.category,
+        transaction.amount.toString(),
+        transaction.type,
+        transaction.notes || '',
+        result.createdPayee ? 'YES' : 'NO',
+        result.createdCategory ? 'YES' : 'NO',
+        result.error || ''
+      ]
+    })
+
+    const csvContent = [headers, ...rows].map(row => 
+      row.map(cell => `"${(cell || '').toString().replace(/"/g, '""')}"`).join(',')
+    ).join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `transaction-import-complete-report-${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success('Complete import report downloaded successfully')
+  }, [importResults])
+
+  /**
+   * Download successful transactions report
+   * @description Generates and downloads a CSV report of successfully imported transactions
+   */
+  const downloadSuccessReport = useCallback(() => {
+    const successfulResults = importResults.filter(result => result.success)
+    if (successfulResults.length === 0) {
+      toast.info('No successful transactions to report')
+      return
+    }
+
+    const headers = [
+      'Transaction ID', 'Date', 'Account', 'Payee', 'Category', 
+      'Amount', 'Type', 'Notes', 'Created Payee', 'Created Category'
+    ]
+    
+    const rows = successfulResults.map(result => {
+      const transaction = result.transaction
+      return [
+        transaction.id,
+        transaction.date.toISOString().split('T')[0],
+        transaction.account,
+        transaction.isTransfer ? transaction.transferToAccount : transaction.payee,
+        transaction.category,
+        transaction.amount.toString(),
+        transaction.type,
+        transaction.notes || '',
+        result.createdPayee ? 'YES' : 'NO',
+        result.createdCategory ? 'YES' : 'NO'
+      ]
+    })
+
+    const csvContent = [headers, ...rows].map(row => 
+      row.map(cell => `"${(cell || '').toString().replace(/"/g, '""')}"`).join(',')
+    ).join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `transaction-import-success-report-${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success('Success report downloaded successfully')
+  }, [importResults])
+
+
 
   return (
     <div className="space-y-6">
@@ -526,7 +651,10 @@ export function TransactionImport({
                       <X className="mr-2 h-4 w-4" />
                       Cancel
                     </Button>
-                    <Button onClick={importTransactions} disabled={isProcessing}>
+                    <Button 
+                      onClick={importTransactions} 
+                      disabled={isProcessing}
+                    >
                       Import Transactions
                     </Button>
                   </div>
@@ -651,61 +779,363 @@ export function TransactionImport({
 
       {/* Import Results */}
       {showResults && importStats && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Import Results</CardTitle>
-            <CardDescription>
-              Summary of the transaction import process
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Statistics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{importStats.successful}</div>
-                <div className="text-sm text-muted-foreground">Successful</div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Import Review Report</CardTitle>
+              <CardDescription>
+                Comprehensive review of the transaction import process with detailed results for future corrections
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Statistics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{importStats.successful}</div>
+                  <div className="text-sm text-muted-foreground">Successful</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">{importStats.failed}</div>
+                  <div className="text-sm text-muted-foreground">Failed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{importStats.transfers}</div>
+                  <div className="text-sm text-muted-foreground">Transfers</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{importStats.deposits + importStats.withdrawals}</div>
+                  <div className="text-sm text-muted-foreground">Transactions</div>
+                </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{importStats.failed}</div>
-                <div className="text-sm text-muted-foreground">Failed</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{importStats.transfers}</div>
-                <div className="text-sm text-muted-foreground">Transfers</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{importStats.deposits + importStats.withdrawals}</div>
-                <div className="text-sm text-muted-foreground">Transactions</div>
-              </div>
-            </div>
 
             <Separator />
 
-            {/* Actions */}
-            <div className="flex justify-between">
-              <div className="space-x-2">
-                {importStats.failed > 0 && (
-                  <Button variant="outline" onClick={downloadErrorReport}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Error Report
-                  </Button>
-                )}
-              </div>
-              <Button onClick={resetState}>
+            {/* Download Actions */}
+            <div className="flex flex-wrap gap-2">
+              {importResults.length > 0 && (
+                <Button variant="outline" onClick={downloadCompleteReport}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Complete Report
+                </Button>
+              )}
+              {importStats.successful > 0 && (
+                <Button variant="outline" onClick={downloadSuccessReport}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Success Report
+                </Button>
+              )}
+              {importStats.failed > 0 && importResults.filter(r => !r.success).length > 0 && (
+                <Button variant="outline" onClick={downloadErrorReport}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Error Report
+                </Button>
+              )}
+              <Button onClick={resetState} className="ml-auto">
                 Import More Transactions
               </Button>
             </div>
 
-            {/* Error Summary */}
-            {importStats.failed > 0 && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {importStats.failed} transactions failed to import. Common issues include missing accounts, 
-                  invalid date formats, or missing required data. Download the error report for details.
-                </AlertDescription>
-              </Alert>
-            )}
+            {/* Detailed Review Tabs */}
+            <Tabs defaultValue="summary" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="summary">Summary</TabsTrigger>
+                <TabsTrigger value="successful">
+                  Successful ({importStats.successful})
+                </TabsTrigger>
+                <TabsTrigger value="failed">
+                  Failed ({importStats.failed})
+                </TabsTrigger>
+                <TabsTrigger value="entities">
+                  New Entities
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Summary Tab */}
+              <TabsContent value="summary" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Import Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Total Processed:</span>
+                        <span className="font-medium">{importStats.successful + importStats.failed}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Success Rate:</span>
+                        <span className="font-medium text-green-600">
+                          {((importStats.successful / (importStats.successful + importStats.failed)) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Deposits:</span>
+                        <span className="font-medium">{importStats.deposits}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Withdrawals:</span>
+                        <span className="font-medium">{importStats.withdrawals}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Transfers:</span>
+                        <span className="font-medium">{importStats.transfers}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Created Entities</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>New Categories:</span>
+                        <span className="font-medium">
+                          {importResults.filter(r => r.createdCategory).length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>New Payees:</span>
+                        <span className="font-medium">
+                          {importResults.filter(r => r.createdPayee).length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Import Date:</span>
+                        <span className="font-medium text-sm">
+                          {new Date().toLocaleDateString()}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Quick Error Overview */}
+                {importStats.failed > 0 && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {importResults.length === 0 ? (
+                        <>The import process encountered a critical error and was unable to process any transactions. 
+                        Please check your CSV file format and try again.</>
+                      ) : (
+                        <>{importStats.failed} transactions failed to import. Review the &quot;Failed&quot; tab for detailed error information
+                        and download the error report for corrections.</>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </TabsContent>
+
+              {/* Successful Transactions Tab */}
+              <TabsContent value="successful" className="space-y-4">
+                {importStats.successful > 0 ? (
+                  <div className="rounded-md border overflow-hidden">
+                    <div className="max-h-96 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[100px]">Date</TableHead>
+                            <TableHead className="w-[140px]">Account</TableHead>
+                            <TableHead className="w-[140px]">Payee</TableHead>
+                            <TableHead className="w-[120px]">Category</TableHead>
+                            <TableHead className="w-[120px] text-right">Amount</TableHead>
+                            <TableHead className="w-[80px]">Type</TableHead>
+                            <TableHead className="w-[100px]">New Entities</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {importResults.filter(result => result.success).slice(0, 50).map((result, index) => (
+                            <TableRow key={index}>
+                              <TableCell className="text-sm">
+                                {result.transaction.date.toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="max-w-[140px]">
+                                <div className="truncate text-sm" title={result.transaction.account}>
+                                  {result.transaction.account}
+                                </div>
+                              </TableCell>
+                              <TableCell className="max-w-[140px]">
+                                <div className="truncate text-sm" title={result.transaction.isTransfer ? result.transaction.transferToAccount : result.transaction.payee}>
+                                  {result.transaction.isTransfer ? result.transaction.transferToAccount : result.transaction.payee}
+                                </div>
+                              </TableCell>
+                              <TableCell className="max-w-[120px]">
+                                <div className="truncate text-sm" title={result.transaction.category}>
+                                  {result.transaction.category}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right text-sm font-medium">
+                                ₹{result.transaction.amount.toLocaleString()}
+                              </TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={
+                                    result.transaction.type === 'transfer' ? 'default' :
+                                    result.transaction.type === 'deposit' ? 'secondary' : 'destructive'
+                                  }
+                                  className="text-xs"
+                                >
+                                  {result.transaction.type}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  {result.createdCategory && (
+                                    <Badge variant="outline" className="text-xs">Cat</Badge>
+                                  )}
+                                  {result.createdPayee && (
+                                    <Badge variant="outline" className="text-xs">Pay</Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {importResults.filter(result => result.success).length > 50 && (
+                      <div className="px-3 py-2 bg-muted text-sm text-muted-foreground border-t">
+                        Showing first 50 successful transactions. Download the success report for complete data.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No successful transactions to display
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Failed Transactions Tab */}
+              <TabsContent value="failed" className="space-y-4">
+                {importStats.failed > 0 ? (
+                  <>
+                    {importResults.filter(result => !result.success).length > 0 ? (
+                      <div className="rounded-md border overflow-hidden">
+                        <div className="max-h-96 overflow-y-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[100px]">Date</TableHead>
+                                <TableHead className="w-[140px]">Account</TableHead>
+                                <TableHead className="w-[140px]">Payee</TableHead>
+                                <TableHead className="w-[120px]">Category</TableHead>
+                                <TableHead className="w-[120px] text-right">Amount</TableHead>
+                                <TableHead className="w-[80px]">Type</TableHead>
+                                <TableHead className="min-w-[200px]">Error Details</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {importResults.filter(result => !result.success).map((result, index) => (
+                                <TableRow key={index}>
+                                  <TableCell className="text-sm">
+                                    {result.transaction.date.toLocaleDateString()}
+                                  </TableCell>
+                                  <TableCell className="max-w-[140px]">
+                                    <div className="truncate text-sm" title={result.transaction.account}>
+                                      {result.transaction.account}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="max-w-[140px]">
+                                    <div className="truncate text-sm" title={result.transaction.isTransfer ? result.transaction.transferToAccount : result.transaction.payee}>
+                                      {result.transaction.isTransfer ? result.transaction.transferToAccount : result.transaction.payee}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="max-w-[120px]">
+                                    <div className="truncate text-sm" title={result.transaction.category}>
+                                      {result.transaction.category}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right text-sm font-medium">
+                                    ₹{result.transaction.amount.toLocaleString()}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="destructive" className="text-xs">
+                                      {result.transaction.type}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="min-w-[200px]">
+                                    <div className="text-sm text-red-600" title={result.error}>
+                                      {result.error}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <AlertCircle className="mx-auto h-12 w-12 mb-4 text-red-500" />
+                        <p className="text-lg font-medium">Import process failed</p>
+                        <p className="text-sm">The import encountered a critical error. Check the browser console for details.</p>
+                        <p className="text-sm mt-2">Try uploading your CSV file again or check the file format.</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle2 className="mx-auto h-12 w-12 mb-4 text-green-500" />
+                    <p className="text-lg font-medium">All transactions imported successfully!</p>
+                    <p className="text-sm">No errors to report.</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* New Entities Tab */}
+              <TabsContent value="entities" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* New Categories */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">New Categories Created</CardTitle>
+                      <CardDescription>
+                        Categories that were automatically created during import
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {importResults.filter(r => r.createdCategory).length > 0 ? (
+                        <div className="space-y-2">
+                          {[...new Set(importResults.filter(r => r.createdCategory).map(r => r.transaction.category))].map((category, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">NEW</Badge>
+                              <span className="text-sm">{category}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No new categories were created</p>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* New Payees */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">New Payees Created</CardTitle>
+                      <CardDescription>
+                        Payees that were automatically created during import
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {importResults.filter(r => r.createdPayee).length > 0 ? (
+                        <div className="space-y-2">
+                          {[...new Set(importResults.filter(r => r.createdPayee).map(r => r.transaction.payee))].map((payee, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">NEW</Badge>
+                              <span className="text-sm">{payee}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No new payees were created</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       )}

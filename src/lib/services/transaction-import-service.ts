@@ -70,6 +70,8 @@ export interface ImportOptions {
 export function findAccountByName(accountName: string, accounts: Account[]): Account | null {
   if (!accountName) return null
   
+
+  
   const normalizedName = accountName.toLowerCase().trim()
   
   // Exact match first
@@ -77,7 +79,9 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
     account.name.toLowerCase().trim() === normalizedName
   )
   
-  if (match) return match
+  if (match) {
+    return match
+  }
   
   // Partial match (contains)
   match = accounts.find(account => 
@@ -85,7 +89,60 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
     normalizedName.includes(account.name.toLowerCase().trim())
   )
   
-  return match || null
+  if (match) {
+    return match
+  }
+  
+  // Enhanced fuzzy matching for bank names
+  const accountWords = normalizedName.split(/\s+/)
+  const bankKeywords = ['bank', 'hdfc', 'icici', 'sbi', 'axis', 'kotak', 'yes', 'pnb', 'bob', 'canara', 'union']
+  
+  let bestMatch: Account | null = null
+  let bestScore = 0
+  
+  for (const account of accounts) {
+    const accountNameWords = account.name.toLowerCase().trim().split(/\s+/)
+    let score = 0
+    
+    // Check for specific bank name matches (higher score)
+    for (const word of accountWords) {
+      if (word.length > 2) {
+        for (const accountWord of accountNameWords) {
+          if (accountWord.includes(word) || word.includes(accountWord)) {
+            // Higher score for bank-specific matches
+            if (bankKeywords.includes(word) && bankKeywords.includes(accountWord)) {
+              score += 10 // Much higher score for bank name matches
+            } else if (word === accountWord) {
+              score += 5 // Exact word match
+            } else {
+              score += 2 // Partial word match
+            }
+          }
+        }
+      }
+    }
+    
+    // Bonus score for exact bank name matches
+    if (accountWords.includes('hdfc') && accountNameWords.includes('hdfc')) {
+      score += 20
+    }
+    if (accountWords.includes('icici') && accountNameWords.includes('icici')) {
+      score += 20
+    }
+    
+
+    
+    if (score > bestScore && score > 0) {
+      bestScore = score
+      bestMatch = account
+    }
+  }
+  
+  if (bestMatch) {
+    return bestMatch
+  }
+  
+  return null
 }
 
 /**
@@ -287,8 +344,36 @@ export async function importSingleTransaction(
         notes: transaction.notes || undefined
       }
       
-      await createTransaction(transactionData, userId)
-      result.success = true
+      try {
+        await createTransaction(transactionData, userId)
+        result.success = true
+      } catch (error) {
+        console.error('Transaction creation failed:', error)
+        
+        // If it's a foreign key error, try without the problematic IDs
+        if (error instanceof Error && error.message.includes('foreign key constraint')) {
+          const fallbackData: TransactionFormData = {
+            date: transaction.date,
+            status: 'completed',
+            type: transaction.type as 'deposit' | 'withdrawal',
+            amount: transaction.amount,
+            accountId: account.id,
+            payeeId: undefined,
+            categoryId: undefined,
+            payeeName: transaction.payee || undefined,
+            categoryName: transaction.category || undefined,
+            notes: transaction.notes || undefined
+          }
+          
+          await createTransaction(fallbackData, userId)
+          result.success = true
+          // Reset the created flags since we're using names instead
+          result.createdCategory = false
+          result.createdPayee = false
+        } else {
+          throw error
+        }
+      }
     }
     
   } catch (error) {
@@ -320,26 +405,39 @@ export async function importTransactionsBatch(
   options: ImportOptions = {},
   onProgress?: (completed: number, total: number) => void
 ): Promise<TransactionImportResult[]> {
-  
   const results: TransactionImportResult[] = []
   
   for (let i = 0; i < transactions.length; i++) {
     const transaction = transactions[i]
     
-    const result = await importSingleTransaction(
-      transaction,
-      accounts,
-      categories,
-      payees,
-      userId,
-      options
-    )
-    
-    results.push(result)
-    
-    // Report progress
-    if (onProgress) {
-      onProgress(i + 1, transactions.length)
+    try {
+      const result = await importSingleTransaction(
+        transaction,
+        accounts,
+        categories,
+        payees,
+        userId,
+        options
+      )
+      
+      results.push(result)
+      
+      // Report progress
+      if (onProgress) {
+        onProgress(i + 1, transactions.length)
+      }
+    } catch (error) {
+      console.error(`Error processing transaction ${i + 1}:`, error)
+      results.push({
+        success: false,
+        transaction,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+      
+      // Report progress even on error
+      if (onProgress) {
+        onProgress(i + 1, transactions.length)
+      }
     }
   }
   
