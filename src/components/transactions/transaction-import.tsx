@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 import { Account } from '@/types/account'
 import { Category } from '@/types/category'
@@ -567,65 +568,80 @@ export function TransactionImport({
                   </CardContent>
                 </Card>
 
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="max-h-96 overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted">
-                        <tr>
-                          <th className="px-3 py-2 text-left">Date</th>
-                          <th className="px-3 py-2 text-left">Account</th>
-                          <th className="px-3 py-2 text-left">Payee</th>
-                          <th className="px-3 py-2 text-left">Category</th>
-                          <th className="px-3 py-2 text-right">Amount</th>
-                          <th className="px-3 py-2 text-left">Type</th>
-                          <th className="px-3 py-2 text-left">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {parsedTransactions.slice(0, 50).map((transaction, index) => (
-                          <tr key={index} className="border-t">
-                            <td className="px-3 py-2">
-                              {transaction.date.toLocaleDateString()}
-                            </td>
-                            <td className="px-3 py-2">{transaction.account}</td>
-                            <td className="px-3 py-2">
-                              {transaction.isTransfer ? transaction.transferToAccount : transaction.payee}
-                            </td>
-                            <td className="px-3 py-2">{transaction.category}</td>
-                            <td className="px-3 py-2 text-right">
-                              ₹{transaction.amount.toLocaleString()}
-                            </td>
-                            <td className="px-3 py-2">
-                              <Badge variant={
-                                transaction.type === 'transfer' ? 'default' :
-                                transaction.type === 'deposit' ? 'secondary' : 'destructive'
-                              }>
-                                {transaction.type}
-                              </Badge>
-                            </td>
-                            <td className="px-3 py-2">
-                              {transaction.validationErrors.length > 0 ? (
-                                <Badge variant="destructive">
-                                  <AlertCircle className="mr-1 h-3 w-3" />
-                                  Errors
+                <div className="w-full">
+                  <div className="rounded-md border overflow-hidden">
+                    <div className="max-h-96 overflow-y-auto">
+                      <Table className="w-full">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[100px]">Date</TableHead>
+                            <TableHead className="w-[140px]">Account</TableHead>
+                            <TableHead className="w-[140px]">Payee</TableHead>
+                            <TableHead className="w-[120px]">Category</TableHead>
+                            <TableHead className="w-[120px] text-right">Amount</TableHead>
+                            <TableHead className="w-[80px]">Type</TableHead>
+                            <TableHead className="w-[100px]">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {parsedTransactions.slice(0, 50).map((transaction, index) => (
+                            <TableRow key={index}>
+                              <TableCell className="text-sm">
+                                {transaction.date.toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="max-w-[140px]">
+                                <div className="truncate text-sm" title={transaction.account}>
+                                  {transaction.account}
+                                </div>
+                              </TableCell>
+                              <TableCell className="max-w-[140px]">
+                                <div className="truncate text-sm" title={transaction.isTransfer ? transaction.transferToAccount : transaction.payee}>
+                                  {transaction.isTransfer ? transaction.transferToAccount : transaction.payee}
+                                </div>
+                              </TableCell>
+                              <TableCell className="max-w-[120px]">
+                                <div className="truncate text-sm" title={transaction.category}>
+                                  {transaction.category}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right text-sm font-medium">
+                                ₹{transaction.amount.toLocaleString()}
+                              </TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={
+                                    transaction.type === 'transfer' ? 'default' :
+                                    transaction.type === 'deposit' ? 'secondary' : 'destructive'
+                                  }
+                                  className="text-xs"
+                                >
+                                  {transaction.type}
                                 </Badge>
-                              ) : (
-                                <Badge variant="secondary">
-                                  <CheckCircle2 className="mr-1 h-3 w-3" />
-                                  Valid
-                                </Badge>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {parsedTransactions.length > 50 && (
-                    <div className="px-3 py-2 bg-muted text-sm text-muted-foreground">
-                      Showing first 50 transactions. {parsedTransactions.length - 50} more will be imported.
+                              </TableCell>
+                              <TableCell>
+                                {transaction.validationErrors.length > 0 ? (
+                                  <Badge variant="destructive" className="text-xs">
+                                    <AlertCircle className="mr-1 h-3 w-3" />
+                                    Errors
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                                    Valid
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
-                  )}
+                    {parsedTransactions.length > 50 && (
+                      <div className="px-3 py-2 bg-muted text-sm text-muted-foreground border-t">
+                        Showing first 50 transactions. {parsedTransactions.length - 50} more will be imported.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

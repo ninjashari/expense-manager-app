@@ -321,7 +321,7 @@ export default function TransactionsPage() {
 
         {/* Import Dialog */}
         <Dialog open={showImport} onOpenChange={setShowImport}>
-          <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[60vw] min-w-[800px] max-w-none max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Import Transactions</DialogTitle>
             </DialogHeader>
