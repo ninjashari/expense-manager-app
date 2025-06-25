@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Pagination, usePagination } from "@/components/ui/pagination"
 
 import { Transaction, getTransactionTypeLabel, getTransactionStatusLabel, isTransferTransaction } from "@/types/transaction"
 import { Account, getCurrencySymbol } from "@/types/account"
@@ -143,6 +144,20 @@ export function TransactionsList({
 
     return true
   })
+
+  // Pagination state management
+  const {
+    currentPage,
+    pageSize,
+    onPageChange,
+    onPageSizeChange,
+  } = usePagination(filteredTransactions.length, 20)
+
+  // Get paginated transactions
+  const paginatedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
 
   /**
    * Get transaction type icon
@@ -294,7 +309,12 @@ export function TransactionsList({
       <CardHeader>
         <CardTitle>Transactions</CardTitle>
         <CardDescription>
-          Manage your income, expenses, and transfers. Total: {filteredTransactions.length} transactions
+          Manage your income, expenses, and transfers. 
+          {filteredTransactions.length !== transactions.length ? (
+            <>Showing {filteredTransactions.length} of {transactions.length} transactions</>
+          ) : (
+            <>Total: {filteredTransactions.length} transactions</>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -407,26 +427,27 @@ export function TransactionsList({
             </p>
           </div>
         ) : (
-          <div className="w-full">
-            <div className="rounded-md border overflow-x-auto">
-              <Table className="w-full table-auto">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="whitespace-nowrap">Date</TableHead>
-                    <TableHead className="whitespace-nowrap">Type</TableHead>
-                    <TableHead className="whitespace-nowrap">Payee</TableHead>
-                    <TableHead className="whitespace-nowrap">Account</TableHead>
-                    <TableHead className="whitespace-nowrap hidden sm:table-cell">Category</TableHead>
-                    <TableHead className="whitespace-nowrap text-right">Amount</TableHead>
-                    <TableHead className="whitespace-nowrap hidden md:table-cell">Status</TableHead>
-                    <TableHead className="whitespace-nowrap w-12">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTransactions.map((transaction) => {
-                    const { amount, colorClass } = formatAmount(transaction)
+          <>
+            <div className="w-full">
+              <div className="rounded-md border overflow-x-auto">
+                <Table className="w-full table-auto">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Date</TableHead>
+                      <TableHead className="whitespace-nowrap">Type</TableHead>
+                      <TableHead className="whitespace-nowrap">Payee</TableHead>
+                      <TableHead className="whitespace-nowrap">Account</TableHead>
+                      <TableHead className="whitespace-nowrap hidden sm:table-cell">Category</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Amount</TableHead>
+                      <TableHead className="whitespace-nowrap hidden md:table-cell">Status</TableHead>
+                      <TableHead className="whitespace-nowrap w-12">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedTransactions.map((transaction) => {
+                      const { amount, colorClass } = formatAmount(transaction)
 
-                                          return (
+                      return (
                         <TableRow key={transaction.id}>
                           <TableCell className="font-medium text-sm whitespace-nowrap">
                             <div className="flex flex-col">
@@ -519,11 +540,24 @@ export function TransactionsList({
                           </TableCell>
                         </TableRow>
                       )
-                  })}
-                </TableBody>
-              </Table>
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
+            
+            {/* Pagination */}
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filteredTransactions.length}
+                pageSize={pageSize}
+                onPageChange={onPageChange}
+                onPageSizeChange={onPageSizeChange}
+                pageSizeOptions={[10, 20, 50, 100]}
+              />
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

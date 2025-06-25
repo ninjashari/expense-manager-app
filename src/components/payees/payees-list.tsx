@@ -6,7 +6,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { MoreHorizontal, Edit, Trash2, Eye, EyeOff, Building2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Pagination, usePagination } from "@/components/ui/pagination"
 import { Payee } from "@/types/payee"
 import { Category } from "@/types/category"
 
@@ -48,6 +49,21 @@ export function PayeesList({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [payeeToDelete, setPayeeToDelete] = useState<Payee | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Pagination state management
+  const {
+    currentPage,
+    pageSize,
+    onPageChange,
+    onPageSizeChange,
+  } = usePagination(payees.length, 10)
+
+  // Get paginated payees
+  const paginatedPayees = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    return payees.slice(startIndex, endIndex)
+  }, [payees, currentPage, pageSize])
 
   /**
    * Get category display name by category name
@@ -142,28 +158,6 @@ export function PayeesList({
     return variants[category] || "outline"
   }
 
-  if (payees.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Payees</CardTitle>
-          <CardDescription>
-            Manage who you make payments to for better transaction tracking.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex h-[400px] items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <Building2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p className="text-lg font-medium">No payees yet</p>
-              <p className="text-sm">Create your first payee to track payments</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
     <>
       <Card>
@@ -174,106 +168,130 @@ export function PayeesList({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-                             <TableHeader>
-                 <TableRow>
-                   <TableHead>Display Name</TableHead>
-                   <TableHead>Category</TableHead>
-                   <TableHead>Description</TableHead>
-                   <TableHead>Status</TableHead>
-                   <TableHead>Created</TableHead>
-                   <TableHead className="w-[50px]">Actions</TableHead>
-                 </TableRow>
-               </TableHeader>
-              <TableBody>
-                {payees.map((payee) => (
-                                     <TableRow key={payee.id}>
-                     <TableCell className="font-medium">
-                       {payee.displayName}
-                     </TableCell>
-                                          <TableCell>
-                       {payee.category ? (
-                         <Badge variant={getCategoryVariant(payee.category)} className="text-xs">
-                           {getCategoryDisplayName(payee.category)}
-                         </Badge>
-                       ) : (
-                         <span className="text-muted-foreground text-sm">No category</span>
-                       )}
-                     </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <div className="truncate">
-                        {payee.description || (
-                          <span className="text-muted-foreground text-sm">No description</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={payee.isActive ? "default" : "secondary"}
-                        className="cursor-pointer"
-                        onClick={() => handleToggleStatus(payee)}
-                      >
-                        {actionLoading === `toggle-${payee.id}` ? (
-                          <div className="mr-1 h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
-                        ) : payee.isActive ? (
-                          <Eye className="mr-1 h-3 w-3" />
-                        ) : (
-                          <EyeOff className="mr-1 h-3 w-3" />
-                        )}
-                        {payee.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(payee.createdAt)}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => onEdit(payee)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleToggleStatus(payee)}
-                            disabled={actionLoading === `toggle-${payee.id}`}
-                          >
-                            {payee.isActive ? (
-                              <>
-                                <EyeOff className="mr-2 h-4 w-4" />
-                                Deactivate
-                              </>
-                            ) : (
-                              <>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Activate
-                              </>
+          {payees.length === 0 ? (
+            <div className="flex h-[400px] items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <Building2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                <p className="text-lg font-medium">No payees yet</p>
+                <p className="text-sm">Create your first payee to track payments</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Display Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="w-[50px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedPayees.map((payee) => (
+                      <TableRow key={payee.id}>
+                        <TableCell className="font-medium">
+                          {payee.displayName}
+                        </TableCell>
+                        <TableCell>
+                          {payee.category ? (
+                            <Badge variant={getCategoryVariant(payee.category)} className="text-xs">
+                              {getCategoryDisplayName(payee.category)}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">No category</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-[200px]">
+                          <div className="truncate">
+                            {payee.description || (
+                              <span className="text-muted-foreground text-sm">No description</span>
                             )}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteClick(payee)}
-                            className="text-red-600 focus:text-red-600"
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={payee.isActive ? "default" : "secondary"}
+                            className="cursor-pointer"
+                            onClick={() => handleToggleStatus(payee)}
                           >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                            {actionLoading === `toggle-${payee.id}` ? (
+                              <div className="mr-1 h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
+                            ) : payee.isActive ? (
+                              <Eye className="mr-1 h-3 w-3" />
+                            ) : (
+                              <EyeOff className="mr-1 h-3 w-3" />
+                            )}
+                            {payee.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatDate(payee.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => onEdit(payee)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleToggleStatus(payee)}
+                                disabled={actionLoading === `toggle-${payee.id}`}
+                              >
+                                {payee.isActive ? (
+                                  <>
+                                    <EyeOff className="mr-2 h-4 w-4" />
+                                    Deactivate
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Activate
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteClick(payee)}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              
+              {/* Pagination */}
+              <div className="mt-4">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={payees.length}
+                  pageSize={pageSize}
+                  onPageChange={onPageChange}
+                  onPageSizeChange={onPageSizeChange}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
