@@ -52,7 +52,6 @@ interface CSVRow {
 
 // Use types from the import service
 type ParsedTransaction = CSVTransactionData
-type ImportResult = TransactionImportResult
 
 /**
  * Transaction import component props
