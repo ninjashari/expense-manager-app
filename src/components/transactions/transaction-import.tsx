@@ -26,7 +26,6 @@ import {
   importTransactionsBatch, 
   generateImportSummary,
   CSVTransactionData,
-  TransactionImportResult,
   ImportOptions
 } from '@/lib/services/transaction-import-service'
 
