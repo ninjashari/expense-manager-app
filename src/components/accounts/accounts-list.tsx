@@ -58,6 +58,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Pagination, usePagination } from '@/components/ui/pagination'
 
 import { Account, getAccountTypeLabel, getAccountStatusLabel, ACCOUNT_TYPE_OPTIONS, ACCOUNT_STATUS_OPTIONS } from '@/types/account'
 import { formatAccountBalance } from '@/lib/services/supabase-account-service'
@@ -161,6 +162,21 @@ export function AccountsList({
     })
   }, [accounts, searchTerm, typeFilter, statusFilter])
 
+  // Pagination state management
+  const {
+    currentPage,
+    pageSize,
+    onPageChange,
+    onPageSizeChange,
+  } = usePagination(filteredAccounts.length, 10)
+
+  // Get paginated accounts
+  const paginatedAccounts = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    return filteredAccounts.slice(startIndex, endIndex)
+  }, [filteredAccounts, currentPage, pageSize])
+
   /**
    * Handle delete confirmation
    * @description Opens delete confirmation dialog
@@ -215,7 +231,12 @@ export function AccountsList({
             <div>
               <CardTitle>Your Accounts</CardTitle>
               <CardDescription>
-                Manage your bank accounts, credit cards, and wallets. Total: {accounts.length} accounts
+                Manage your bank accounts, credit cards, and wallets. 
+                {filteredAccounts.length !== accounts.length ? (
+                  <>Showing {filteredAccounts.length} of {accounts.length} accounts</>
+                ) : (
+                  <>Total: {accounts.length} accounts</>
+                )}
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -295,118 +316,132 @@ export function AccountsList({
               </div>
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Account</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Balance</TableHead>
-                    <TableHead>Opened</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAccounts.map((account) => (
-                    <TableRow key={account.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
-                            {getAccountTypeIcon(account.type)}
-                          </div>
-                          <div>
-                            <div className="font-medium">{account.name}</div>
-                            {account.notes && (
-                              <div className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                {account.notes}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getAccountTypeIcon(account.type)}
-                          <span>{getAccountTypeLabel(account.type)}</span>
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(account.status)}>
-                          {getAccountStatusLabel(account.status)}
-                        </Badge>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <div className={cn(
-                          "font-medium",
-                          account.currentBalance < 0 ? "text-destructive" : "text-foreground"
-                        )}>
-                          {formatAccountBalance(account)}
-                        </div>
-                        {account.type === 'credit_card' && account.creditCardInfo && (
-                          <div className="text-sm text-muted-foreground space-y-1">
-                            <div>
-                              Limit: {formatAccountBalance({ ...account, currentBalance: account.creditCardInfo.creditLimit })}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span>Usage: {account.creditUsagePercentage?.toFixed(1) || '0.0'}%</span>
-                              <div className="flex-1 bg-muted rounded-full h-1.5 max-w-[60px]">
-                                <div 
-                                  className={cn(
-                                    "h-1.5 rounded-full transition-all",
-                                    (account.creditUsagePercentage || 0) > 80 ? "bg-destructive" :
-                                    (account.creditUsagePercentage || 0) > 60 ? "bg-yellow-500" : "bg-primary"
-                                  )}
-                                  style={{ width: `${Math.min(account.creditUsagePercentage || 0, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </TableCell>
-                      
-                      <TableCell>
-                        <div className="text-sm">
-                          {format(account.accountOpeningDate, 'MMM dd, yyyy')}
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => onView(account)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onEdit(account)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit Account
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteClick(account.id)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Account
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+            <>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Account</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Balance</TableHead>
+                      <TableHead>Opened</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedAccounts.map((account) => (
+                      <TableRow key={account.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+                              {getAccountTypeIcon(account.type)}
+                            </div>
+                            <div>
+                              <div className="font-medium">{account.name}</div>
+                              {account.notes && (
+                                <div className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                  {account.notes}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getAccountTypeIcon(account.type)}
+                            <span>{getAccountTypeLabel(account.type)}</span>
+                          </div>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <Badge variant={getStatusBadgeVariant(account.status)}>
+                            {getAccountStatusLabel(account.status)}
+                          </Badge>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <div className={cn(
+                            "font-medium",
+                            account.currentBalance < 0 ? "text-destructive" : "text-foreground"
+                          )}>
+                            {formatAccountBalance(account)}
+                          </div>
+                          {account.type === 'credit_card' && account.creditCardInfo && (
+                            <div className="text-sm text-muted-foreground space-y-1">
+                              <div>
+                                Limit: {formatAccountBalance({ ...account, currentBalance: account.creditCardInfo.creditLimit })}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span>Usage: {account.creditUsagePercentage?.toFixed(1) || '0.0'}%</span>
+                                <div className="flex-1 bg-muted rounded-full h-1.5 max-w-[60px]">
+                                  <div 
+                                    className={cn(
+                                      "h-1.5 rounded-full transition-all",
+                                      (account.creditUsagePercentage || 0) > 80 ? "bg-destructive" :
+                                      (account.creditUsagePercentage || 0) > 60 ? "bg-yellow-500" : "bg-primary"
+                                    )}
+                                    style={{ width: `${Math.min(account.creditUsagePercentage || 0, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </TableCell>
+                        
+                        <TableCell>
+                          <div className="text-sm">
+                            {format(account.accountOpeningDate, 'MMM dd, yyyy')}
+                          </div>
+                        </TableCell>
+                        
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => onView(account)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => onEdit(account)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Account
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteClick(account.id)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Account
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              
+              {/* Pagination */}
+              <div className="mt-4">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={filteredAccounts.length}
+                  pageSize={pageSize}
+                  onPageChange={onPageChange}
+                  onPageSizeChange={onPageSizeChange}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                />
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

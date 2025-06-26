@@ -7,7 +7,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { TransactionForm } from "@/components/transactions/transaction-form"
 import { TransactionsList } from "@/components/transactions/transactions-list"
+import { TransactionImport } from "@/components/transactions/transaction-import"
 
 import { Transaction, TransactionFormData } from "@/types/transaction"
 import { Account } from "@/types/account"
@@ -46,6 +47,7 @@ export default function TransactionsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
 
@@ -207,6 +209,23 @@ export default function TransactionsPage() {
   }
 
   /**
+   * Handle import transactions
+   * @description Opens import dialog for bulk transaction import
+   */
+  const handleImport = () => {
+    setShowImport(true)
+  }
+
+  /**
+   * Handle import completion
+   * @description Refreshes data after successful import
+   */
+  const handleImportComplete = () => {
+    setShowImport(false)
+    handleRefresh()
+  }
+
+  /**
    * Refresh transactions data
    * @description Reloads transactions from the server
    */
@@ -225,25 +244,35 @@ export default function TransactionsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex-1 space-y-4">
+      <div className="flex-1 space-y-4 max-w-full overflow-hidden">
         {/* Page Header */}
-        <div className="flex items-center justify-between space-y-2">
+        <div className="flex items-center justify-between space-y-2 flex-wrap gap-2">
           <h2 className="text-3xl font-bold tracking-tight">Transactions</h2>
-          <Button onClick={handleAddNew} disabled={isLoading}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Transaction
-          </Button>
+          <div className="flex space-x-2 flex-wrap gap-2">
+            <Button variant="outline" onClick={handleImport} disabled={isLoading} size="sm">
+              <Upload className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Import CSV</span>
+              <span className="sm:hidden">Import</span>
+            </Button>
+            <Button onClick={handleAddNew} disabled={isLoading} size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Add Transaction</span>
+              <span className="sm:hidden">Add</span>
+            </Button>
+          </div>
         </div>
 
         {/* Transactions List */}
-        <TransactionsList
-          transactions={transactions}
-          accounts={accounts}
-          isLoading={isLoading}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onRefresh={handleRefresh}
-        />
+        <div className="w-full">
+          <TransactionsList
+            transactions={transactions}
+            accounts={accounts}
+            isLoading={isLoading}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onRefresh={handleRefresh}
+          />
+        </div>
 
         {/* Transaction Form Dialog */}
         <Dialog open={showForm} onOpenChange={setShowForm}>
@@ -287,6 +316,24 @@ export default function TransactionsPage() {
               onCancel={handleCancel}
               isLoading={isSubmitting}
             />
+          </DialogContent>
+        </Dialog>
+
+        {/* Import Dialog */}
+        <Dialog open={showImport} onOpenChange={setShowImport}>
+          <DialogContent className="w-[60vw] min-w-[800px] max-w-none max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Import Transactions</DialogTitle>
+            </DialogHeader>
+            {userId && (
+              <TransactionImport
+                accounts={accounts}
+                categories={categories}
+                payees={payees}
+                onImportComplete={handleImportComplete}
+                userId={userId}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </div>

@@ -6,7 +6,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { MoreHorizontal, Edit, Trash2, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Pagination, usePagination } from "@/components/ui/pagination"
 import { Category } from "@/types/category"
 
 /**
@@ -46,6 +47,21 @@ export function CategoriesList({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Pagination state management
+  const {
+    currentPage,
+    pageSize,
+    onPageChange,
+    onPageSizeChange,
+  } = usePagination(categories.length, 10)
+
+  // Get paginated categories
+  const paginatedCategories = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    return categories.slice(startIndex, endIndex)
+  }, [categories, currentPage, pageSize])
 
   /**
    * Handle delete confirmation
@@ -106,27 +122,6 @@ export function CategoriesList({
     }).format(date)
   }
 
-  if (categories.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Categories</CardTitle>
-          <CardDescription>
-            Organize your expenses into categories for better tracking and reporting.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex h-[400px] items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <p className="text-lg font-medium">No categories yet</p>
-              <p className="text-sm">Create your first category to organize expenses</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
     <>
       <Card>
@@ -137,96 +132,119 @@ export function CategoriesList({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-                             <TableHeader>
-                 <TableRow>
-                   <TableHead>Display Name</TableHead>
-                   <TableHead>Description</TableHead>
-                   <TableHead>Status</TableHead>
-                   <TableHead>Created</TableHead>
-                   <TableHead className="w-[50px]">Actions</TableHead>
-                 </TableRow>
-               </TableHeader>
-              <TableBody>
-                {categories.map((category) => (
-                                     <TableRow key={category.id}>
-                     <TableCell className="font-medium">
-                       {category.displayName}
-                     </TableCell>
-                     <TableCell className="max-w-[200px]">
-                      <div className="truncate">
-                        {category.description || (
-                          <span className="text-muted-foreground text-sm">No description</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={category.isActive ? "default" : "secondary"}
-                        className="cursor-pointer"
-                        onClick={() => handleToggleStatus(category)}
-                      >
-                        {actionLoading === `toggle-${category.id}` ? (
-                          <div className="mr-1 h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
-                        ) : category.isActive ? (
-                          <Eye className="mr-1 h-3 w-3" />
-                        ) : (
-                          <EyeOff className="mr-1 h-3 w-3" />
-                        )}
-                        {category.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(category.createdAt)}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => onEdit(category)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleToggleStatus(category)}
-                            disabled={actionLoading === `toggle-${category.id}`}
-                          >
-                            {category.isActive ? (
-                              <>
-                                <EyeOff className="mr-2 h-4 w-4" />
-                                Deactivate
-                              </>
-                            ) : (
-                              <>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Activate
-                              </>
+          {categories.length === 0 ? (
+            <div className="flex h-[400px] items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <p className="text-lg font-medium">No categories yet</p>
+                <p className="text-sm">Create your first category to organize expenses</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Display Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="w-[50px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedCategories.map((category) => (
+                      <TableRow key={category.id}>
+                        <TableCell className="font-medium">
+                          {category.displayName}
+                        </TableCell>
+                        <TableCell className="max-w-[200px]">
+                          <div className="truncate">
+                            {category.description || (
+                              <span className="text-muted-foreground text-sm">No description</span>
                             )}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteClick(category)}
-                            className="text-red-600 focus:text-red-600"
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={category.isActive ? "default" : "secondary"}
+                            className="cursor-pointer"
+                            onClick={() => handleToggleStatus(category)}
                           >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                            {actionLoading === `toggle-${category.id}` ? (
+                              <div className="mr-1 h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
+                            ) : category.isActive ? (
+                              <Eye className="mr-1 h-3 w-3" />
+                            ) : (
+                              <EyeOff className="mr-1 h-3 w-3" />
+                            )}
+                            {category.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatDate(category.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => onEdit(category)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleToggleStatus(category)}
+                                disabled={actionLoading === `toggle-${category.id}`}
+                              >
+                                {category.isActive ? (
+                                  <>
+                                    <EyeOff className="mr-2 h-4 w-4" />
+                                    Deactivate
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Activate
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteClick(category)}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              
+              {/* Pagination */}
+              <div className="mt-4">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={categories.length}
+                  pageSize={pageSize}
+                  onPageChange={onPageChange}
+                  onPageSizeChange={onPageSizeChange}
+                  pageSizeOptions={[5, 10, 20, 50]}
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -235,10 +253,10 @@ export function CategoriesList({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Category</DialogTitle>
-                         <DialogDescription>
-               Are you sure you want to delete &ldquo;{categoryToDelete?.displayName}&rdquo;? 
-               This action cannot be undone and may affect your transaction history.
-             </DialogDescription>
+            <DialogDescription>
+              Are you sure you want to delete &ldquo;{categoryToDelete?.displayName}&rdquo;? 
+              This action cannot be undone and may affect your transaction history.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button

@@ -91,7 +91,7 @@ function transformFormDataToRow(formData: AccountFormData, userId: string) {
 
 /**
  * Get all accounts for a user
- * @description Retrieves all accounts belonging to the authenticated user from Supabase
+ * @description Retrieves all accounts belonging to the authenticated user from Supabase, sorted by type first, then alphabetically by name
  * @param userId - User ID to filter accounts
  * @returns Promise resolving to array of accounts
  */
@@ -100,7 +100,8 @@ export async function getAccounts(userId: string): Promise<Account[]> {
     .from('accounts')
     .select('*')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+    .order('type', { ascending: true })
+    .order('name', { ascending: true })
 
   if (error) {
     console.error('Error fetching accounts:', error)

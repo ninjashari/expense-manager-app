@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Pagination, usePagination } from "@/components/ui/pagination"
 
 import { Transaction, getTransactionTypeLabel, getTransactionStatusLabel, isTransferTransaction } from "@/types/transaction"
 import { Account, getCurrencySymbol } from "@/types/account"
@@ -143,6 +144,20 @@ export function TransactionsList({
 
     return true
   })
+
+  // Pagination state management
+  const {
+    currentPage,
+    pageSize,
+    onPageChange,
+    onPageSizeChange,
+  } = usePagination(filteredTransactions.length, 20)
+
+  // Get paginated transactions
+  const paginatedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
 
   /**
    * Get transaction type icon
@@ -294,102 +309,110 @@ export function TransactionsList({
       <CardHeader>
         <CardTitle>Transactions</CardTitle>
         <CardDescription>
-          Manage your income, expenses, and transfers. Total: {filteredTransactions.length} transactions
+          Manage your income, expenses, and transfers. 
+          {filteredTransactions.length !== transactions.length ? (
+            <>Showing {filteredTransactions.length} of {transactions.length} transactions</>
+          ) : (
+            <>Total: {filteredTransactions.length} transactions</>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <Input
-            placeholder="Search transactions..."
-            value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-          />
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Input
+              placeholder="Search transactions..."
+              value={filters.search}
+              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              className="w-full min-w-0"
+            />
 
-          <Select
-            value={filters.type}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, type: value as FilterOptions['type'] }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="deposit">Deposits</SelectItem>
-              <SelectItem value="withdrawal">Withdrawals</SelectItem>
-              <SelectItem value="transfer">Transfers</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select
+              value={filters.type}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, type: value as FilterOptions['type'] }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="deposit">Deposits</SelectItem>
+                <SelectItem value="withdrawal">Withdrawals</SelectItem>
+                <SelectItem value="transfer">Transfers</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select
-            value={filters.status}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as FilterOptions['status'] }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select
+              value={filters.status}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as FilterOptions['status'] }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
 
-          {/* Accounts Multi-Select Filter */}
-          <Popover open={accountsPopoverOpen} onOpenChange={setAccountsPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={accountsPopoverOpen}
-                className="justify-between"
-              >
-                {getSelectedAccountsText()}
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0">
-              <Command>
-                <CommandInput placeholder="Search accounts..." />
-                <CommandList>
-                  <CommandEmpty>No accounts found.</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      onSelect={clearAccountFilters}
-                      className="cursor-pointer"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={filters.accountIds.length === 0}
-                          onChange={() => { }}
-                        />
-                        <span>All Accounts</span>
-                      </div>
-                    </CommandItem>
-                    {accounts.map((account) => (
+            {/* Accounts Multi-Select Filter */}
+            <Popover open={accountsPopoverOpen} onOpenChange={setAccountsPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={accountsPopoverOpen}
+                  className="justify-between w-full min-w-0"
+                >
+                  <span className="truncate flex-1 text-left">{getSelectedAccountsText()}</span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0">
+                <Command>
+                  <CommandInput placeholder="Search accounts..." />
+                  <CommandList>
+                    <CommandEmpty>No accounts found.</CommandEmpty>
+                    <CommandGroup>
                       <CommandItem
-                        key={account.id}
-                        onSelect={() => handleAccountToggle(account.id)}
+                        onSelect={clearAccountFilters}
                         className="cursor-pointer"
                       >
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            checked={filters.accountIds.includes(account.id)}
+                            checked={filters.accountIds.length === 0}
                             onChange={() => { }}
                           />
-                          <span>{account.name}</span>
-                          <Badge variant="outline" className="ml-auto">
-                            {account.type}
-                          </Badge>
+                          <span>All Accounts</span>
                         </div>
                       </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+                      {accounts.map((account) => (
+                        <CommandItem
+                          key={account.id}
+                          onSelect={() => handleAccountToggle(account.id)}
+                          className="cursor-pointer"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              checked={filters.accountIds.includes(account.id)}
+                              onChange={() => { }}
+                            />
+                            <span>{account.name}</span>
+                            <Badge variant="outline" className="ml-auto">
+                              {account.type}
+                            </Badge>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
         {/* Transactions Table */}
@@ -404,96 +427,137 @@ export function TransactionsList({
             </p>
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Payee</TableHead>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[50px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTransactions.map((transaction) => {
-                  const { amount, colorClass } = formatAmount(transaction)
-
-                  return (
-                    <TableRow key={transaction.id}>
-                      <TableCell className="font-medium">
-                        {format(transaction.date, 'MMM dd, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getTypeIcon(transaction.type)}
-                          {getTransactionTypeLabel(transaction.type)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{getPayeeDisplay(transaction)}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{getAccountDisplay(transaction)}</div>
-                        {transaction.notes && (
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {transaction.notes}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {transaction.category ? (
-                          <Badge variant="outline">{transaction.category.displayName}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className={`font-medium ${colorClass}`}>
-                        {amount}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(transaction.status)}>
-                          {getTransactionStatusLabel(transaction.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {onEdit && (
-                              <DropdownMenuItem onClick={() => onEdit(transaction)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                            )}
-                            {onDelete && (
-                              <DropdownMenuItem
-                                onClick={() => onDelete(transaction)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+          <>
+            <div className="w-full">
+              <div className="rounded-md border overflow-x-auto">
+                <Table className="w-full table-auto">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Date</TableHead>
+                      <TableHead className="whitespace-nowrap">Type</TableHead>
+                      <TableHead className="whitespace-nowrap">Payee</TableHead>
+                      <TableHead className="whitespace-nowrap">Account</TableHead>
+                      <TableHead className="whitespace-nowrap hidden sm:table-cell">Category</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">Amount</TableHead>
+                      <TableHead className="whitespace-nowrap hidden md:table-cell">Status</TableHead>
+                      <TableHead className="whitespace-nowrap w-12">Actions</TableHead>
                     </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedTransactions.map((transaction) => {
+                      const { amount, colorClass } = formatAmount(transaction)
+
+                      return (
+                        <TableRow key={transaction.id}>
+                          <TableCell className="font-medium text-sm whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span>{format(transaction.date, 'MMM dd')}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(transaction.date, 'yyyy')}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              {getTypeIcon(transaction.type)}
+                              <span className="text-sm">
+                                {getTransactionTypeLabel(transaction.type)}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="min-w-0">
+                            <div className="flex flex-col">
+                              <div className="font-medium text-sm truncate max-w-[200px]">
+                                {getPayeeDisplay(transaction)}
+                              </div>
+                              {transaction.category && (
+                                <div className="text-xs text-muted-foreground sm:hidden truncate max-w-[200px]">
+                                  {transaction.category.displayName}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="min-w-0">
+                            <div className="flex flex-col">
+                              <div className="font-medium text-sm truncate max-w-[200px]">
+                                {getAccountDisplay(transaction)}
+                              </div>
+                              {transaction.notes && (
+                                <div className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]">
+                                  {transaction.notes}
+                                </div>
+                              )}
+                              <div className="text-xs text-muted-foreground md:hidden mt-1">
+                                <Badge variant={getStatusVariant(transaction.status)} className="text-xs">
+                                  {getTransactionStatusLabel(transaction.status)}
+                                </Badge>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell whitespace-nowrap">
+                            {transaction.category ? (
+                              <Badge variant="outline" className="text-xs">
+                                {transaction.category.displayName}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className={`font-medium text-right whitespace-nowrap ${colorClass}`}>
+                            <span className="text-sm">{amount}</span>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell whitespace-nowrap">
+                            <Badge variant={getStatusVariant(transaction.status)} className="text-xs">
+                              {getTransactionStatusLabel(transaction.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="w-12">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {onEdit && (
+                                  <DropdownMenuItem onClick={() => onEdit(transaction)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                )}
+                                {onDelete && (
+                                  <DropdownMenuItem
+                                    onClick={() => onDelete(transaction)}
+                                    className="text-red-600"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+            
+            {/* Pagination */}
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filteredTransactions.length}
+                pageSize={pageSize}
+                onPageChange={onPageChange}
+                onPageSizeChange={onPageSizeChange}
+                pageSizeOptions={[10, 20, 50, 100]}
+              />
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

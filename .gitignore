@@ -39,6 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.cursorrules:Zone.Identifier
+
+# cursor
 .cursorrules
+
+# package lock
 package-lock.json
+
+# csv files
+*.csv
+
+# zone identifier
+*:Zone.Identifier
