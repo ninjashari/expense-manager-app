@@ -6,6 +6,17 @@
 import { z } from 'zod'
 
 /**
+ * Get the end of the current day for date validation
+ * @description Returns a date object set to 23:59:59.999 of the current day
+ * @returns Date object representing the end of today
+ */
+function getEndOfToday(): Date {
+  const today = new Date()
+  today.setHours(23, 59, 59, 999)
+  return today
+}
+
+/**
  * Account form validation schema
  * @description Defines validation rules for account creation and editing
  */
@@ -41,7 +52,7 @@ export const accountFormSchema = z.object({
       required_error: 'Account opening date is required',
       invalid_type_error: 'Please select a valid date',
     })
-    .max(new Date(), 'Account opening date cannot be in the future'),
+    .max(getEndOfToday(), 'Account opening date cannot be in the future'),
   
   notes: z
     .string()

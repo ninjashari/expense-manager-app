@@ -6,6 +6,17 @@
 import { z } from 'zod'
 
 /**
+ * Get the end of the current day for date validation
+ * @description Returns a date object set to 23:59:59.999 of the current day
+ * @returns Date object representing the end of today
+ */
+function getEndOfToday(): Date {
+  const today = new Date()
+  today.setHours(23, 59, 59, 999)
+  return today
+}
+
+/**
  * Base transaction validation schema
  * @description Common validation rules for all transaction types
  */
@@ -15,7 +26,7 @@ const baseTransactionSchema = z.object({
       required_error: 'Transaction date is required',
       invalid_type_error: 'Please select a valid date',
     })
-    .max(new Date(), 'Transaction date cannot be in the future'),
+    .max(getEndOfToday(), 'Transaction date cannot be in the future'),
   
   status: z.enum(['pending', 'completed', 'cancelled'], {
     required_error: 'Transaction status is required',
