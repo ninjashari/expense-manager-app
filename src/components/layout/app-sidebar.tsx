@@ -17,6 +17,7 @@ import {
   Settings,
   Tag,
   Wallet,
+  CalendarDays,
 } from "lucide-react"
 
 import {
@@ -49,6 +50,12 @@ const navigationItems = [
     url: "/accounts",
     icon: Wallet,
     description: "Manage your bank accounts and wallets"
+  },
+  {
+    title: "Credit Cards",
+    url: "/credit-cards",
+    icon: CalendarDays,
+    description: "Manage credit card bills and payments"
   },
   {
     title: "Transactions",

@@ -541,4 +541,79 @@ BEGIN
     END LOOP;
     
     RAISE NOTICE 'Successfully recalculated balances for all accounts';
-END $$; 
+END $$;
+
+-- Create enum type for credit card bill status
+CREATE TYPE credit_card_bill_status AS ENUM (
+  'generated',
+  'paid', 
+  'overdue',
+  'partial'
+);
+
+-- Create credit card bills table
+CREATE TABLE credit_card_bills (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  account_id UUID REFERENCES accounts(id) ON DELETE CASCADE NOT NULL,
+  
+  -- Bill period information
+  bill_period_start DATE NOT NULL,
+  bill_period_end DATE NOT NULL,
+  bill_generation_date DATE NOT NULL,
+  payment_due_date DATE NOT NULL,
+  
+  -- Bill amounts
+  previous_balance DECIMAL(15,2) DEFAULT 0.00 NOT NULL,
+  total_spending DECIMAL(15,2) DEFAULT 0.00 NOT NULL,
+  total_payments DECIMAL(15,2) DEFAULT 0.00 NOT NULL,
+  bill_amount DECIMAL(15,2) DEFAULT 0.00 NOT NULL,
+  minimum_payment DECIMAL(15,2) DEFAULT 0.00 NOT NULL,
+  
+  -- Payment tracking
+  status credit_card_bill_status DEFAULT 'generated' NOT NULL,
+  paid_amount DECIMAL(15,2) DEFAULT 0.00 NOT NULL,
+  paid_date DATE,
+  
+  -- Related transaction tracking
+  transaction_ids UUID[] DEFAULT ARRAY[]::UUID[] NOT NULL,
+  payment_transaction_ids UUID[] DEFAULT ARRAY[]::UUID[] NOT NULL,
+  
+  -- Metadata
+  is_auto_generated BOOLEAN DEFAULT TRUE NOT NULL,
+  notes TEXT,
+  
+  -- Timestamps
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  
+  -- Constraints
+  CONSTRAINT valid_bill_period CHECK (bill_period_start <= bill_period_end),
+  CONSTRAINT valid_bill_dates CHECK (bill_generation_date >= bill_period_end),
+  CONSTRAINT valid_payment_due_date CHECK (payment_due_date > bill_generation_date),
+  CONSTRAINT valid_paid_amount CHECK (paid_amount >= 0 AND paid_amount <= bill_amount + 1000), -- Allow small overpayment
+  CONSTRAINT valid_bill_amounts CHECK (
+    previous_balance >= 0 AND 
+    total_spending >= 0 AND 
+    total_payments >= 0 AND
+    minimum_payment >= 0
+  )
+);
+
+-- Create indexes for credit card bills
+CREATE INDEX idx_credit_card_bills_user_id ON credit_card_bills(user_id);
+CREATE INDEX idx_credit_card_bills_account_id ON credit_card_bills(account_id);
+CREATE INDEX idx_credit_card_bills_status ON credit_card_bills(status);
+CREATE INDEX idx_credit_card_bills_bill_generation_date ON credit_card_bills(bill_generation_date);
+CREATE INDEX idx_credit_card_bills_payment_due_date ON credit_card_bills(payment_due_date);
+CREATE INDEX idx_credit_card_bills_created_at ON credit_card_bills(created_at);
+
+-- Create unique constraint to prevent duplicate bills for same period
+CREATE UNIQUE INDEX idx_credit_card_bills_unique_period 
+ON credit_card_bills(account_id, bill_period_start, bill_period_end);
+
+-- Create trigger to update updated_at timestamp for credit card bills
+CREATE TRIGGER update_credit_card_bills_updated_at
+  BEFORE UPDATE ON credit_card_bills
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column(); 
