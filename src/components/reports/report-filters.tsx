@@ -223,13 +223,26 @@ function DateRangePicker({ dateRange, startDate, endDate, onDateRangeChange }: D
     setShowCustom(dateRange === 'custom')
   }, [dateRange])
 
+  // Update temp dates when external dates change
+  useEffect(() => {
+    setTempStartDate(startDate)
+  }, [startDate])
+
+  useEffect(() => {
+    setTempEndDate(endDate)
+  }, [endDate])
+
   const handlePresetChange = (preset: DateRangePreset) => {
+    console.log('DateRangePicker: handlePresetChange called with:', preset)
+    console.log('DateRangePicker: Current dateRange:', dateRange)
+    
     if (preset === 'custom') {
       setShowCustom(true)
       onDateRangeChange(preset, tempStartDate, tempEndDate)
     } else {
       setShowCustom(false)
-      onDateRangeChange(preset)
+      // Clear startDate and endDate for preset ranges
+      onDateRangeChange(preset, undefined, undefined)
     }
   }
 
@@ -245,7 +258,7 @@ function DateRangePicker({ dateRange, startDate, endDate, onDateRangeChange }: D
         <Label>Date Range</Label>
         <Select value={dateRange} onValueChange={handlePresetChange}>
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Select date range" />
           </SelectTrigger>
           <SelectContent>
             {DATE_RANGE_PRESETS.map((preset) => (
@@ -333,6 +346,9 @@ export function ReportFilters({
     key: K,
     value: ReportFilters[K]
   ) => {
+    console.log('ReportFilters: updateFilter called with:', key, value)
+    console.log('ReportFilters: Current filters:', filters)
+    
     onFiltersChange({
       ...filters,
       [key]: value
@@ -401,9 +417,13 @@ export function ReportFilters({
           startDate={filters.startDate}
           endDate={filters.endDate}
           onDateRangeChange={(preset, startDate, endDate) => {
-            updateFilter('dateRange', preset)
-            updateFilter('startDate', startDate)
-            updateFilter('endDate', endDate)
+            // Update all date-related filters in a single call
+            onFiltersChange({
+              ...filters,
+              dateRange: preset,
+              startDate: startDate,
+              endDate: endDate
+            })
           }}
         />
 

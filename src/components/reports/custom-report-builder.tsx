@@ -6,7 +6,7 @@
 
 "use client"
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Download, Settings, Filter, FileText, Group } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -328,8 +328,29 @@ export function CustomReportBuilder({
 
   // Handle filter changes
   const handleFiltersChange = (newFilters: ReportFilters) => {
+    console.log('CustomReportBuilder: handleFiltersChange called with:', newFilters)
+    console.log('CustomReportBuilder: Previous filters:', filters)
     setFilters(newFilters)
   }
+
+  // Auto-regenerate report when filters change
+  useEffect(() => {
+    // Only regenerate if we have transactions data already (not on initial load)
+    if (transactions.length > 0) {
+      const filtered = filterTransactions(transactions, filters)
+      setFilteredTransactions(filtered)
+    }
+  }, [filters, transactions])
+
+  // Generate initial report on component mount
+  useEffect(() => {
+    generateReport()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Log when filters change
+  useEffect(() => {
+    console.log('CustomReportBuilder: filters state changed to:', filters)
+  }, [filters])
 
   // Group transactions if needed
   const groupedData = groupTransactions(filteredTransactions, groupBy)
