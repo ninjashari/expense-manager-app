@@ -267,6 +267,7 @@ export default function TransactionsPage() {
           <TransactionsList
             transactions={transactions}
             accounts={accounts}
+            categories={categories}
             isLoading={isLoading}
             onEdit={handleEdit}
             onDelete={handleDelete}
