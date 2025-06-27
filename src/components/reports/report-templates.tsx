@@ -249,7 +249,7 @@ export const TEMPLATE_CATEGORIES = [
     value: 'analysis',
     label: 'Analysis',
     description: 'Deep dive into specific financial aspects',
-    color: 'bg-blue-100 text-blue-800'
+    color: 'bg-violet-100 text-violet-800'
   },
   {
     value: 'overview',
@@ -261,7 +261,7 @@ export const TEMPLATE_CATEGORIES = [
     value: 'comparison',
     label: 'Comparison',
     description: 'Compare different accounts or time periods',
-    color: 'bg-purple-100 text-purple-800'
+    color: 'bg-violet-200 text-violet-900'
   },
   {
     value: 'trends',

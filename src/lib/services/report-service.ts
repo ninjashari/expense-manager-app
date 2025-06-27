@@ -473,8 +473,8 @@ function generateCategoryColor(categoryId: string): string {
     hash = categoryId.charCodeAt(i) + ((hash << 5) - hash)
   }
   
-  const hue = Math.abs(hash) % 360
-  return `hsl(${hue}, 65%, 55%)`
+  const hue = 270 + (Math.abs(hash) % 90) // Violet range: 270-360
+  return `oklch(0.65 0.15 ${hue})`
 }
 
 /**

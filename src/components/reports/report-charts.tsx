@@ -228,18 +228,18 @@ export function IncomeVsExpensesChart({
             <Line 
               type="monotone" 
               dataKey="income" 
-              stroke="#22c55e" 
+              stroke="oklch(0.7 0.15 150)" 
               name="Income"
               strokeWidth={2}
-              dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
+              dot={{ fill: 'oklch(0.7 0.15 150)', strokeWidth: 2, r: 4 }}
             />
             <Line 
               type="monotone" 
               dataKey="expenses" 
-              stroke="#ef4444" 
+              stroke="oklch(0.6 0.18 320)" 
               name="Expenses"
               strokeWidth={2}
-              dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+              dot={{ fill: 'oklch(0.6 0.18 320)', strokeWidth: 2, r: 4 }}
             />
           </LineChart>
         )
@@ -265,16 +265,16 @@ export function IncomeVsExpensesChart({
             <Area 
               type="monotone" 
               dataKey="income" 
-              stroke="#22c55e" 
-              fill="#22c55e"
+              stroke="oklch(0.7 0.15 150)" 
+              fill="oklch(0.7 0.15 150)"
               fillOpacity={0.3}
               name="Income"
             />
             <Area 
               type="monotone" 
               dataKey="expenses" 
-              stroke="#ef4444" 
-              fill="#ef4444"
+              stroke="oklch(0.6 0.18 320)" 
+              fill="oklch(0.6 0.18 320)"
               fillOpacity={0.3}
               name="Expenses"
             />
@@ -299,15 +299,15 @@ export function IncomeVsExpensesChart({
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
-            <Bar dataKey="income" fill="#22c55e" name="Income" />
-            <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
+            <Bar dataKey="income" fill="oklch(0.7 0.15 150)" name="Income" />
+            <Bar dataKey="expenses" fill="oklch(0.6 0.18 320)" name="Expenses" />
             <Line 
               type="monotone" 
               dataKey="net" 
-              stroke="#3b82f6" 
+              stroke="oklch(0.65 0.15 270)" 
               name="Net"
               strokeWidth={2}
-              dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+              dot={{ fill: 'oklch(0.65 0.15 270)', strokeWidth: 2, r: 4 }}
             />
           </ComposedChart>
         )
@@ -330,8 +330,8 @@ export function IncomeVsExpensesChart({
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
-            <Bar dataKey="income" fill="#22c55e" name="Income" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="expenses" fill="#ef4444" name="Expenses" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="income" fill="oklch(0.7 0.15 150)" name="Income" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="expenses" fill="oklch(0.6 0.18 320)" name="Expenses" radius={[2, 2, 0, 0]} />
           </BarChart>
         )
     }
@@ -387,7 +387,7 @@ export function CategoryBreakdownChart({
       amount: othersTotal,
       percentage: othersPercentage,
       transactionCount: otherCategories.reduce((sum, cat) => sum + cat.transactionCount, 0),
-      color: '#64748b'
+      color: 'oklch(0.5 0.04 270)'
     })
   }
 
@@ -425,7 +425,7 @@ export function CategoryBreakdownChart({
                 />
                 <Bar 
                   dataKey="amount" 
-                  fill="#8884d8"
+                  fill="oklch(0.65 0.15 270)"
                   radius={[0, 4, 4, 0]}
                 />
               </BarChart>
@@ -455,7 +455,7 @@ export function CategoryBreakdownChart({
         {chartData.map((entry, index) => (
           <Cell 
             key={`cell-${index}`} 
-            fill={entry.color || `hsl(${(index * 45) % 360}, 70%, 50%)`} 
+                                fill={entry.color || `oklch(0.65 0.15 ${270 + (index * 30) % 120})`} 
           />
         ))}
       </Pie>
@@ -542,13 +542,13 @@ export function AccountPerformanceChart({
               <Legend />
               <Bar 
                 dataKey="totalIncome" 
-                fill="#22c55e" 
+                fill="oklch(0.7 0.15 150)" 
                 name="Income"
                 radius={[2, 2, 0, 0]}
               />
               <Bar 
                 dataKey="totalExpenses" 
-                fill="#ef4444" 
+                fill="oklch(0.6 0.18 320)" 
                 name="Expenses"
                 radius={[2, 2, 0, 0]}
               />
@@ -614,7 +614,7 @@ export function PayeeAnalysisChart({
                   {chartData.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={`hsl(${(index * 36) % 360}, 70%, 50%)`} 
+                      fill={`oklch(0.65 0.15 ${270 + (index * 25) % 90})`} 
                     />
                   ))}
                 </Pie>
@@ -669,7 +669,7 @@ export function PayeeAnalysisChart({
               />
               <Bar 
                 dataKey="totalAmount" 
-                fill="#8b5cf6"
+                fill="oklch(0.65 0.15 270)"
                 radius={[0, 4, 4, 0]}
               />
             </BarChart>
