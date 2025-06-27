@@ -154,10 +154,10 @@ export function useDashboardStats(): DashboardStats {
           lastMonthSummary.totalExpenses
         )
 
-        // Generate chart data for the last 30 days
+        // Generate chart data for current month only
         const chartFilters: ReportFilters = {
           ...allTimeFilters,
-          dateRange: 'last_30_days',
+          dateRange: 'this_month',
         }
         const chartTransactions = filterTransactions(transactions, chartFilters)
         const chartData = generateTimeSeriesData(chartTransactions, 'monthly')
@@ -173,13 +173,13 @@ export function useDashboardStats(): DashboardStats {
           balance: account.currentBalance
         }))
 
-        // Calculate total balance (sum of all active accounts)
+        // Calculate total balance (sum of all active accounts, excluding credit card limits)
         const totalBalance = accounts
           .filter(account => account.status === 'active')
           .reduce((sum, account) => {
-            // For credit cards, show available credit (negative usage)
-            if (account.type === 'credit_card' && account.creditCardInfo) {
-              return sum + (account.creditCardInfo.creditLimit - account.currentBalance)
+            // For credit cards, don't include credit limit in total balance
+            if (account.type === 'credit_card') {
+              return sum // Don't add credit card balances to total balance
             }
             return sum + account.currentBalance
           }, 0)
@@ -195,7 +195,7 @@ export function useDashboardStats(): DashboardStats {
           monthlyNet: currentMonthSummary.netIncome,
           incomeChange,
           expenseChange,
-          chartData: chartData.slice(-6), // Last 6 data points
+          chartData, // Current month data
           recentTransactions,
           accountBalances,
           isLoading: false,

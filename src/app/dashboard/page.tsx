@@ -109,7 +109,7 @@ export default function DashboardPage() {
                 data={chartData}
                 chartType="bar"
                 title="Income vs Expenses Overview"
-                description="Your financial performance over the last 30 days"
+                description="Your financial performance for this month"
               />
             )}
           </div>

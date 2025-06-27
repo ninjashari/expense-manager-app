@@ -228,10 +228,6 @@ export function DashboardSummaryCards({
         title="Total Income"
         value={totalIncome}
         icon={<TrendingUp className="h-4 w-4" />}
-        trend={{
-          change: incomeChange,
-          label: "vs last month"
-        }}
         description="All-time earnings"
         variant="income"
       />
@@ -240,10 +236,6 @@ export function DashboardSummaryCards({
         title="Total Expenses"
         value={totalExpenses}
         icon={<TrendingDown className="h-4 w-4" />}
-        trend={{
-          change: expenseChange,
-          label: "vs last month"
-        }}
         description="All-time spending"
         variant="expense"
       />
