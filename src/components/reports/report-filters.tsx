@@ -233,9 +233,6 @@ function DateRangePicker({ dateRange, startDate, endDate, onDateRangeChange }: D
   }, [endDate])
 
   const handlePresetChange = (preset: DateRangePreset) => {
-    console.log('DateRangePicker: handlePresetChange called with:', preset)
-    console.log('DateRangePicker: Current dateRange:', dateRange)
-    
     if (preset === 'custom') {
       setShowCustom(true)
       onDateRangeChange(preset, tempStartDate, tempEndDate)
@@ -346,9 +343,6 @@ export function ReportFilters({
     key: K,
     value: ReportFilters[K]
   ) => {
-    console.log('ReportFilters: updateFilter called with:', key, value)
-    console.log('ReportFilters: Current filters:', filters)
-    
     onFiltersChange({
       ...filters,
       [key]: value

@@ -10,6 +10,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { Download, Settings, Filter, FileText, Group } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import * as XLSX from 'xlsx'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -202,52 +203,45 @@ function getGroupLabel(transaction: Transaction, groupBy: GroupByOption): string
 }
 
 /**
- * Export transactions to CSV
- * @description Converts transaction data to CSV format and downloads it
+ * Export transactions to Excel file
+ * @description Creates Excel file with transaction data, supports multiple sheets for grouped data
  * @param transactions - Array of transactions to export
  * @param reportName - Name for the exported file
- * @param groupBy - Grouping option for additional context
+ * @param groupBy - Current grouping option
  */
-function exportToCSV(transactions: Transaction[], reportName: string = 'transactions', groupBy: GroupByOption = 'none') {
+function exportToExcel(transactions: Transaction[], reportName: string = 'transactions', groupBy: GroupByOption = 'none') {
   if (transactions.length === 0) {
     toast.error('No transactions to export')
     return
   }
 
-  // Create CSV headers (add group column if grouped)
-  const headers = groupBy !== 'none' 
-    ? [
-        'Group',
-        'Date',
-        'Type',
-        'Amount',
-        'Account',
-        'Category',
-        'Payee',
-        'From Account',
-        'To Account',
-        'Status',
-        'Notes'
-      ]
-    : [
-        'Date',
-        'Type',
-        'Amount',
-        'Account',
-        'Category',
-        'Payee',
-        'From Account',
-        'To Account',
-        'Status',
-        'Notes'
-      ]
+  try {
+    // Create a new workbook
+    const workbook = XLSX.utils.book_new()
 
-  // Convert transactions to CSV rows (add group column if grouped)
-  const csvRows = transactions.map(transaction => {
-    const baseRow = [
+    // Define base headers for transaction data
+    const baseHeaders = [
+      'Date',
+      'Type',
+      'Amount',
+      'Account',
+      'Category',
+      'Payee',
+      'From Account',
+      'To Account',
+      'Status',
+      'Notes'
+    ]
+
+    /**
+     * Convert transaction to row data
+     * @param transaction - Transaction to convert
+     * @returns Array of values for the row
+     */
+    const transactionToRow = (transaction: Transaction) => [
       format(new Date(transaction.date), 'yyyy-MM-dd'),
       transaction.type,
-      transaction.amount.toString(),
+      transaction.amount,
       transaction.account?.name || '',
       transaction.category?.displayName || '',
       transaction.payee?.displayName || '',
@@ -256,33 +250,135 @@ function exportToCSV(transactions: Transaction[], reportName: string = 'transact
       transaction.status,
       transaction.notes || ''
     ]
-    
-    if (groupBy !== 'none') {
-      return [getGroupLabel(transaction, groupBy), ...baseRow]
+
+    if (groupBy === 'none') {
+      // Single sheet for ungrouped data
+      const worksheetData = [
+        baseHeaders,
+        ...transactions.map(transactionToRow)
+      ]
+      
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
+      
+      // Add some styling to headers
+      const headerRange = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
+      for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: col })
+        if (worksheet[cellRef]) {
+          worksheet[cellRef].s = {
+            font: { bold: true },
+            fill: { fgColor: { rgb: "EEEEEE" } }
+          }
+        }
+      }
+      
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'All Transactions')
+    } else {
+      // Multiple sheets for grouped data
+      const groupedData = groupTransactions(transactions, groupBy)
+      
+      // Create summary sheet first
+      const summaryHeaders = ['Group', 'Total Amount', 'Transaction Count', 'Avg Amount']
+      const summaryData = [
+        summaryHeaders,
+        ...groupedData.map(group => [
+          group.groupLabel,
+          group.totalAmount,
+          group.count,
+          group.totalAmount / group.count
+        ])
+      ]
+      
+      const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData)
+      
+      // Style summary headers
+      const summaryRange = XLSX.utils.decode_range(summaryWorksheet['!ref'] || 'A1')
+      for (let col = summaryRange.s.c; col <= summaryRange.e.c; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: col })
+        if (summaryWorksheet[cellRef]) {
+          summaryWorksheet[cellRef].s = {
+            font: { bold: true },
+            fill: { fgColor: { rgb: "DDDDDD" } }
+          }
+        }
+      }
+      
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary')
+      
+      // Create individual sheets for each group
+      groupedData.forEach((group, index) => {
+        const worksheetData = [
+          baseHeaders,
+          ...group.transactions.map(transactionToRow)
+        ]
+        
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
+        
+        // Style headers
+        const headerRange = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
+        for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+          const cellRef = XLSX.utils.encode_cell({ r: 0, c: col })
+          if (worksheet[cellRef]) {
+            worksheet[cellRef].s = {
+              font: { bold: true },
+              fill: { fgColor: { rgb: "EEEEEE" } }
+            }
+          }
+        }
+        
+        // Clean sheet name (remove special characters and limit length)
+        let sheetName = group.groupLabel
+          .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
+          .substring(0, 31) // Excel sheet names must be 31 chars or less
+          .trim()
+        
+        // Ensure unique sheet names
+        if (!sheetName) {
+          sheetName = `Group_${index + 1}`
+        }
+        
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
+      })
+      
+      // Create "All Transactions" sheet with group column
+      const allTransactionsHeaders = ['Group', ...baseHeaders]
+      const allTransactionsData = [
+        allTransactionsHeaders,
+        ...transactions.map(transaction => [
+          getGroupLabel(transaction, groupBy),
+          ...transactionToRow(transaction)
+        ])
+      ]
+      
+      const allTransactionsWorksheet = XLSX.utils.aoa_to_sheet(allTransactionsData)
+      
+      // Style headers
+      const allHeaderRange = XLSX.utils.decode_range(allTransactionsWorksheet['!ref'] || 'A1')
+      for (let col = allHeaderRange.s.c; col <= allHeaderRange.e.c; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: col })
+        if (allTransactionsWorksheet[cellRef]) {
+          allTransactionsWorksheet[cellRef].s = {
+            font: { bold: true },
+            fill: { fgColor: { rgb: "EEEEEE" } }
+          }
+        }
+      }
+      
+      XLSX.utils.book_append_sheet(workbook, allTransactionsWorksheet, 'All Transactions')
     }
-    
-    return baseRow
-  })
 
-  // Combine headers and rows
-  const csvContent = [headers, ...csvRows]
-    .map(row => row.map(field => `"${field}"`).join(','))
-    .join('\n')
-
-  // Create and download the file
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  
-  if (link.download !== undefined) {
-    const url = URL.createObjectURL(blob)
-    link.setAttribute('href', url)
-    link.setAttribute('download', `${reportName}-${format(new Date(), 'yyyy-MM-dd')}.csv`)
-    link.style.visibility = 'hidden'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    // Generate filename with timestamp
+    const fileName = `${reportName}-${format(new Date(), 'yyyy-MM-dd-HHmm')}.xlsx`
     
-    toast.success('CSV exported successfully!')
+    // Write and download the file
+    XLSX.writeFile(workbook, fileName)
+    
+    const sheetsCount = groupBy === 'none' ? 1 : groupTransactions(transactions, groupBy).length + 2
+    toast.success(`Excel file exported successfully! (${sheetsCount} sheet${sheetsCount > 1 ? 's' : ''})`)
+    
+  } catch (error) {
+    console.error('Error exporting to Excel:', error)
+    toast.error('Failed to export Excel file. Please try again.')
   }
 }
 
@@ -328,8 +424,6 @@ export function CustomReportBuilder({
 
   // Handle filter changes
   const handleFiltersChange = (newFilters: ReportFilters) => {
-    console.log('CustomReportBuilder: handleFiltersChange called with:', newFilters)
-    console.log('CustomReportBuilder: Previous filters:', filters)
     setFilters(newFilters)
   }
 
@@ -347,10 +441,7 @@ export function CustomReportBuilder({
     generateReport()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Log when filters change
-  useEffect(() => {
-    console.log('CustomReportBuilder: filters state changed to:', filters)
-  }, [filters])
+
 
   // Group transactions if needed
   const groupedData = groupTransactions(filteredTransactions, groupBy)
@@ -381,7 +472,7 @@ export function CustomReportBuilder({
                 Custom Transaction Report
               </CardTitle>
               <CardDescription>
-                Filter your transactions and export the data as CSV
+                Filter your transactions and export the data as Excel
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -457,12 +548,12 @@ export function CustomReportBuilder({
               <div className="flex items-center justify-between">
                 <CardTitle>Report Summary</CardTitle>
                 <Button
-                  onClick={() => exportToCSV(filteredTransactions, reportName, groupBy)}
+                  onClick={() => exportToExcel(filteredTransactions, reportName, groupBy)}
                   variant="outline"
                   size="sm"
                 >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export CSV
+                                      <Download className="mr-2 h-4 w-4" />
+                    Export Excel
                 </Button>
               </div>
             </CardHeader>
