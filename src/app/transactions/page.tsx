@@ -83,7 +83,7 @@ const getActivePayees = async (): Promise<Payee[]> => {
   return data.payees
 }
 
-import { getCurrentUserId } from "@/lib/auth-client"
+import { useAuth } from "@/components/auth/auth-provider"
 
 /**
  * TransactionsPage component
@@ -91,6 +91,9 @@ import { getCurrentUserId } from "@/lib/auth-client"
  * @returns JSX element containing the transactions page content
  */
 export default function TransactionsPage() {
+  // Authentication
+  const { user } = useAuth()
+  
   // State management
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -101,27 +104,13 @@ export default function TransactionsPage() {
   const [showForm, setShowForm] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
 
   /**
-   * Load user ID on component mount
-   * @description Gets the current authenticated user's ID
-   */
-  useEffect(() => {
-    const id = getCurrentUserId()
-    if (id) {
-      setUserId(id)
-    } else {
-      toast.error('User not authenticated')
-    }
-  }, [])
-
-  /**
-   * Load all required data when user ID is available
+   * Load all required data when user is available
    * @description Loads transactions, accounts, categories, and payees
    */
   useEffect(() => {
-    if (!userId) return
+    if (!user?.id) return
 
     const loadData = async () => {
       setIsLoading(true)
@@ -151,7 +140,7 @@ export default function TransactionsPage() {
     }
 
     loadData()
-  }, [userId])
+  }, [user?.id])
 
   /**
    * Handle form submission for creating or updating transactions
@@ -159,7 +148,7 @@ export default function TransactionsPage() {
    * @param formData - Transaction form data
    */
   const handleSubmit = async (formData: TransactionFormData) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
@@ -216,7 +205,7 @@ export default function TransactionsPage() {
    * @param transaction - Transaction to delete
    */
   const handleDelete = async (transaction: Transaction) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
@@ -276,7 +265,7 @@ export default function TransactionsPage() {
    * @description Reloads transactions from the server
    */
   const handleRefresh = async () => {
-    if (!userId) return
+    if (!user?.id) return
 
     try {
       const transactionsData = await getTransactions()
@@ -372,13 +361,13 @@ export default function TransactionsPage() {
             <DialogHeader>
               <DialogTitle>Import Transactions</DialogTitle>
             </DialogHeader>
-            {userId && (
+            {user?.id && (
               <TransactionImport
                 accounts={accounts}
                 categories={categories}
                 payees={payees}
                 onImportComplete={handleImportComplete}
-                userId={userId}
+                userId={user.id}
               />
             )}
           </DialogContent>

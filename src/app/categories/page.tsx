@@ -59,7 +59,7 @@ const toggleCategoryStatus = async (id: string): Promise<Category> => {
   const data = await res.json()
   return data.category
 }
-import { getCurrentUserId } from "@/lib/auth-client"
+import { useAuth } from "@/components/auth/auth-provider"
 import { Category, CategoryFormData } from "@/types/category"
 
 /**
@@ -68,12 +68,14 @@ import { Category, CategoryFormData } from "@/types/category"
  * @returns JSX element containing the categories page content
  */
 export default function CategoriesPage() {
+  // Authentication
+  const { user } = useAuth()
+  
   const [categories, setCategories] = useState<Category[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
 
   /**
    * Load categories from database
@@ -81,34 +83,21 @@ export default function CategoriesPage() {
    */
   const loadCategories = useCallback(async () => {
     try {
-      if (!userId) return
+      if (!user?.id) return
       const data = await getCategories()
       setCategories(data)
     } catch (error) {
       console.error('Error loading categories:', error)
       toast.error('Failed to load categories')
     }
-  }, [userId])
+  }, [user?.id])
 
-  /**
-   * Initialize user and load categories
-   * @description Gets current user ID and loads their categories
-   */
+  // Load categories when user is available
   useEffect(() => {
-    const currentUserId = getCurrentUserId()
-    if (currentUserId) {
-      setUserId(currentUserId)
-    } else {
-      toast.error('User not authenticated')
-    }
-  }, [])
-
-  // Load categories when userId is available
-  useEffect(() => {
-    if (userId) {
+    if (user?.id) {
       loadCategories()
     }
-  }, [userId, loadCategories])
+  }, [user?.id, loadCategories])
 
   /**
    * Handle adding new category
@@ -143,7 +132,7 @@ export default function CategoriesPage() {
    * @param formData - Category form data
    */
   const handleFormSubmit = async (formData: CategoryFormData) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
@@ -177,7 +166,7 @@ export default function CategoriesPage() {
    * @param categoryId - ID of category to delete
    */
   const handleDeleteCategory = async (categoryId: string) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
@@ -198,7 +187,7 @@ export default function CategoriesPage() {
    * @param categoryId - ID of category to toggle
    */
   const handleToggleStatus = async (categoryId: string) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
@@ -289,9 +278,9 @@ export default function CategoriesPage() {
             <DialogHeader>
               <DialogTitle>Import Categories from CSV</DialogTitle>
             </DialogHeader>
-            {userId && (
+            {user?.id && (
               <CategoryImport
-                userId={userId}
+                userId={user.id}
                 onImportComplete={handleImportComplete}
                 isLoading={isSubmitting}
               />

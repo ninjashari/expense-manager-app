@@ -68,7 +68,7 @@ const getActiveCategories = async (): Promise<Category[]> => {
   return data.categories
 }
 
-import { getCurrentUserId } from "@/lib/auth-client"
+import { useAuth } from "@/components/auth/auth-provider"
 import { Payee, PayeeFormData } from "@/types/payee"
 import { Category } from "@/types/category"
 
@@ -78,13 +78,15 @@ import { Category } from "@/types/category"
  * @returns JSX element containing the payees page content
  */
 export default function PayeesPage() {
+  // Authentication
+  const { user } = useAuth()
+  
   const [payees, setPayees] = useState<Payee[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingPayee, setEditingPayee] = useState<Payee | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
 
   /**
    * Load payees from database
@@ -92,14 +94,14 @@ export default function PayeesPage() {
    */
   const loadPayees = useCallback(async () => {
     try {
-      if (!userId) return
+      if (!user?.id) return
       const data = await getPayees()
       setPayees(data)
     } catch (error) {
       console.error('Error loading payees:', error)
       toast.error('Failed to load payees')
     }
-  }, [userId])
+  }, [user?.id])
 
   /**
    * Load categories from database
@@ -107,35 +109,22 @@ export default function PayeesPage() {
    */
   const loadCategories = useCallback(async () => {
     try {
-      if (!userId) return
+      if (!user?.id) return
       const data = await getActiveCategories()
       setCategories(data)
     } catch (error) {
       console.error('Error loading categories:', error)
       toast.error('Failed to load categories')
     }
-  }, [userId])
+  }, [user?.id])
 
-  /**
-   * Initialize user and load payees
-   * @description Gets current user ID and loads their payees
-   */
+  // Load payees and categories when user is available
   useEffect(() => {
-    const currentUserId = getCurrentUserId()
-    if (currentUserId) {
-      setUserId(currentUserId)
-    } else {
-      toast.error('User not authenticated')
-    }
-  }, [])
-
-  // Load payees and categories when userId is available
-  useEffect(() => {
-    if (userId) {
+    if (user?.id) {
       loadPayees()
       loadCategories()
     }
-  }, [userId, loadPayees, loadCategories])
+  }, [user?.id, loadPayees, loadCategories])
 
   /**
    * Handle adding new payee
@@ -162,7 +151,7 @@ export default function PayeesPage() {
    * @param formData - Payee form data
    */
   const handleFormSubmit = async (formData: PayeeFormData) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
@@ -196,7 +185,7 @@ export default function PayeesPage() {
    * @param payeeId - ID of payee to delete
    */
   const handleDeletePayee = async (payeeId: string) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
@@ -217,7 +206,7 @@ export default function PayeesPage() {
    * @param payeeId - ID of payee to toggle
    */
   const handleToggleStatus = async (payeeId: string) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
@@ -311,9 +300,9 @@ export default function PayeesPage() {
             <DialogHeader>
               <DialogTitle>Import Payees from CSV</DialogTitle>
             </DialogHeader>
-            {userId && (
+            {user?.id && (
               <PayeeImport
-                userId={userId}
+                userId={user.id}
                 onImportComplete={handleImportComplete}
                 isLoading={isSubmitting}
               />

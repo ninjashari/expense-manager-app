@@ -38,7 +38,6 @@ import {
 
 import { ReportFilters as ReportFiltersComponent } from './report-filters'
 import { filterTransactions } from '@/lib/services/report-service'
-import { getTransactions } from '@/lib/services/transaction-service'
 
 /**
  * Props interface for the CustomReportBuilder component
@@ -404,8 +403,13 @@ export function CustomReportBuilder({
   const generateReport = useCallback(async () => {
     setIsLoading(true)
     try {
-      // Fetch all transactions for the user
-      const allTransactions = await getTransactions(userId)
+      // Fetch all transactions for the user via API
+      const response = await fetch('/api/transactions')
+      if (!response.ok) {
+        throw new Error('Failed to fetch transactions')
+      }
+      const data = await response.json()
+      const allTransactions = data.transactions
       
       // Apply filters
       const filtered = filterTransactions(allTransactions, filters)

@@ -12,6 +12,7 @@ import { Download } from "lucide-react"
 import { toast } from "sonner"
 
 import { ProtectedRoute } from "@/components/auth/protected-route"
+import { useAuth } from "@/components/auth/auth-provider"
 import { CustomReportBuilder } from "@/components/reports/custom-report-builder"
 
 // API functions
@@ -46,39 +47,36 @@ import { Payee } from "@/types/payee"
  * @returns JSX element containing the reports page content
  */
 export default function ReportsPage() {
+  // Authentication
+  const { user } = useAuth()
+  
   // Data state
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [payees, setPayees] = useState<Payee[]>([])
-  const [userId, setUserId] = useState<string>('')
 
   // Loading state
   const [isLoading, setIsLoading] = useState(true)
 
   /**
    * Load initial data for reports
-   * @description Fetches accounts, categories, payees, and user info
+   * @description Fetches accounts, categories, and payees
    */
   const loadReportData = async () => {
     try {
       setIsLoading(true)
       
-      // Get current user
-      const response = await fetch('/api/auth/session')
-      const sessionData = await response.json()
-      if (!sessionData.session?.user) {
+      if (!user?.id) {
         toast.error('Please sign in to view reports')
         return
       }
-      
-      setUserId(sessionData.session.user.id)
 
-              // Load all necessary data in parallel
-        const [accountsData, categoriesData, payeesData] = await Promise.all([
-          getAccounts(),
-          getCategories(),
-          getPayees()
-        ])
+      // Load all necessary data in parallel
+      const [accountsData, categoriesData, payeesData] = await Promise.all([
+        getAccounts(),
+        getCategories(),
+        getPayees()
+      ])
 
       setAccounts(accountsData)
       setCategories(categoriesData)
@@ -92,10 +90,12 @@ export default function ReportsPage() {
     }
   }
 
-  // Load data on component mount
+  // Load data when user is available
   useEffect(() => {
-    loadReportData()
-  }, [])
+    if (user?.id) {
+      loadReportData()
+    }
+  }, [user?.id])
 
   if (isLoading) {
     return (
@@ -143,12 +143,14 @@ export default function ReportsPage() {
         </div>
 
         {/* Main Report Interface */}
-        <CustomReportBuilder
-          accounts={accounts}
-          categories={categories}
-          payees={payees}
-          userId={userId}
-        />
+        {user?.id && (
+          <CustomReportBuilder
+            accounts={accounts}
+            categories={categories}
+            payees={payees}
+            userId={user.id}
+          />
+        )}
       </div>
     </ProtectedRoute>
   )
