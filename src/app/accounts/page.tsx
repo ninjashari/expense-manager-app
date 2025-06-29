@@ -12,6 +12,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AccountsList } from '@/components/accounts/accounts-list'
 import { AccountForm } from '@/components/accounts/account-form'
 import { AccountDetails } from '@/components/accounts/account-details'
+import { AccountImport } from '@/components/accounts/account-import'
 
 import { Account } from '@/types/account'
 import { AccountFormData } from '@/lib/validations/account'
@@ -58,7 +59,7 @@ import { useAuth } from '@/components/auth/auth-provider'
  * View modes for the accounts page
  * @description Defines different views available in the accounts page
  */
-type ViewMode = 'list' | 'add' | 'edit' | 'details'
+type ViewMode = 'list' | 'add' | 'edit' | 'details' | 'import'
 
 /**
  * AccountsPage component
@@ -106,6 +107,14 @@ export default function AccountsPage() {
   const handleAdd = () => {
     setSelectedAccount(null)
     setViewMode('add')
+  }
+
+  /**
+   * Handle import accounts
+   * @description Opens the import accounts dialog
+   */
+  const handleImport = () => {
+    setViewMode('import')
   }
 
   /**
@@ -201,6 +210,18 @@ export default function AccountsPage() {
   }
 
   /**
+   * Handle import completion
+   * @description Called when import process is completed
+   * @param result - Import result summary
+   */
+  const handleImportComplete = async (result: { successful: number; failed: number; duplicates: number }) => {
+    if (result.successful > 0) {
+      await loadAccounts() // Refresh the accounts list
+    }
+    setViewMode('list') // Return to list view
+  }
+
+  /**
    * Handle details edit button
    * @description Switches from details view to edit form
    */
@@ -268,12 +289,21 @@ export default function AccountsPage() {
           />
         ) : null
       
+      case 'import':
+        return (
+          <AccountImport
+            onImportComplete={handleImportComplete}
+            existingAccounts={accounts}
+          />
+        )
+      
       case 'list':
       default:
         return (
           <AccountsList
             accounts={accounts}
             onAdd={handleAdd}
+            onImport={handleImport}
             onEdit={handleEdit}
             onView={handleView}
             onDelete={handleDelete}

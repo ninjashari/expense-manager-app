@@ -9,13 +9,11 @@ import { Transaction } from '@/types/transaction'
 import { Account } from '@/types/account'
 import {
   ReportFilters,
-  ReportData,
   TransactionSummary,
   CategoryBreakdown,
   TimeSeriesData,
   AccountPerformance,
   PayeeAnalysis,
-  ReportConfig,
   TimeGrouping,
   getDateRangeFromPreset
 } from '@/types/report'
@@ -276,8 +274,7 @@ export function generateTimeSeriesData(transactions: Transaction[], grouping: Ti
  */
 export function generateAccountPerformance(
   transactions: Transaction[], 
-  accounts: Account[], 
-  filters: ReportFilters
+  accounts: Account[]
 ): AccountPerformance[] {
   const accountMap = new Map<string, AccountPerformance>()
 

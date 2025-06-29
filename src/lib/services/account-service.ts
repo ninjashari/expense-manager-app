@@ -5,8 +5,8 @@
  */
 
 import { query, queryOne } from '@/lib/database'
-import { Account, AccountFormData } from '@/types/account'
-import { formatDateForDatabase } from '@/lib/utils'
+import { Account, AccountFormData, AccountApiRequestData } from '@/types/account'
+import { formatDateForDatabase, parseDateFromDatabase } from '@/lib/utils'
 
 /**
  * Database row interface for accounts table
@@ -21,7 +21,7 @@ interface AccountRow {
   initial_balance: number
   current_balance: number
   currency: string
-  account_opening_date: string
+  account_opening_date: Date | string  // PostgreSQL DATE columns are returned as Date objects by pg driver
   notes: string | null
   credit_limit: number | null
   payment_due_date: number | null
@@ -48,7 +48,7 @@ function transformRowToAccount(row: AccountRow): Account {
     initialBalance: row.initial_balance,
     currentBalance: row.current_balance,
     currency: row.currency as Account['currency'],
-    accountOpeningDate: new Date(row.account_opening_date),
+    accountOpeningDate: parseDateFromDatabase(row.account_opening_date),
     notes: row.notes || undefined,
     
     // Timestamps
@@ -73,12 +73,12 @@ function transformRowToAccount(row: AccountRow): Account {
 
 /**
  * Transform form data to database row format
- * @description Converts AccountFormData to database insertion format
- * @param formData - Form data from the UI
+ * @description Converts AccountFormData or AccountApiRequestData to database insertion format
+ * @param formData - Form data from the UI or API request
  * @param userId - User ID for the account owner
  * @returns Database row format
  */
-function transformFormDataToRow(formData: AccountFormData, userId: string) {
+function transformFormDataToRow(formData: AccountFormData | AccountApiRequestData, userId: string) {
   return {
     user_id: userId,
     name: formData.name,
@@ -141,11 +141,11 @@ export async function getAccountById(accountId: string, userId: string): Promise
 /**
  * Create new account
  * @description Creates a new account in PostgreSQL with the provided data
- * @param accountData - Account form data
+ * @param accountData - Account form data or API request data
  * @param userId - User ID for the account owner
  * @returns Promise resolving to the created account
  */
-export async function createAccount(accountData: AccountFormData, userId: string): Promise<Account> {
+export async function createAccount(accountData: AccountFormData | AccountApiRequestData, userId: string): Promise<Account> {
   try {
     const insertData = transformFormDataToRow(accountData, userId)
     
@@ -194,7 +194,7 @@ export async function createAccount(accountData: AccountFormData, userId: string
  */
 export async function updateAccount(
   accountId: string, 
-  accountData: AccountFormData, 
+  accountData: AccountFormData | AccountApiRequestData, 
   userId: string
 ): Promise<Account | null> {
   try {

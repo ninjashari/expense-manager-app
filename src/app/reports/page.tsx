@@ -5,7 +5,7 @@
  */
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Download } from "lucide-react"
@@ -62,7 +62,7 @@ export default function ReportsPage() {
    * Load initial data for reports
    * @description Fetches accounts, categories, and payees
    */
-  const loadReportData = async () => {
+  const loadReportData = useCallback(async () => {
     try {
       setIsLoading(true)
       
@@ -88,14 +88,14 @@ export default function ReportsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [user?.id])
 
   // Load data when user is available
   useEffect(() => {
     if (user?.id) {
       loadReportData()
     }
-  }, [user?.id])
+  }, [user?.id, loadReportData])
 
   if (isLoading) {
     return (
@@ -143,14 +143,11 @@ export default function ReportsPage() {
         </div>
 
         {/* Main Report Interface */}
-        {user?.id && (
-          <CustomReportBuilder
-            accounts={accounts}
-            categories={categories}
-            payees={payees}
-            userId={user.id}
-          />
-        )}
+        <CustomReportBuilder
+          accounts={accounts}
+          categories={categories}
+          payees={payees}
+        />
       </div>
     </ProtectedRoute>
   )

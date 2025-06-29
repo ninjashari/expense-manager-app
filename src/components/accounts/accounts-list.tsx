@@ -20,7 +20,8 @@ import {
   Banknote,
   DollarSign,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Upload
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -74,6 +75,7 @@ interface AccountsListProps {
   onDelete: (accountId: string) => void
   onView: (account: Account) => void
   onAdd: () => void
+  onImport?: () => void
   onRefresh?: () => void
   isLoading?: boolean
 }
@@ -136,6 +138,7 @@ export function AccountsList({
   onDelete, 
   onView, 
   onAdd, 
+  onImport,
   onRefresh,
   isLoading = false 
 }: AccountsListProps) {
@@ -244,6 +247,12 @@ export function AccountsList({
                 <Button variant="outline" onClick={onRefresh} disabled={isLoading}>
                   <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                   Refresh Balances
+                </Button>
+              )}
+              {onImport && (
+                <Button variant="outline" onClick={onImport}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import CSV
                 </Button>
               )}
               <Button onClick={onAdd}>

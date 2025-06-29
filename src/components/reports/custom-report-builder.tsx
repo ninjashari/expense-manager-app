@@ -56,10 +56,6 @@ interface CustomReportBuilderProps {
    * Available payees for filtering
    */
   payees: Payee[]
-  /**
-   * User ID for data fetching
-   */
-  userId: string
 }
 
 /**
@@ -388,8 +384,7 @@ function exportToExcel(transactions: Transaction[], reportName: string = 'transa
 export function CustomReportBuilder({
   accounts,
   categories,
-  payees,
-  userId
+  payees
 }: CustomReportBuilderProps) {
   // State management
   const [reportName, setReportName] = useState('Custom Transaction Report')
@@ -424,7 +419,7 @@ export function CustomReportBuilder({
     } finally {
       setIsLoading(false)
     }
-  }, [filters, userId])
+  }, [filters])
 
   // Handle filter changes
   const handleFiltersChange = (newFilters: ReportFilters) => {

@@ -7,7 +7,7 @@
 import { Account } from '@/types/account'
 import { Category } from '@/types/category'
 import { Payee } from '@/types/payee'
-import { TransactionFormData } from '@/types/transaction'
+import { Transaction, TransactionFormData } from '@/types/transaction'
 
 /**
  * Interface for CSV transaction data structure
@@ -39,6 +39,7 @@ export interface TransactionImportResult {
   error?: string
   createdPayee?: boolean
   createdCategory?: boolean
+  createdAccount?: boolean
   accountId?: string
   payeeId?: string
   categoryId?: string
@@ -53,6 +54,7 @@ export interface TransactionImportResult {
 export interface ImportOptions {
   createMissingPayees?: boolean
   createMissingCategories?: boolean
+  createMissingAccounts?: boolean
   skipDuplicates?: boolean
   dryRun?: boolean
 }
@@ -106,7 +108,7 @@ async function createPayeeViaAPI(displayName: string, category?: string): Promis
  * @param transactionData - Transaction data
  * @returns Promise resolving to created transaction
  */
-async function createTransactionViaAPI(transactionData: TransactionFormData): Promise<any> {
+async function createTransactionViaAPI(transactionData: TransactionFormData): Promise<Transaction> {
   const response = await fetch('/api/transactions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -122,6 +124,45 @@ async function createTransactionViaAPI(transactionData: TransactionFormData): Pr
 }
 
 /**
+ * Create account via API
+ * @description Creates a new account using API route
+ * @param accountName - Account name
+ * @returns Promise resolving to created account
+ */
+async function createAccountViaAPI(accountName: string): Promise<Account> {
+  // Determine account type based on name
+  let accountType = 'checking'
+  const nameLower = accountName.toLowerCase()
+  if (nameLower.includes('savings') || nameLower.includes('saving')) {
+    accountType = 'savings'
+  } else if (nameLower.includes('credit')) {
+    accountType = 'credit_card'
+  }
+
+  const response = await fetch('/api/accounts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: accountName,
+      type: accountType,
+      status: 'active',
+      initialBalance: 0,
+      currency: 'INR',
+      accountOpeningDate: new Date(),
+      notes: `Auto-created during transaction import`
+    })
+  })
+  
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Failed to create account: ${errorText}`)
+  }
+  
+  const data = await response.json()
+  return data.account
+}
+
+/**
  * Find account by name with fuzzy matching
  * @description Matches account name from CSV to existing accounts with case-insensitive and fuzzy matching
  * @param accountName - Account name from CSV
@@ -129,9 +170,16 @@ async function createTransactionViaAPI(transactionData: TransactionFormData): Pr
  * @returns Account object or null if not found
  */
 export function findAccountByName(accountName: string, accounts: Account[]): Account | null {
-  if (!accountName) return null
+  console.log(`🔍 Finding account for: "${accountName}"`)
+  console.log(`📋 Available accounts:`, accounts.map(a => ({ id: a.id, name: a.name })))
+  
+  if (!accountName) {
+    console.log(`❌ Account name is empty`)
+    return null
+  }
   
   const normalizedName = accountName.toLowerCase().trim()
+  console.log(`🔧 Normalized account name: "${normalizedName}"`)
   
   // Exact match first
   let match = accounts.find(account => 
@@ -139,6 +187,7 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
   )
   
   if (match) {
+    console.log(`✅ Found exact account match: ${match.name} (ID: ${match.id})`)
     return match
   }
   
@@ -149,6 +198,7 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
   )
   
   if (match) {
+    console.log(`✅ Found partial account match: ${match.name} (ID: ${match.id})`)
     return match
   }
   
@@ -158,6 +208,8 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
   
   let bestMatch: Account | null = null
   let bestScore = 0
+  
+  console.log(`🔍 Trying fuzzy matching with words:`, accountWords)
   
   for (const account of accounts) {
     const accountNameWords = account.name.toLowerCase().trim().split(/\s+/)
@@ -189,6 +241,10 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
       score += 20
     }
     
+    if (score > 0) {
+      console.log(`🎯 Account "${account.name}" scored ${score} points`)
+    }
+    
     if (score > bestScore && score > 0) {
       bestScore = score
       bestMatch = account
@@ -196,9 +252,11 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
   }
   
   if (bestMatch) {
+    console.log(`✅ Found fuzzy account match: ${bestMatch.name} (ID: ${bestMatch.id}) with score ${bestScore}`)
     return bestMatch
   }
-  
+
+  console.log(`❌ No account match found for: "${accountName}"`)
   return null
 }
 
@@ -210,15 +268,30 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
  * @returns Category object or null if not found
  */
 export function findCategoryByName(categoryName: string, categories: Category[]): Category | null {
-  if (!categoryName) return null
+  console.log(`🔍 Finding category for: "${categoryName}"`)
+  console.log(`📋 Available categories:`, categories.map(c => ({ id: c.id, name: c.name, displayName: c.displayName })))
+  
+  if (!categoryName) {
+    console.log(`❌ Category name is empty`)
+    return null
+  }
   
   const normalizedName = categoryName.toLowerCase().trim()
+  console.log(`🔧 Normalized category name: "${normalizedName}"`)
   
   // Check both display name and internal name
-  return categories.find(category => 
+  const match = categories.find(category => 
     category.displayName.toLowerCase().trim() === normalizedName ||
     category.name.toLowerCase().trim() === normalizedName
-  ) || null
+  )
+  
+  if (match) {
+    console.log(`✅ Found category match: ${match.displayName} (ID: ${match.id})`)
+    return match
+  }
+  
+  console.log(`❌ No category match found for: "${categoryName}"`)
+  return null
 }
 
 /**
@@ -229,20 +302,36 @@ export function findCategoryByName(categoryName: string, categories: Category[])
  * @returns Payee object or null if not found
  */
 export function findPayeeByName(payeeName: string, payees: Payee[]): Payee | null {
-  if (!payeeName) return null
+  console.log(`🔍 Finding payee for: "${payeeName}"`)
+  console.log(`📋 Available payees:`, payees.map(p => ({ id: p.id, name: p.name, displayName: p.displayName })))
+  
+  if (!payeeName) {
+    console.log(`❌ Payee name is empty`)
+    return null
+  }
   
   // Handle transfer transactions (payee starts with '>')
   if (payeeName.startsWith('>')) {
+    console.log(`🔄 Transfer transaction detected, skipping payee lookup`)
     return null // Transfer transactions don't use payees
   }
   
   const normalizedName = payeeName.toLowerCase().trim()
+  console.log(`🔧 Normalized payee name: "${normalizedName}"`)
   
   // Check both display name and internal name
-  return payees.find(payee => 
+  const match = payees.find(payee => 
     payee.displayName.toLowerCase().trim() === normalizedName ||
     payee.name.toLowerCase().trim() === normalizedName
-  ) || null
+  )
+  
+  if (match) {
+    console.log(`✅ Found payee match: ${match.displayName} (ID: ${match.id})`)
+    return match
+  }
+  
+  console.log(`❌ No payee match found for: "${payeeName}"`)
+  return null
 }
 
 /**
@@ -321,10 +410,24 @@ export async function importSingleTransaction(
   userId: string,
   options: ImportOptions = {}
 ): Promise<TransactionImportResult> {
+  console.log(`\n🚀 Importing transaction:`, {
+    id: transaction.id,
+    date: transaction.date,
+    account: transaction.account,
+    payee: transaction.payee,
+    category: transaction.category,
+    amount: transaction.amount,
+    type: transaction.type,
+    isTransfer: transaction.isTransfer,
+    transferToAccount: transaction.transferToAccount
+  })
+  console.log(`⚙️ Import options:`, options)
+  
   try {
     // Validate transaction data
     const validationErrors = validateTransactionData(transaction, accounts)
     if (validationErrors.length > 0) {
+      console.log(`❌ Validation failed:`, validationErrors)
       return {
         success: false,
         transaction,
@@ -332,15 +435,39 @@ export async function importSingleTransaction(
       }
     }
     
-    // Find account
-    const account = findAccountByName(transaction.account, accounts)
+    console.log(`✅ Transaction validation passed`)
+    
+    // Find or create account
+    let account = findAccountByName(transaction.account, accounts)
+    let createdAccount = false
+    
+    if (!account && options.createMissingAccounts) {
+      console.log(`🔨 Creating missing account: "${transaction.account}"`)
+      try {
+        account = await createAccountViaAPI(transaction.account)
+        accounts.push(account) // Add to local array for subsequent transactions
+        createdAccount = true
+        console.log(`✅ Account created: ${account.name} (ID: ${account.id})`)
+      } catch (error) {
+        console.log(`❌ Failed to create account:`, error)
+        return {
+          success: false,
+          transaction,
+          error: `Failed to create account "${transaction.account}": ${error instanceof Error ? error.message : 'Unknown error'}`
+        }
+      }
+    }
+    
     if (!account) {
+      console.log(`❌ Account not found and creation disabled: "${transaction.account}"`)
       return {
         success: false,
         transaction,
-        error: `Account "${transaction.account}" not found`
+        error: `Account "${transaction.account}" not found and creation is disabled`
       }
     }
+    
+    console.log(`✅ Account resolved: ${account.name} (ID: ${account.id})`)
     
     let categoryId: string | undefined
     let payeeId: string | undefined
@@ -348,14 +475,19 @@ export async function importSingleTransaction(
     let createdPayee = false
     
     if (!transaction.isTransfer) {
+      console.log(`📝 Processing non-transfer transaction`)
+      
       // Handle category
       let category = findCategoryByName(transaction.category, categories)
       if (!category && options.createMissingCategories) {
+        console.log(`🔨 Creating missing category: "${transaction.category}"`)
         try {
           category = await createCategoryViaAPI(transaction.category)
           categories.push(category) // Add to local array for subsequent transactions
           createdCategory = true
+          console.log(`✅ Category created: ${category.displayName} (ID: ${category.id})`)
         } catch (error) {
+          console.log(`❌ Failed to create category:`, error)
           return {
             success: false,
             transaction,
@@ -365,6 +497,7 @@ export async function importSingleTransaction(
       }
       
       if (!category) {
+        console.log(`❌ Category not found and creation disabled: "${transaction.category}"`)
         return {
           success: false,
           transaction,
@@ -373,15 +506,19 @@ export async function importSingleTransaction(
       }
       
       categoryId = category.id
+      console.log(`✅ Category resolved: ${category.displayName} (ID: ${category.id})`)
       
       // Handle payee
       let payee = findPayeeByName(transaction.payee, payees)
       if (!payee && options.createMissingPayees) {
+        console.log(`🔨 Creating missing payee: "${transaction.payee}"`)
         try {
           payee = await createPayeeViaAPI(transaction.payee, transaction.category)
           payees.push(payee) // Add to local array for subsequent transactions
           createdPayee = true
+          console.log(`✅ Payee created: ${payee.displayName} (ID: ${payee.id})`)
         } catch (error) {
+          console.log(`❌ Failed to create payee:`, error)
           return {
             success: false,
             transaction,
@@ -391,6 +528,7 @@ export async function importSingleTransaction(
       }
       
       if (!payee) {
+        console.log(`❌ Payee not found and creation disabled: "${transaction.payee}"`)
         return {
           success: false,
           transaction,
@@ -399,64 +537,98 @@ export async function importSingleTransaction(
       }
       
       payeeId = payee.id
+      console.log(`✅ Payee resolved: ${payee.displayName} (ID: ${payee.id})`)
+    } else {
+      console.log(`🔄 Processing transfer transaction`)
     }
     
-         // Prepare transaction data
-     let transactionData: TransactionFormData
-     let toAccountId: string | undefined
-     
-     if (transaction.isTransfer) {
-       // Find destination account for transfer
-       const toAccount = findAccountByName(transaction.transferToAccount!, accounts)
-       if (!toAccount) {
-         return {
-           success: false,
-           transaction,
-           error: `Transfer destination account "${transaction.transferToAccount}" not found`
-         }
-       }
-       
-       toAccountId = toAccount.id
-       transactionData = {
-         type: 'transfer',
-         fromAccountId: account.id,
-         toAccountId: toAccount.id,
-         amount: transaction.amount,
-         date: transaction.date,
-         status: 'completed',
-         notes: transaction.notes || undefined
-       }
-     } else {
-       transactionData = {
-         type: transaction.type as 'deposit' | 'withdrawal',
-         accountId: account.id,
-         categoryId: categoryId!,
-         payeeId: payeeId!,
-         amount: transaction.amount,
-         date: transaction.date,
-         status: 'completed',
-         notes: transaction.notes || undefined
-       }
-     }
-     
-     // Create transaction if not dry run
-     if (!options.dryRun) {
-       await createTransactionViaAPI(transactionData)
-     }
-     
-     return {
-       success: true,
-       transaction,
-       createdCategory,
-       createdPayee,
-       accountId: account.id,
-       categoryId,
-       payeeId,
-       fromAccountId: transaction.isTransfer ? account.id : undefined,
-       toAccountId: transaction.isTransfer ? toAccountId : undefined
-     }
+    // Prepare transaction data
+    let transactionData: TransactionFormData
+    let toAccountId: string | undefined
+    
+    if (transaction.isTransfer) {
+      // Find or create destination account for transfer
+      let toAccount = findAccountByName(transaction.transferToAccount!, accounts)
+      
+      if (!toAccount && options.createMissingAccounts) {
+        console.log(`🔨 Creating missing transfer destination account: "${transaction.transferToAccount}"`)
+        try {
+          toAccount = await createAccountViaAPI(transaction.transferToAccount!)
+          accounts.push(toAccount) // Add to local array for subsequent transactions
+          console.log(`✅ Transfer destination account created: ${toAccount.name} (ID: ${toAccount.id})`)
+        } catch (error) {
+          console.log(`❌ Failed to create transfer destination account:`, error)
+          return {
+            success: false,
+            transaction,
+            error: `Failed to create transfer destination account "${transaction.transferToAccount}": ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        }
+      }
+      
+      if (!toAccount) {
+        console.log(`❌ Transfer destination account not found and creation disabled: "${transaction.transferToAccount}"`)
+        return {
+          success: false,
+          transaction,
+          error: `Transfer destination account "${transaction.transferToAccount}" not found and creation is disabled`
+        }
+      }
+      
+      toAccountId = toAccount.id
+      console.log(`✅ Transfer destination account resolved: ${toAccount.name} (ID: ${toAccount.id})`)
+      
+      transactionData = {
+        type: 'transfer',
+        fromAccountId: account.id,
+        toAccountId: toAccount.id,
+        amount: transaction.amount,
+        date: transaction.date,
+        status: 'completed',
+        notes: transaction.notes || undefined
+      }
+    } else {
+      transactionData = {
+        type: transaction.type as 'deposit' | 'withdrawal',
+        accountId: account.id,
+        categoryId: categoryId!,
+        payeeId: payeeId!,
+        amount: transaction.amount,
+        date: transaction.date,
+        status: 'completed',
+        notes: transaction.notes || undefined
+      }
+    }
+    
+    console.log(`📤 Transaction data prepared:`, transactionData)
+    
+    // Create transaction if not dry run
+    if (!options.dryRun) {
+      console.log(`💾 Creating transaction in database...`)
+      await createTransactionViaAPI(transactionData)
+      console.log(`✅ Transaction created successfully`)
+    } else {
+      console.log(`🧪 Dry run mode - transaction not created`)
+    }
+    
+    const result = {
+      success: true,
+      transaction,
+      createdCategory,
+      createdPayee,
+      createdAccount,
+      accountId: account.id,
+      categoryId,
+      payeeId,
+      fromAccountId: transaction.isTransfer ? account.id : undefined,
+      toAccountId: transaction.isTransfer ? toAccountId : undefined
+    }
+    
+    console.log(`✅ Transaction import completed successfully:`, result)
+    return result
     
   } catch (error) {
+    console.log(`❌ Transaction import failed:`, error)
     return {
       success: false,
       transaction,
@@ -490,6 +662,7 @@ export async function importTransactionsBatch(
   const total = transactions.length
   
   // Create working copies of arrays to track created entities
+  const workingAccounts = [...accounts]
   const workingCategories = [...categories]
   const workingPayees = [...payees]
   
@@ -499,7 +672,7 @@ export async function importTransactionsBatch(
     try {
       const result = await importSingleTransaction(
         transaction,
-        accounts,
+        workingAccounts,
         workingCategories,
         workingPayees,
         userId,
@@ -539,6 +712,7 @@ export async function importTransactionsBatch(
 export function generateImportSummary(results: TransactionImportResult[]) {
   const successful = results.filter(r => r.success).length
   const failed = results.filter(r => !r.success).length
+  const createdAccounts = results.filter(r => r.createdAccount).length
   const createdCategories = results.filter(r => r.createdCategory).length
   const createdPayees = results.filter(r => r.createdPayee).length
   
@@ -551,6 +725,7 @@ export function generateImportSummary(results: TransactionImportResult[]) {
     total: results.length,
     successful,
     failed,
+    createdAccounts,
     createdCategories,
     createdPayees,
     errors: [...new Set(errors)] // Remove duplicates

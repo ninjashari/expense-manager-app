@@ -83,6 +83,26 @@ export interface AccountFormData {
 }
 
 /**
+ * Account API request data interface
+ * @description Structure for API requests (JSON serialization converts Date to string)
+ */
+export interface AccountApiRequestData {
+  name: string
+  type: AccountType
+  status: AccountStatus
+  initialBalance: number
+  currency: Currency
+  accountOpeningDate: Date | string // Can be Date object or ISO string from JSON
+  notes?: string
+  // Credit card specific fields
+  creditLimit?: number
+  paymentDueDate?: number
+  billGenerationDate?: number
+  currentBillPaid?: boolean
+  creditUsagePercentage?: number
+}
+
+/**
  * Account type options for UI
  * @description Human-readable labels for account types
  */

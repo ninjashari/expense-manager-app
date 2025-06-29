@@ -57,8 +57,20 @@ export interface DashboardStats {
  * @returns Percentage change (positive for increase, negative for decrease)
  */
 function calculatePercentageChange(current: number, previous: number): number {
-  if (previous === 0) return current > 0 ? 100 : 0
-  return ((current - previous) / Math.abs(previous)) * 100
+  // Handle invalid inputs
+  if (!isFinite(current) || !isFinite(previous)) {
+    return 0
+  }
+  
+  // If previous is 0, return 100% if current > 0, 0% if current is 0, -100% if current < 0
+  if (previous === 0) {
+    if (current > 0) return 100
+    if (current < 0) return -100
+    return 0
+  }
+  
+  const change = ((current - previous) / Math.abs(previous)) * 100
+  return isFinite(change) ? change : 0
 }
 
 /**
@@ -87,7 +99,12 @@ export function useDashboardStats(): DashboardStats {
 
   useEffect(() => {
     if (!user?.id) {
-      setStats(prev => ({ ...prev, isLoading: false }))
+      // If no user, set empty state instead of loading
+      setStats(prev => ({ 
+        ...prev, 
+        isLoading: false,
+        error: user === null ? 'Please sign in to view your dashboard' : null
+      }))
       return
     }
 
@@ -101,74 +118,87 @@ export function useDashboardStats(): DashboardStats {
           fetch('/api/accounts')
         ])
 
-        if (!transactionsResponse.ok || !accountsResponse.ok) {
-          throw new Error('Failed to fetch data from API')
+        // Check if responses are ok and handle errors properly
+        if (!transactionsResponse.ok) {
+          const errorText = await transactionsResponse.text()
+          console.error('Transactions API error:', errorText)
+          throw new Error(`Failed to fetch transactions: ${transactionsResponse.status} ${transactionsResponse.statusText}`)
+        }
+
+        if (!accountsResponse.ok) {
+          const errorText = await accountsResponse.text()
+          console.error('Accounts API error:', errorText)
+          throw new Error(`Failed to fetch accounts: ${accountsResponse.status} ${accountsResponse.statusText}`)
         }
 
         const transactionsData = await transactionsResponse.json()
         const accountsData = await accountsResponse.json()
-        
-        const transactions: Transaction[] = transactionsData.transactions
-        const accounts: Account[] = accountsData.accounts
 
-        // Calculate date ranges
+        // Ensure we have the expected data structure
+        if (!transactionsData?.transactions || !Array.isArray(transactionsData.transactions)) {
+          throw new Error('Invalid transactions data format')
+        }
+
+        if (!accountsData?.accounts || !Array.isArray(accountsData.accounts)) {
+          throw new Error('Invalid accounts data format')
+        }
+
+        const transactions = transactionsData.transactions as Transaction[]
+        const accounts = accountsData.accounts as Account[]
+
+        // Calculate statistics
         const now = new Date()
-        const startOfCurrentMonth = startOfMonth(now)
-        const startOfLastMonth = startOfMonth(subMonths(now, 1))
+        const currentMonth = now.getMonth()
+        const currentYear = now.getFullYear()
+        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1
+        const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear
 
-        // Filter transactions for different periods
-        const allTimeFilters: ReportFilters = {
-          dateRange: 'all_time',
-          accountIds: [],
-          categoryIds: [],
-          payeeIds: [],
-          transactionTypes: [],
-          transactionStatuses: ['completed'],
-          accountTypes: [],
-          includeNotes: false,
-        }
+        // Total balance across all accounts
+        const totalBalance = accounts.reduce((sum, account) => sum + (account.currentBalance || 0), 0)
 
-        const currentMonthFilters: ReportFilters = {
-          ...allTimeFilters,
-          dateRange: 'custom',
-          startDate: startOfCurrentMonth,
-          endDate: now,
-        }
+        // Filter transactions for current month
+        const currentMonthTransactions = transactions.filter(t => {
+          const transactionDate = new Date(t.date)
+          return transactionDate.getMonth() === currentMonth && 
+                 transactionDate.getFullYear() === currentYear
+        })
 
-        const lastMonthFilters: ReportFilters = {
-          ...allTimeFilters,
-          dateRange: 'custom',
-          startDate: startOfLastMonth,
-          endDate: startOfCurrentMonth,
-        }
+        // Filter transactions for previous month
+        const lastMonthTransactions = transactions.filter(t => {
+          const transactionDate = new Date(t.date)
+          return transactionDate.getMonth() === lastMonth && 
+                 transactionDate.getFullYear() === lastMonthYear
+        })
 
-        // Filter transactions for each period
-        const allTransactions = filterTransactions(transactions, allTimeFilters)
-        const currentMonthTransactions = filterTransactions(transactions, currentMonthFilters)
-        const lastMonthTransactions = filterTransactions(transactions, lastMonthFilters)
+        // Calculate monthly income and expenses
+        const monthlyIncome = currentMonthTransactions
+          .filter(t => t.type === 'deposit')
+          .reduce((sum, t) => sum + (t.amount || 0), 0)
 
-        // Generate summaries
-        const allTimeSummary = generateTransactionSummary(allTransactions, allTimeFilters)
-        const currentMonthSummary = generateTransactionSummary(currentMonthTransactions, currentMonthFilters)
-        const lastMonthSummary = generateTransactionSummary(lastMonthTransactions, lastMonthFilters)
+        const monthlyExpenses = currentMonthTransactions
+          .filter(t => t.type === 'withdrawal')
+          .reduce((sum, t) => sum + (t.amount || 0), 0)
 
-        // Calculate performance indicators
-        const incomeChange = calculatePercentageChange(
-          currentMonthSummary.totalIncome,
-          lastMonthSummary.totalIncome
-        )
-        const expenseChange = calculatePercentageChange(
-          currentMonthSummary.totalExpenses,
-          lastMonthSummary.totalExpenses
-        )
+        const lastMonthIncome = lastMonthTransactions
+          .filter(t => t.type === 'deposit')
+          .reduce((sum, t) => sum + (t.amount || 0), 0)
 
-        // Generate chart data for current month only
-        const chartFilters: ReportFilters = {
-          ...allTimeFilters,
-          dateRange: 'this_month',
-        }
-        const chartTransactions = filterTransactions(transactions, chartFilters)
-        const chartData = generateTimeSeriesData(chartTransactions, 'monthly')
+        const lastMonthExpenses = lastMonthTransactions
+          .filter(t => t.type === 'withdrawal')
+          .reduce((sum, t) => sum + (t.amount || 0), 0)
+
+        // Calculate total income and expenses (all time)
+        const totalIncome = transactions
+          .filter(t => t.type === 'deposit')
+          .reduce((sum, t) => sum + (t.amount || 0), 0)
+
+        const totalExpenses = transactions
+          .filter(t => t.type === 'withdrawal')
+          .reduce((sum, t) => sum + (t.amount || 0), 0)
+
+        // Calculate changes
+        const incomeChange = calculatePercentageChange(monthlyIncome, lastMonthIncome)
+        const expenseChange = calculatePercentageChange(monthlyExpenses, lastMonthExpenses)
 
         // Get recent transactions (last 10 completed transactions)
         const recentTransactions = transactions
@@ -178,36 +208,24 @@ export function useDashboardStats(): DashboardStats {
         // Calculate account balances
         const accountBalances = accounts.map((account: Account) => ({
           account,
-          balance: account.currentBalance
+          balance: account.currentBalance || 0
         }))
 
-        // Calculate total balance (sum of all active accounts, excluding credit card limits)
-        const totalBalance = accounts
-          .filter((account: Account) => account.status === 'active')
-          .reduce((sum: number, account: Account) => {
-            // For credit cards, don't include credit limit in total balance
-            if (account.type === 'credit_card') {
-              return sum // Don't add credit card balances to total balance
-            }
-            return sum + account.currentBalance
-          }, 0)
-
-        // Update state with calculated statistics
         setStats({
           totalBalance,
-          totalIncome: allTimeSummary.totalIncome,
-          totalExpenses: allTimeSummary.totalExpenses,
-          netIncome: allTimeSummary.netIncome,
-          monthlyIncome: currentMonthSummary.totalIncome,
-          monthlyExpenses: currentMonthSummary.totalExpenses,
-          monthlyNet: currentMonthSummary.netIncome,
+          totalIncome,
+          totalExpenses,
+          netIncome: totalIncome - totalExpenses,
+          monthlyIncome,
+          monthlyExpenses,
+          monthlyNet: monthlyIncome - monthlyExpenses,
           incomeChange,
           expenseChange,
-          chartData, // Current month data
+          chartData: [], // Empty for now, can be populated later if needed
           recentTransactions,
           accountBalances,
           isLoading: false,
-          error: null,
+          error: null
         })
 
       } catch (error) {
@@ -221,7 +239,7 @@ export function useDashboardStats(): DashboardStats {
     }
 
     fetchDashboardData()
-  }, [user?.id])
+  }, [user])
 
   return stats
 } 

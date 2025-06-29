@@ -16,7 +16,7 @@ import { formatDateForDatabase, parseDateFromDatabase } from '@/lib/utils'
 interface TransactionRow {
   id: string
   user_id: string
-  date: string
+  date: Date | string  // PostgreSQL DATE columns are returned as Date objects by pg driver
   status: 'pending' | 'completed' | 'cancelled'
   type: 'deposit' | 'withdrawal' | 'transfer'
   amount: number

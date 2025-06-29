@@ -159,19 +159,26 @@ export function DashboardSummaryCards({
 }: DashboardSummaryCardsProps) {
   
   if (error) {
+    const isAuthError = error.includes('Authentication') || error.includes('sign in')
+    
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
+        {[
+          { title: "Total Balance", description: "Across all active accounts" },
+          { title: "This Month", description: "Monthly net income" },
+          { title: "Total Income", description: "All-time earnings" },
+          { title: "Total Expenses", description: "All-time spending" }
+        ].map((card, i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Error</CardTitle>
+              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-lg font-bold text-red-500">
-                Failed to load
+              <div className="text-lg font-bold text-muted-foreground">
+                {isAuthError ? 'Sign in required' : 'Failed to load'}
               </div>
               <p className="text-xs text-muted-foreground">
-                {error}
+                {isAuthError ? 'Please sign in to view your data' : error}
               </p>
             </CardContent>
           </Card>
