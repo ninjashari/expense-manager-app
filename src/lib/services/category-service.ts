@@ -6,6 +6,7 @@
 
 import { query, queryOne } from '@/lib/database'
 import { Category, CategoryFormData, generateCategoryName } from '@/types/category'
+import { safeParseDateString } from '@/lib/utils'
 
 /**
  * Database row interface for categories table
@@ -36,8 +37,8 @@ function transformRowToCategory(row: CategoryRow): Category {
     displayName: row.display_name,
     description: row.description || undefined,
     isActive: row.is_active,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
+    createdAt: safeParseDateString(row.created_at),
+    updatedAt: safeParseDateString(row.updated_at),
   }
 }
 

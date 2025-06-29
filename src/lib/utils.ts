@@ -52,3 +52,51 @@ export function parseDateFromDatabase(dateInput: string | Date): Date {
   // Handle unexpected input types
   throw new Error(`Invalid date input: expected string or Date, got ${typeof dateInput}`)
 }
+
+/**
+ * Safe date parsing with fallback
+ * @description Safely parses a date string with fallback to current date
+ * @param dateString - Date string to parse
+ * @param fallback - Optional fallback date (defaults to current date)
+ * @returns Valid Date object
+ */
+export function safeParseDateString(dateString: string, fallback?: Date): Date {
+  try {
+    const date = new Date(dateString)
+    return isNaN(date.getTime()) ? (fallback || new Date()) : date
+  } catch (error) {
+    console.error('Error parsing date string:', error, 'Input:', dateString)
+    return fallback || new Date()
+  }
+}
+
+/**
+ * Format date for display with error handling
+ * @description Formats a date for display with comprehensive error handling
+ * @param date - Date to format (Date object or string)
+ * @param options - Intl.DateTimeFormat options
+ * @returns Formatted date string or fallback text
+ */
+export function formatDateSafely(
+  date: Date | string, 
+  options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }
+): string {
+  try {
+    // Handle both Date objects and date strings
+    const dateObj = typeof date === 'string' ? new Date(date) : date
+    
+    // Check if date is valid
+    if (!dateObj || isNaN(dateObj.getTime())) {
+      return 'Invalid date'
+    }
+    
+    return new Intl.DateTimeFormat('en-US', options).format(dateObj)
+  } catch (error) {
+    console.error('Error formatting date:', error, 'Date value:', date)
+    return 'Invalid date'
+  }
+}

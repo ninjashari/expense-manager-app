@@ -6,6 +6,7 @@
 
 import { query, queryOne } from '@/lib/database'
 import { Payee, PayeeFormData, generatePayeeName } from '@/types/payee'
+import { safeParseDateString } from '@/lib/utils'
 
 /**
  * Database row interface for payees table
@@ -38,8 +39,8 @@ function transformRowToPayee(row: PayeeRow): Payee {
     description: row.description || undefined,
     category: row.category || undefined,
     isActive: row.is_active,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
+    createdAt: safeParseDateString(row.created_at),
+    updatedAt: safeParseDateString(row.updated_at),
   }
 }
 

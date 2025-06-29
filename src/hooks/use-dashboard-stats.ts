@@ -6,11 +6,9 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/auth/auth-provider'
-import { generateTimeSeriesData, generateTransactionSummary, filterTransactions } from '@/lib/services/report-service'
 import { Transaction } from '@/types/transaction'
 import { Account } from '@/types/account'
-import { TimeSeriesData, ReportFilters } from '@/types/report'
-import { startOfMonth, subMonths } from 'date-fns'
+import { TimeSeriesData } from '@/types/report'
 
 /**
  * Dashboard statistics interface

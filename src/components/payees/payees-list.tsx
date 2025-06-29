@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Pagination, usePagination } from "@/components/ui/pagination"
 import { Payee } from "@/types/payee"
 import { Category } from "@/types/category"
+import { formatDateSafely } from "@/lib/utils"
 
 /**
  * Props interface for PayeesList component
@@ -121,19 +122,7 @@ export function PayeesList({
     }
   }
 
-  /**
-   * Format date for display
-   * @description Formats a date object for user-friendly display
-   * @param date - Date to format
-   * @returns Formatted date string
-   */
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }).format(date)
-  }
+
 
   /**
    * Get category badge variant based on category
@@ -229,7 +218,7 @@ export function PayeesList({
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(payee.createdAt)}
+                          {formatDateSafely(payee.createdAt)}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
