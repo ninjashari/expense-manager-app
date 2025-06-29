@@ -7,6 +7,9 @@
 
 import { query, queryOne } from '@/lib/database'
 import { Transaction, TransactionFormData, isTransferFormData } from '@/types/transaction'
+import { Account } from '@/types/account'
+import { Payee } from '@/types/payee'
+import { Category } from '@/types/category'
 import { formatDateForDatabase, parseDateFromDatabase } from '@/lib/utils'
 
 /**
@@ -71,6 +74,117 @@ function transformRowToTransaction(row: TransactionRow): Transaction {
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   }
+}
+
+/**
+ * Transform database row with relations to Transaction object
+ * @description Converts joined database row to Transaction with related entities
+ * @param row - Database row with joined data
+ * @returns Transaction object with populated relations
+ */
+function transformRowToTransactionWithRelations(row: any): Transaction {
+  const transaction: Transaction = {
+    id: row.id,
+    userId: row.user_id,
+    date: parseDateFromDatabase(row.date),
+    status: row.status,
+    type: row.type,
+    amount: row.amount,
+    accountId: row.account_id || undefined,
+    payeeId: row.payee_id || undefined,
+    categoryId: row.category_id || undefined,
+    fromAccountId: row.from_account_id || undefined,
+    toAccountId: row.to_account_id || undefined,
+    notes: row.notes || undefined,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  }
+
+  // Populate account relation
+  if (row.account_id && row.account_name) {
+    transaction.account = {
+      id: row.account_id,
+      name: row.account_name,
+      type: row.account_type,
+      currency: row.account_currency,
+      // Add other required account properties with defaults
+      userId: row.user_id,
+      status: 'active',
+      initialBalance: 0,
+      currentBalance: 0,
+      accountOpeningDate: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+  }
+
+  // Populate fromAccount relation (for transfers)
+  if (row.from_account_id && row.from_account_name) {
+    transaction.fromAccount = {
+      id: row.from_account_id,
+      name: row.from_account_name,
+      type: row.from_account_type,
+      currency: row.from_account_currency,
+      // Add other required account properties with defaults
+      userId: row.user_id,
+      status: 'active',
+      initialBalance: 0,
+      currentBalance: 0,
+      accountOpeningDate: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+  }
+
+  // Populate toAccount relation (for transfers)
+  if (row.to_account_id && row.to_account_name) {
+    transaction.toAccount = {
+      id: row.to_account_id,
+      name: row.to_account_name,
+      type: row.to_account_type,
+      currency: row.to_account_currency,
+      // Add other required account properties with defaults
+      userId: row.user_id,
+      status: 'active',
+      initialBalance: 0,
+      currentBalance: 0,
+      accountOpeningDate: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+  }
+
+  // Populate payee relation
+  if (row.payee_id && row.payee_display_name) {
+    transaction.payee = {
+      id: row.payee_id,
+      displayName: row.payee_display_name,
+      category: row.payee_category,
+      // Add other required payee properties with defaults
+      userId: row.user_id,
+      name: row.payee_display_name.toLowerCase().replace(/\s+/g, '-'),
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+  }
+
+  // Populate category relation
+  if (row.category_id && row.category_display_name) {
+    transaction.category = {
+      id: row.category_id,
+      displayName: row.category_display_name,
+      description: row.category_description,
+      // Add other required category properties with defaults
+      userId: row.user_id,
+      name: row.category_display_name.toLowerCase().replace(/\s+/g, '-'),
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+  }
+
+  return transaction
 }
 
 /**
@@ -148,19 +262,44 @@ export async function createTransaction(transactionData: TransactionFormData, us
 }
 
 /**
- * Get transactions for a user
- * @description Retrieves transactions belonging to the authenticated user
+ * Get transactions for a user with related data
+ * @description Retrieves transactions with joined account, payee, and category data
  * @param userId - User ID to filter transactions
  * @param limit - Optional limit for number of transactions
  * @param offset - Optional offset for pagination
- * @returns Promise resolving to array of transactions
+ * @returns Promise resolving to array of transactions with related data
  */
 export async function getTransactions(userId: string, limit?: number, offset?: number): Promise<Transaction[]> {
   try {
     let sql = `
-      SELECT * FROM transactions 
-      WHERE user_id = $1 
-      ORDER BY date DESC, created_at DESC
+      SELECT 
+        t.*,
+        -- Account data
+        a.name as account_name,
+        a.type as account_type,
+        a.currency as account_currency,
+        -- From account data (for transfers)
+        fa.name as from_account_name,
+        fa.type as from_account_type,
+        fa.currency as from_account_currency,
+        -- To account data (for transfers)
+        ta.name as to_account_name,
+        ta.type as to_account_type,
+        ta.currency as to_account_currency,
+        -- Payee data
+        p.display_name as payee_display_name,
+        p.category as payee_category,
+        -- Category data
+        c.display_name as category_display_name,
+        c.description as category_description
+      FROM transactions t
+      LEFT JOIN accounts a ON t.account_id = a.id
+      LEFT JOIN accounts fa ON t.from_account_id = fa.id
+      LEFT JOIN accounts ta ON t.to_account_id = ta.id
+      LEFT JOIN payees p ON t.payee_id = p.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.user_id = $1 
+      ORDER BY t.date DESC, t.created_at DESC
     `
     const params = [userId]
     
@@ -174,8 +313,8 @@ export async function getTransactions(userId: string, limit?: number, offset?: n
       params.push(offset.toString())
     }
 
-    const rows = await query<TransactionRow>(sql, params)
-    return rows.map(transformRowToTransaction)
+    const rows = await query<any>(sql, params)
+    return rows.map(transformRowToTransactionWithRelations)
   } catch (error) {
     console.error('Error fetching transactions:', error)
     throw new Error(`Failed to fetch transactions: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -183,20 +322,45 @@ export async function getTransactions(userId: string, limit?: number, offset?: n
 }
 
 /**
- * Get transaction by ID
- * @description Retrieves a specific transaction by ID and user ID
+ * Get transaction by ID with related data
+ * @description Retrieves a specific transaction by ID with joined account, payee, and category data
  * @param transactionId - Transaction ID
  * @param userId - User ID for authorization
- * @returns Promise resolving to transaction or null if not found
+ * @returns Promise resolving to transaction with related data or null if not found
  */
 export async function getTransactionById(transactionId: string, userId: string): Promise<Transaction | null> {
   try {
-    const row = await queryOne<TransactionRow>(`
-      SELECT * FROM transactions 
-      WHERE id = $1 AND user_id = $2
+    const row = await queryOne<any>(`
+      SELECT 
+        t.*,
+        -- Account data
+        a.name as account_name,
+        a.type as account_type,
+        a.currency as account_currency,
+        -- From account data (for transfers)
+        fa.name as from_account_name,
+        fa.type as from_account_type,
+        fa.currency as from_account_currency,
+        -- To account data (for transfers)
+        ta.name as to_account_name,
+        ta.type as to_account_type,
+        ta.currency as to_account_currency,
+        -- Payee data
+        p.display_name as payee_display_name,
+        p.category as payee_category,
+        -- Category data
+        c.display_name as category_display_name,
+        c.description as category_description
+      FROM transactions t
+      LEFT JOIN accounts a ON t.account_id = a.id
+      LEFT JOIN accounts fa ON t.from_account_id = fa.id
+      LEFT JOIN accounts ta ON t.to_account_id = ta.id
+      LEFT JOIN payees p ON t.payee_id = p.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.id = $1 AND t.user_id = $2
     `, [transactionId, userId])
 
-    return row ? transformRowToTransaction(row) : null
+    return row ? transformRowToTransactionWithRelations(row) : null
   } catch (error) {
     console.error('Error fetching transaction by ID:', error)
     throw new Error(`Failed to fetch transaction: ${error instanceof Error ? error.message : 'Unknown error'}`)
