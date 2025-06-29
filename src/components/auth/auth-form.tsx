@@ -6,13 +6,12 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase, isSupabaseReady } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, CreditCard, AlertTriangle } from 'lucide-react'
+import { Loader2, CreditCard } from 'lucide-react'
 
 /**
  * AuthForm component
@@ -23,42 +22,7 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
-  // Check if Supabase is configured
-  if (!isSupabaseReady()) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-500 text-white">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl font-bold">Setup Required</CardTitle>
-            <CardDescription>
-              Supabase configuration is missing
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert className="border-orange-500">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-orange-600">
-                Please configure your Supabase credentials in <code>.env.local</code> to enable authentication. 
-                Check the <code>SETUP.md</code> file for detailed instructions.
-              </AlertDescription>
-            </Alert>
-            <div className="mt-4 p-4 bg-muted rounded-lg">
-              <p className="text-sm font-medium mb-2">Required environment variables:</p>
-              <ul className="text-xs space-y-1 text-muted-foreground">
-                <li>• NEXT_PUBLIC_SUPABASE_URL</li>
-                <li>• NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  // Database setup check is handled via API error responses
 
   /**
    * Handle authentication (login or signup)
@@ -73,21 +37,35 @@ export function AuthForm() {
 
     try {
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
+        const response = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
         })
-        if (error) throw error
+        const data = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Signup failed')
+        }
+        
         setMessage({ 
           type: 'success', 
-          text: 'Check your email for the confirmation link!' 
+          text: 'Account created successfully! You can now sign in.' 
         })
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+        const response = await fetch('/api/auth/signin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
         })
-        if (error) throw error
+        const data = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Signin failed')
+        }
+        
+        // Redirect to dashboard on successful login
+        window.location.href = '/dashboard'
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred during authentication'

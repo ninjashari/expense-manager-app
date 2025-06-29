@@ -61,7 +61,7 @@ import {
 import { Pagination, usePagination } from '@/components/ui/pagination'
 
 import { Account, getAccountTypeLabel, getAccountStatusLabel, ACCOUNT_TYPE_OPTIONS, ACCOUNT_STATUS_OPTIONS } from '@/types/account'
-import { formatAccountBalance } from '@/lib/services/supabase-account-service'
+import { formatCurrency } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 
 /**
@@ -366,12 +366,12 @@ export function AccountsList({
                             "font-medium",
                             account.currentBalance < 0 ? "text-destructive" : "text-foreground"
                           )}>
-                            {formatAccountBalance(account)}
+                            {formatCurrency(account.currentBalance)}
                           </div>
                           {account.type === 'credit_card' && account.creditCardInfo && (
                             <div className="text-sm text-muted-foreground space-y-1">
                               <div>
-                                Limit: {formatAccountBalance({ ...account, currentBalance: account.creditCardInfo.creditLimit })}
+                                Limit: {formatCurrency(account.creditCardInfo.creditLimit)}
                               </div>
                               <div className="flex items-center gap-2">
                                 <span>Usage: {account.creditUsagePercentage?.toFixed(1) || '0.0'}%</span>

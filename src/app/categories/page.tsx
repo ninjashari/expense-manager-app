@@ -14,14 +14,52 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { CategoryForm } from "@/components/categories/category-form"
 import { CategoryImport } from "@/components/categories/category-import"
 import { CategoriesList } from "@/components/categories/categories-list"
-import { 
-  getCategories, 
-  createCategory, 
-  updateCategory, 
-  deleteCategory, 
-  toggleCategoryStatus,
-  getCurrentUserId 
-} from "@/lib/services/supabase-category-service"
+// Categories API functions
+const getCategories = async (): Promise<Category[]> => {
+  const res = await fetch('/api/categories')
+  if (!res.ok) throw new Error('Failed to fetch categories')
+  const data = await res.json()
+  return data.categories
+}
+
+const createCategory = async (formData: CategoryFormData): Promise<Category> => {
+  const res = await fetch('/api/categories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  })
+  if (!res.ok) throw new Error('Failed to create category')
+  const data = await res.json()
+  return data.category
+}
+
+const updateCategory = async (id: string, formData: CategoryFormData): Promise<Category> => {
+  const res = await fetch(`/api/categories/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  })
+  if (!res.ok) throw new Error('Failed to update category')
+  const data = await res.json()
+  return data.category
+}
+
+const deleteCategory = async (id: string): Promise<void> => {
+  const res = await fetch(`/api/categories/${id}`, {
+    method: 'DELETE'
+  })
+  if (!res.ok) throw new Error('Failed to delete category')
+}
+
+const toggleCategoryStatus = async (id: string): Promise<Category> => {
+  const res = await fetch(`/api/categories/${id}`, {
+    method: 'PATCH'
+  })
+  if (!res.ok) throw new Error('Failed to toggle category status')
+  const data = await res.json()
+  return data.category
+}
+import { getCurrentUserId } from "@/lib/auth-client"
 import { Category, CategoryFormData } from "@/types/category"
 
 /**
@@ -44,7 +82,7 @@ export default function CategoriesPage() {
   const loadCategories = useCallback(async () => {
     try {
       if (!userId) return
-      const data = await getCategories(userId)
+      const data = await getCategories()
       setCategories(data)
     } catch (error) {
       console.error('Error loading categories:', error)
@@ -57,21 +95,12 @@ export default function CategoriesPage() {
    * @description Gets current user ID and loads their categories
    */
   useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        const currentUserId = await getCurrentUserId()
-        if (currentUserId) {
-          setUserId(currentUserId)
-        } else {
-          toast.error('User not authenticated')
-        }
-      } catch (error) {
-        console.error('Error getting user ID:', error)
-        toast.error('Authentication error')
-      }
+    const currentUserId = getCurrentUserId()
+    if (currentUserId) {
+      setUserId(currentUserId)
+    } else {
+      toast.error('User not authenticated')
     }
-
-    initializeUser()
   }, [])
 
   // Load categories when userId is available
@@ -123,11 +152,11 @@ export default function CategoriesPage() {
     try {
       if (editingCategory) {
         // Update existing category
-        await updateCategory(editingCategory.id, formData, userId)
+        await updateCategory(editingCategory.id, formData)
         toast.success('Category updated successfully')
       } else {
         // Create new category
-        await createCategory(formData, userId)
+        await createCategory(formData)
         toast.success('Category created successfully')
       }
       
@@ -154,7 +183,7 @@ export default function CategoriesPage() {
     }
 
     try {
-      await deleteCategory(categoryId, userId)
+      await deleteCategory(categoryId)
       toast.success('Category deleted successfully')
       await loadCategories()
     } catch (error) {
@@ -175,7 +204,7 @@ export default function CategoriesPage() {
     }
 
     try {
-      await toggleCategoryStatus(categoryId, userId)
+      await toggleCategoryStatus(categoryId)
       toast.success('Category status updated')
       await loadCategories()
     } catch (error) {

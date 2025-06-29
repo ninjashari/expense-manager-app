@@ -38,7 +38,7 @@ import {
 
 import { ReportFilters as ReportFiltersComponent } from './report-filters'
 import { filterTransactions } from '@/lib/services/report-service'
-import { getTransactions } from '@/lib/services/supabase-transaction-service'
+import { getTransactions } from '@/lib/services/transaction-service'
 
 /**
  * Props interface for the CustomReportBuilder component

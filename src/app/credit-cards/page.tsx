@@ -28,7 +28,7 @@ import {
   CreditCardBill, 
   getBillStatusConfig
 } from '@/types/credit-card'
-import { formatCurrency } from '@/lib/supabase'
+import { formatCurrency } from '@/lib/currency'
 
 /**
  * Credit card bill status badge component

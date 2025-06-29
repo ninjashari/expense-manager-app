@@ -8,9 +8,6 @@ import { Account } from '@/types/account'
 import { Category } from '@/types/category'
 import { Payee } from '@/types/payee'
 import { TransactionFormData } from '@/types/transaction'
-import { createCategory } from './supabase-category-service'
-import { createPayee } from './supabase-payee-service'
-import { createTransaction } from './supabase-transaction-service'
 
 /**
  * Interface for CSV transaction data structure
@@ -61,6 +58,70 @@ export interface ImportOptions {
 }
 
 /**
+ * Create category via API
+ * @description Creates a new category using API route
+ * @param displayName - Category display name
+ * @returns Promise resolving to created category
+ */
+async function createCategoryViaAPI(displayName: string): Promise<Category> {
+  const response = await fetch('/api/categories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ displayName, isActive: true })
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to create category')
+  }
+  
+  const data = await response.json()
+  return data.category
+}
+
+/**
+ * Create payee via API
+ * @description Creates a new payee using API route
+ * @param displayName - Payee display name
+ * @param category - Optional category for the payee
+ * @returns Promise resolving to created payee
+ */
+async function createPayeeViaAPI(displayName: string, category?: string): Promise<Payee> {
+  const response = await fetch('/api/payees', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ displayName, category, isActive: true })
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to create payee')
+  }
+  
+  const data = await response.json()
+  return data.payee
+}
+
+/**
+ * Create transaction via API
+ * @description Creates a new transaction using API route
+ * @param transactionData - Transaction data
+ * @returns Promise resolving to created transaction
+ */
+async function createTransactionViaAPI(transactionData: TransactionFormData): Promise<any> {
+  const response = await fetch('/api/transactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(transactionData)
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to create transaction')
+  }
+  
+  const data = await response.json()
+  return data.transaction
+}
+
+/**
  * Find account by name with fuzzy matching
  * @description Matches account name from CSV to existing accounts with case-insensitive and fuzzy matching
  * @param accountName - Account name from CSV
@@ -69,8 +130,6 @@ export interface ImportOptions {
  */
 export function findAccountByName(accountName: string, accounts: Account[]): Account | null {
   if (!accountName) return null
-  
-
   
   const normalizedName = accountName.toLowerCase().trim()
   
@@ -129,8 +188,6 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
     if (accountWords.includes('icici') && accountNameWords.includes('icici')) {
       score += 20
     }
-    
-
     
     if (score > bestScore && score > 0) {
       bestScore = score
@@ -201,31 +258,45 @@ export function validateTransactionData(
 ): string[] {
   const errors: string[] = []
   
-  // Check for existing validation errors
-  errors.push(...transaction.validationErrors)
-  
-  // Validate account exists
-  const account = findAccountByName(transaction.account, accounts)
-  if (!account) {
-    errors.push(`Account not found: ${transaction.account}`)
+  // Date validation
+  if (!transaction.date || isNaN(transaction.date.getTime())) {
+    errors.push('Invalid date')
   }
   
-  // Validate transfer destination account if it's a transfer
-  if (transaction.isTransfer && transaction.transferToAccount) {
-    const toAccount = findAccountByName(transaction.transferToAccount, accounts)
-    if (!toAccount) {
-      errors.push(`Transfer destination account not found: ${transaction.transferToAccount}`)
+  // Account validation
+  if (!transaction.account) {
+    errors.push('Account is required')
+  } else {
+    const account = findAccountByName(transaction.account, accounts)
+    if (!account) {
+      errors.push(`Account "${transaction.account}" not found`)
+    }
+  }
+  
+  // Amount validation
+  if (transaction.amount <= 0) {
+    errors.push('Amount must be greater than 0')
+  }
+  
+  // Transfer validation
+  if (transaction.isTransfer) {
+    if (!transaction.transferToAccount) {
+      errors.push('Transfer destination account is required')
+    } else {
+      const toAccount = findAccountByName(transaction.transferToAccount, accounts)
+      if (!toAccount) {
+        errors.push(`Transfer destination account "${transaction.transferToAccount}" not found`)
+      }
+    }
+  } else {
+    // Non-transfer validation
+    if (!transaction.payee) {
+      errors.push('Payee is required for non-transfer transactions')
     }
     
-    // Ensure transfer is not to the same account
-    if (account && toAccount && account.id === toAccount.id) {
-      errors.push('Transfer cannot be to the same account')
+    if (!transaction.category) {
+      errors.push('Category is required for non-transfer transactions')
     }
-  }
-  
-  // Validate amount is positive
-  if (transaction.amount <= 0) {
-    errors.push('Transaction amount must be positive')
   }
   
   return errors
@@ -233,12 +304,12 @@ export function validateTransactionData(
 
 /**
  * Import single transaction
- * @description Imports a single transaction with entity matching and optional creation
- * @param transaction - Parsed transaction data
+ * @description Imports a single transaction with entity creation if needed
+ * @param transaction - Transaction data to import
  * @param accounts - Array of existing accounts
  * @param categories - Array of existing categories
  * @param payees - Array of existing payees
- * @param userId - User ID for creating new entities
+ * @param userId - User ID for the transaction
  * @param options - Import options
  * @returns Promise resolving to import result
  */
@@ -250,148 +321,158 @@ export async function importSingleTransaction(
   userId: string,
   options: ImportOptions = {}
 ): Promise<TransactionImportResult> {
-  
-  const result: TransactionImportResult = {
-    success: false,
-    transaction,
-    createdPayee: false,
-    createdCategory: false
-  }
-  
   try {
     // Validate transaction data
     const validationErrors = validateTransactionData(transaction, accounts)
     if (validationErrors.length > 0) {
-      result.error = validationErrors.join(', ')
-      return result
-    }
-    
-    // If dry run, just validate and return
-    if (options.dryRun) {
-      result.success = true
-      return result
-    }
-    
-    // Find or create entities
-    const account = findAccountByName(transaction.account, accounts)!
-    result.accountId = account.id
-    
-    if (transaction.isTransfer && transaction.transferToAccount) {
-      // Handle transfer transaction
-      const toAccount = findAccountByName(transaction.transferToAccount, accounts)!
-      result.fromAccountId = account.id
-      result.toAccountId = toAccount.id
-      
-      const transferData: TransactionFormData = {
-        date: transaction.date,
-        status: 'completed',
-        type: 'transfer',
-        amount: transaction.amount,
-        fromAccountId: account.id,
-        toAccountId: toAccount.id,
-        notes: transaction.notes || undefined
+      return {
+        success: false,
+        transaction,
+        error: validationErrors.join(', ')
       }
-      
-      await createTransaction(transferData, userId)
-      result.success = true
-      
-    } else {
-      // Handle deposit/withdrawal transaction
+    }
+    
+    // Find account
+    const account = findAccountByName(transaction.account, accounts)
+    if (!account) {
+      return {
+        success: false,
+        transaction,
+        error: `Account "${transaction.account}" not found`
+      }
+    }
+    
+    let categoryId: string | undefined
+    let payeeId: string | undefined
+    let createdCategory = false
+    let createdPayee = false
+    
+    if (!transaction.isTransfer) {
+      // Handle category
       let category = findCategoryByName(transaction.category, categories)
-      let payee = findPayeeByName(transaction.payee, payees)
-      
-      // Create missing category if allowed
-      if (!category && transaction.category && options.createMissingCategories) {
+      if (!category && options.createMissingCategories) {
         try {
-          category = await createCategory({
-            displayName: transaction.category,
-            description: `Auto-created during import`,
-            isActive: true
-          }, userId)
-          result.createdCategory = true
+          category = await createCategoryViaAPI(transaction.category)
+          categories.push(category) // Add to local array for subsequent transactions
+          createdCategory = true
         } catch (error) {
-          console.warn('Failed to create category:', error)
-        }
-      }
-      
-      // Create missing payee if allowed
-      if (!payee && transaction.payee && options.createMissingPayees) {
-        try {
-          payee = await createPayee({
-            displayName: transaction.payee,
-            description: `Auto-created during import`,
-            isActive: true
-          }, userId)
-          result.createdPayee = true
-        } catch (error) {
-          console.warn('Failed to create payee:', error)
-        }
-      }
-      
-      result.payeeId = payee?.id
-      result.categoryId = category?.id
-      
-      const transactionData: TransactionFormData = {
-        date: transaction.date,
-        status: 'completed',
-        type: transaction.type as 'deposit' | 'withdrawal',
-        amount: transaction.amount,
-        accountId: account.id,
-        payeeId: payee?.id,
-        categoryId: category?.id,
-        payeeName: payee ? undefined : (transaction.payee || undefined),
-        categoryName: category ? undefined : (transaction.category || undefined),
-        notes: transaction.notes || undefined
-      }
-      
-      try {
-        await createTransaction(transactionData, userId)
-        result.success = true
-      } catch (error) {
-        console.error('Transaction creation failed:', error)
-        
-        // If it's a foreign key error, try without the problematic IDs
-        if (error instanceof Error && error.message.includes('foreign key constraint')) {
-          const fallbackData: TransactionFormData = {
-            date: transaction.date,
-            status: 'completed',
-            type: transaction.type as 'deposit' | 'withdrawal',
-            amount: transaction.amount,
-            accountId: account.id,
-            payeeId: undefined,
-            categoryId: undefined,
-            payeeName: transaction.payee || undefined,
-            categoryName: transaction.category || undefined,
-            notes: transaction.notes || undefined
+          return {
+            success: false,
+            transaction,
+            error: `Failed to create category "${transaction.category}": ${error instanceof Error ? error.message : 'Unknown error'}`
           }
-          
-          await createTransaction(fallbackData, userId)
-          result.success = true
-          // Reset the created flags since we're using names instead
-          result.createdCategory = false
-          result.createdPayee = false
-        } else {
-          throw error
         }
       }
+      
+      if (!category) {
+        return {
+          success: false,
+          transaction,
+          error: `Category "${transaction.category}" not found and creation is disabled`
+        }
+      }
+      
+      categoryId = category.id
+      
+      // Handle payee
+      let payee = findPayeeByName(transaction.payee, payees)
+      if (!payee && options.createMissingPayees) {
+        try {
+          payee = await createPayeeViaAPI(transaction.payee, transaction.category)
+          payees.push(payee) // Add to local array for subsequent transactions
+          createdPayee = true
+        } catch (error) {
+          return {
+            success: false,
+            transaction,
+            error: `Failed to create payee "${transaction.payee}": ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        }
+      }
+      
+      if (!payee) {
+        return {
+          success: false,
+          transaction,
+          error: `Payee "${transaction.payee}" not found and creation is disabled`
+        }
+      }
+      
+      payeeId = payee.id
     }
+    
+         // Prepare transaction data
+     let transactionData: TransactionFormData
+     let toAccountId: string | undefined
+     
+     if (transaction.isTransfer) {
+       // Find destination account for transfer
+       const toAccount = findAccountByName(transaction.transferToAccount!, accounts)
+       if (!toAccount) {
+         return {
+           success: false,
+           transaction,
+           error: `Transfer destination account "${transaction.transferToAccount}" not found`
+         }
+       }
+       
+       toAccountId = toAccount.id
+       transactionData = {
+         type: 'transfer',
+         fromAccountId: account.id,
+         toAccountId: toAccount.id,
+         amount: transaction.amount,
+         date: transaction.date,
+         status: 'completed',
+         notes: transaction.notes || undefined
+       }
+     } else {
+       transactionData = {
+         type: transaction.type as 'deposit' | 'withdrawal',
+         accountId: account.id,
+         categoryId: categoryId!,
+         payeeId: payeeId!,
+         amount: transaction.amount,
+         date: transaction.date,
+         status: 'completed',
+         notes: transaction.notes || undefined
+       }
+     }
+     
+     // Create transaction if not dry run
+     if (!options.dryRun) {
+       await createTransactionViaAPI(transactionData)
+     }
+     
+     return {
+       success: true,
+       transaction,
+       createdCategory,
+       createdPayee,
+       accountId: account.id,
+       categoryId,
+       payeeId,
+       fromAccountId: transaction.isTransfer ? account.id : undefined,
+       toAccountId: transaction.isTransfer ? toAccountId : undefined
+     }
     
   } catch (error) {
-    console.error('Error importing transaction:', error)
-    result.error = error instanceof Error ? error.message : 'Unknown error occurred'
+    return {
+      success: false,
+      transaction,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
   }
-  
-  return result
 }
 
 /**
- * Import multiple transactions in batch
+ * Import transactions in batch
  * @description Imports multiple transactions with progress tracking
- * @param transactions - Array of parsed transaction data
+ * @param transactions - Array of transactions to import
  * @param accounts - Array of existing accounts
  * @param categories - Array of existing categories
  * @param payees - Array of existing payees
- * @param userId - User ID for creating new entities
+ * @param userId - User ID for the transactions
  * @param options - Import options
  * @param onProgress - Progress callback function
  * @returns Promise resolving to array of import results
@@ -406,6 +487,11 @@ export async function importTransactionsBatch(
   onProgress?: (completed: number, total: number) => void
 ): Promise<TransactionImportResult[]> {
   const results: TransactionImportResult[] = []
+  const total = transactions.length
+  
+  // Create working copies of arrays to track created entities
+  const workingCategories = [...categories]
+  const workingPayees = [...payees]
   
   for (let i = 0; i < transactions.length; i++) {
     const transaction = transactions[i]
@@ -414,30 +500,30 @@ export async function importTransactionsBatch(
       const result = await importSingleTransaction(
         transaction,
         accounts,
-        categories,
-        payees,
+        workingCategories,
+        workingPayees,
         userId,
         options
       )
       
       results.push(result)
       
-      // Report progress
+      // Update progress
       if (onProgress) {
-        onProgress(i + 1, transactions.length)
+        onProgress(i + 1, total)
       }
+      
+      // Add small delay to prevent overwhelming the API
+      if (i < transactions.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      
     } catch (error) {
-      console.error(`Error processing transaction ${i + 1}:`, error)
       results.push({
         success: false,
         transaction,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       })
-      
-      // Report progress even on error
-      if (onProgress) {
-        onProgress(i + 1, transactions.length)
-      }
     }
   }
   
@@ -445,50 +531,28 @@ export async function importTransactionsBatch(
 }
 
 /**
- * Generate import summary statistics
- * @description Analyzes import results and generates summary statistics
+ * Generate import summary
+ * @description Creates a summary of import results
  * @param results - Array of import results
- * @returns Summary statistics object
+ * @returns Import summary object
  */
 export function generateImportSummary(results: TransactionImportResult[]) {
-  const summary = {
+  const successful = results.filter(r => r.success).length
+  const failed = results.filter(r => !r.success).length
+  const createdCategories = results.filter(r => r.createdCategory).length
+  const createdPayees = results.filter(r => r.createdPayee).length
+  
+  const errors = results
+    .filter(r => !r.success)
+    .map(r => r.error)
+    .filter(Boolean) as string[]
+  
+  return {
     total: results.length,
-    successful: 0,
-    failed: 0,
-    transfers: 0,
-    deposits: 0,
-    withdrawals: 0,
-    createdPayees: 0,
-    createdCategories: 0,
-    errors: [] as string[]
+    successful,
+    failed,
+    createdCategories,
+    createdPayees,
+    errors: [...new Set(errors)] // Remove duplicates
   }
-  
-  results.forEach(result => {
-    if (result.success) {
-      summary.successful++
-      
-      if (result.transaction.type === 'transfer') {
-        summary.transfers++
-      } else if (result.transaction.type === 'deposit') {
-        summary.deposits++
-      } else {
-        summary.withdrawals++
-      }
-      
-      if (result.createdPayee) {
-        summary.createdPayees++
-      }
-      
-      if (result.createdCategory) {
-        summary.createdCategories++
-      }
-    } else {
-      summary.failed++
-      if (result.error) {
-        summary.errors.push(result.error)
-      }
-    }
-  })
-  
-  return summary
 } 

@@ -14,11 +14,27 @@ import { toast } from "sonner"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { CustomReportBuilder } from "@/components/reports/custom-report-builder"
 
-// Import services and types
-import { getAccounts } from "@/lib/services/supabase-account-service"
-import { getCategories } from "@/lib/services/supabase-category-service"
-import { getPayees } from "@/lib/services/supabase-payee-service"
-import { supabase } from "@/lib/supabase"
+// API functions
+const getAccounts = async (): Promise<Account[]> => {
+  const res = await fetch('/api/accounts')
+  if (!res.ok) throw new Error('Failed to fetch accounts')
+  const data = await res.json()
+  return data.accounts
+}
+
+const getCategories = async (): Promise<Category[]> => {
+  const res = await fetch('/api/categories')
+  if (!res.ok) throw new Error('Failed to fetch categories')
+  const data = await res.json()
+  return data.categories
+}
+
+const getPayees = async (): Promise<Payee[]> => {
+  const res = await fetch('/api/payees')
+  if (!res.ok) throw new Error('Failed to fetch payees')
+  const data = await res.json()
+  return data.payees
+}
 
 import { Account } from "@/types/account"
 import { Category } from "@/types/category"
@@ -48,20 +64,21 @@ export default function ReportsPage() {
       setIsLoading(true)
       
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      const response = await fetch('/api/auth/session')
+      const sessionData = await response.json()
+      if (!sessionData.session?.user) {
         toast.error('Please sign in to view reports')
         return
       }
       
-      setUserId(user.id)
+      setUserId(sessionData.session.user.id)
 
-      // Load all necessary data in parallel
-      const [accountsData, categoriesData, payeesData] = await Promise.all([
-        getAccounts(user.id),
-        getCategories(user.id),
-        getPayees(user.id)
-      ])
+              // Load all necessary data in parallel
+        const [accountsData, categoriesData, payeesData] = await Promise.all([
+          getAccounts(),
+          getCategories(),
+          getPayees()
+        ])
 
       setAccounts(accountsData)
       setCategories(categoriesData)

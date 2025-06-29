@@ -6,8 +6,6 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/auth/auth-provider'
-import { getTransactions } from '@/lib/services/supabase-transaction-service'
-import { getAccounts } from '@/lib/services/supabase-account-service'
 import { generateTimeSeriesData, generateTransactionSummary, filterTransactions } from '@/lib/services/report-service'
 import { Transaction } from '@/types/transaction'
 import { Account } from '@/types/account'
@@ -97,11 +95,21 @@ export function useDashboardStats(): DashboardStats {
       try {
         setStats(prev => ({ ...prev, isLoading: true, error: null }))
 
-        // Fetch all necessary data in parallel
-        const [transactions, accounts] = await Promise.all([
-          getTransactions(user.id),
-          getAccounts(user.id)
+        // Fetch all necessary data in parallel via API routes
+        const [transactionsResponse, accountsResponse] = await Promise.all([
+          fetch('/api/transactions'),
+          fetch('/api/accounts')
         ])
+
+        if (!transactionsResponse.ok || !accountsResponse.ok) {
+          throw new Error('Failed to fetch data from API')
+        }
+
+        const transactionsData = await transactionsResponse.json()
+        const accountsData = await accountsResponse.json()
+        
+        const transactions: Transaction[] = transactionsData.transactions
+        const accounts: Account[] = accountsData.accounts
 
         // Calculate date ranges
         const now = new Date()
@@ -164,19 +172,19 @@ export function useDashboardStats(): DashboardStats {
 
         // Get recent transactions (last 10 completed transactions)
         const recentTransactions = transactions
-          .filter(t => t.status === 'completed')
+          .filter((t: Transaction) => t.status === 'completed')
           .slice(0, 10)
 
         // Calculate account balances
-        const accountBalances = accounts.map(account => ({
+        const accountBalances = accounts.map((account: Account) => ({
           account,
           balance: account.currentBalance
         }))
 
         // Calculate total balance (sum of all active accounts, excluding credit card limits)
         const totalBalance = accounts
-          .filter(account => account.status === 'active')
-          .reduce((sum, account) => {
+          .filter((account: Account) => account.status === 'active')
+          .reduce((sum: number, account: Account) => {
             // For credit cards, don't include credit limit in total balance
             if (account.type === 'credit_card') {
               return sum // Don't add credit card balances to total balance

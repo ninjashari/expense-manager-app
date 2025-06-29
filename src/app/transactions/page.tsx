@@ -22,16 +22,68 @@ import { Account } from "@/types/account"
 import { Category } from "@/types/category"
 import { Payee } from "@/types/payee"
 
-import {
-  getTransactions,
-  createTransaction,
-  updateTransaction,
-  deleteTransaction,
-  getCurrentUserId
-} from "@/lib/services/supabase-transaction-service"
-import { getAccounts } from "@/lib/services/supabase-account-service"
-import { getActiveCategories } from "@/lib/services/supabase-category-service"
-import { getActivePayees } from "@/lib/services/supabase-payee-service"
+// Transactions API functions
+const getTransactions = async (): Promise<Transaction[]> => {
+  const res = await fetch('/api/transactions')
+  if (!res.ok) throw new Error('Failed to fetch transactions')
+  const data = await res.json()
+  return data.transactions
+}
+
+const createTransaction = async (formData: TransactionFormData): Promise<Transaction> => {
+  const res = await fetch('/api/transactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  })
+  if (!res.ok) throw new Error('Failed to create transaction')
+  const data = await res.json()
+  return data.transaction
+}
+
+const updateTransaction = async (id: string, formData: TransactionFormData): Promise<Transaction> => {
+  const res = await fetch(`/api/transactions/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  })
+  if (!res.ok) throw new Error('Failed to update transaction')
+  const data = await res.json()
+  return data.transaction
+}
+
+const deleteTransaction = async (id: string): Promise<void> => {
+  const res = await fetch(`/api/transactions/${id}`, {
+    method: 'DELETE'
+  })
+  if (!res.ok) throw new Error('Failed to delete transaction')
+}
+
+// Accounts API functions
+const getAccounts = async (): Promise<Account[]> => {
+  const res = await fetch('/api/accounts')
+  if (!res.ok) throw new Error('Failed to fetch accounts')
+  const data = await res.json()
+  return data.accounts
+}
+
+// Categories API functions
+const getActiveCategories = async (): Promise<Category[]> => {
+  const res = await fetch('/api/categories?active=true')
+  if (!res.ok) throw new Error('Failed to fetch categories')
+  const data = await res.json()
+  return data.categories
+}
+
+// Payees API functions
+const getActivePayees = async (): Promise<Payee[]> => {
+  const res = await fetch('/api/payees?active=true')
+  if (!res.ok) throw new Error('Failed to fetch payees')
+  const data = await res.json()
+  return data.payees
+}
+
+import { getCurrentUserId } from "@/lib/auth-client"
 
 /**
  * TransactionsPage component
@@ -56,17 +108,12 @@ export default function TransactionsPage() {
    * @description Gets the current authenticated user's ID
    */
   useEffect(() => {
-    const loadUserId = async () => {
-      try {
-        const id = await getCurrentUserId()
-        setUserId(id)
-      } catch (error) {
-        console.error('Error loading user ID:', error)
-        toast.error('Failed to authenticate user')
-      }
+    const id = getCurrentUserId()
+    if (id) {
+      setUserId(id)
+    } else {
+      toast.error('User not authenticated')
     }
-    
-    loadUserId()
   }, [])
 
   /**
@@ -85,10 +132,10 @@ export default function TransactionsPage() {
           categoriesData,
           payeesData
         ] = await Promise.all([
-          getTransactions(userId),
-          getAccounts(userId),
-          getActiveCategories(userId),
-          getActivePayees(userId)
+          getTransactions(),
+          getAccounts(),
+          getActiveCategories(),
+          getActivePayees()
         ])
 
         setTransactions(transactionsData)
@@ -123,8 +170,7 @@ export default function TransactionsPage() {
         // Update existing transaction
         const updatedTransaction = await updateTransaction(
           editingTransaction.id,
-          formData,
-          userId
+          formData
         )
         
         if (updatedTransaction) {
@@ -137,7 +183,7 @@ export default function TransactionsPage() {
         }
       } else {
         // Create new transaction
-        const newTransaction = await createTransaction(formData, userId)
+        const newTransaction = await createTransaction(formData)
         setTransactions(prev => [newTransaction, ...prev])
         toast.success('Transaction created successfully')
       }
@@ -180,7 +226,7 @@ export default function TransactionsPage() {
     }
 
     try {
-      await deleteTransaction(transaction.id, userId)
+      await deleteTransaction(transaction.id)
       setTransactions(prev => prev.filter(t => t.id !== transaction.id))
       toast.success('Transaction deleted successfully')
     } catch (error) {
@@ -233,7 +279,7 @@ export default function TransactionsPage() {
     if (!userId) return
 
     try {
-      const transactionsData = await getTransactions(userId)
+      const transactionsData = await getTransactions()
       setTransactions(transactionsData)
       toast.success('Transactions refreshed')
     } catch (error) {

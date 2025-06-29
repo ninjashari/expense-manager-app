@@ -9,7 +9,7 @@ import { TrendingUp, TrendingDown, Wallet, DollarSign } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-import { formatCurrency } from '@/lib/supabase'
+import { formatCurrency } from '@/lib/currency'
 
 /**
  * Trend indicator component

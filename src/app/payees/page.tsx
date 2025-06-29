@@ -14,15 +14,61 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { PayeeForm } from "@/components/payees/payee-form"
 import { PayeesList } from "@/components/payees/payees-list"
 import { PayeeImport } from "@/components/payees/payee-import"
-import { 
-  getPayees, 
-  createPayee, 
-  updatePayee, 
-  deletePayee, 
-  togglePayeeStatus,
-  getCurrentUserId 
-} from "@/lib/services/supabase-payee-service"
-import { getActiveCategories } from "@/lib/services/supabase-category-service"
+// Payees API functions
+const getPayees = async (): Promise<Payee[]> => {
+  const res = await fetch('/api/payees')
+  if (!res.ok) throw new Error('Failed to fetch payees')
+  const data = await res.json()
+  return data.payees
+}
+
+const createPayee = async (formData: PayeeFormData): Promise<Payee> => {
+  const res = await fetch('/api/payees', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  })
+  if (!res.ok) throw new Error('Failed to create payee')
+  const data = await res.json()
+  return data.payee
+}
+
+const updatePayee = async (id: string, formData: PayeeFormData): Promise<Payee> => {
+  const res = await fetch(`/api/payees/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  })
+  if (!res.ok) throw new Error('Failed to update payee')
+  const data = await res.json()
+  return data.payee
+}
+
+const deletePayee = async (id: string): Promise<void> => {
+  const res = await fetch(`/api/payees/${id}`, {
+    method: 'DELETE'
+  })
+  if (!res.ok) throw new Error('Failed to delete payee')
+}
+
+const togglePayeeStatus = async (id: string): Promise<Payee> => {
+  const res = await fetch(`/api/payees/${id}`, {
+    method: 'PATCH'
+  })
+  if (!res.ok) throw new Error('Failed to toggle payee status')
+  const data = await res.json()
+  return data.payee
+}
+
+// Categories API functions
+const getActiveCategories = async (): Promise<Category[]> => {
+  const res = await fetch('/api/categories?active=true')
+  if (!res.ok) throw new Error('Failed to fetch categories')
+  const data = await res.json()
+  return data.categories
+}
+
+import { getCurrentUserId } from "@/lib/auth-client"
 import { Payee, PayeeFormData } from "@/types/payee"
 import { Category } from "@/types/category"
 
@@ -47,7 +93,7 @@ export default function PayeesPage() {
   const loadPayees = useCallback(async () => {
     try {
       if (!userId) return
-      const data = await getPayees(userId)
+      const data = await getPayees()
       setPayees(data)
     } catch (error) {
       console.error('Error loading payees:', error)
@@ -62,7 +108,7 @@ export default function PayeesPage() {
   const loadCategories = useCallback(async () => {
     try {
       if (!userId) return
-      const data = await getActiveCategories(userId)
+      const data = await getActiveCategories()
       setCategories(data)
     } catch (error) {
       console.error('Error loading categories:', error)
@@ -75,21 +121,12 @@ export default function PayeesPage() {
    * @description Gets current user ID and loads their payees
    */
   useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        const currentUserId = await getCurrentUserId()
-        if (currentUserId) {
-          setUserId(currentUserId)
-        } else {
-          toast.error('User not authenticated')
-        }
-      } catch (error) {
-        console.error('Error getting user ID:', error)
-        toast.error('Authentication error')
-      }
+    const currentUserId = getCurrentUserId()
+    if (currentUserId) {
+      setUserId(currentUserId)
+    } else {
+      toast.error('User not authenticated')
     }
-
-    initializeUser()
   }, [])
 
   // Load payees and categories when userId is available
@@ -134,11 +171,11 @@ export default function PayeesPage() {
     try {
       if (editingPayee) {
         // Update existing payee
-        await updatePayee(editingPayee.id, formData, userId)
+        await updatePayee(editingPayee.id, formData)
         toast.success('Payee updated successfully')
       } else {
         // Create new payee
-        await createPayee(formData, userId)
+        await createPayee(formData)
         toast.success('Payee created successfully')
       }
       
@@ -165,7 +202,7 @@ export default function PayeesPage() {
     }
 
     try {
-      await deletePayee(payeeId, userId)
+      await deletePayee(payeeId)
       toast.success('Payee deleted successfully')
       await loadPayees()
     } catch (error) {
@@ -186,7 +223,7 @@ export default function PayeesPage() {
     }
 
     try {
-      await togglePayeeStatus(payeeId, userId)
+      await togglePayeeStatus(payeeId)
       toast.success('Payee status updated')
       await loadPayees()
     } catch (error) {

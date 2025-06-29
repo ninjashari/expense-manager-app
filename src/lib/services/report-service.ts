@@ -19,43 +19,8 @@ import {
   TimeGrouping,
   getDateRangeFromPreset
 } from '@/types/report'
-import { getTransactions } from './supabase-transaction-service'
-import { getAccounts } from './supabase-account-service'
 
-/**
- * Generate comprehensive report data
- * @description Creates complete report data based on configuration and filters
- * @param config - Report configuration
- * @param userId - User ID for data filtering
- * @returns Promise resolving to complete report data
- */
-export async function generateReportData(config: ReportConfig, userId: string): Promise<ReportData> {
-  // Fetch all necessary data
-  const [transactions, accounts] = await Promise.all([
-    getTransactions(userId),
-    getAccounts(userId)
-  ])
 
-  // Apply filters to transactions
-  const filteredTransactions = filterTransactions(transactions, config.filters)
-
-  // Generate all report components
-  const summary = generateTransactionSummary(filteredTransactions, config.filters)
-  const categoryBreakdown = generateCategoryBreakdown(filteredTransactions)
-  const timeSeriesData = generateTimeSeriesData(filteredTransactions, config.timeGrouping || 'monthly')
-  const accountPerformance = generateAccountPerformance(filteredTransactions, accounts, config.filters)
-  const payeeAnalysis = generatePayeeAnalysis(filteredTransactions)
-
-  return {
-    config,
-    summary,
-    categoryBreakdown,
-    timeSeriesData,
-    accountPerformance,
-    payeeAnalysis,
-    rawTransactions: filteredTransactions
-  }
-}
 
 /**
  * Filter transactions based on report filters
@@ -200,100 +165,112 @@ export function generateTransactionSummary(transactions: Transaction[], filters:
     netIncome,
     transactionCount,
     avgTransactionAmount,
-    dateRange: { start, end }
+    dateRange: {
+      start,
+      end
+    }
   }
 }
 
 /**
  * Generate category breakdown
- * @description Creates expense breakdown by category
+ * @description Creates spending breakdown by category
  * @param transactions - Filtered transactions
- * @param categories - All categories for mapping
  * @returns Category breakdown data
  */
 export function generateCategoryBreakdown(transactions: Transaction[]): CategoryBreakdown[] {
-  const categoryMap = new Map<string, CategoryBreakdown>()
-  let totalExpenses = 0
+  const categoryMap = new Map<string, {
+    categoryId: string
+    categoryName: string
+    amount: number
+    transactionCount: number
+    percentage: number
+  }>()
 
-  // Calculate totals by category
+  let totalAmount = 0
+
+  // Process transactions to build category data
   transactions.forEach(transaction => {
-    if (transaction.type === 'withdrawal' && transaction.categoryId && transaction.category) {
-      totalExpenses += transaction.amount
-      
-      const categoryId = transaction.categoryId
-      const existingCategory = categoryMap.get(categoryId)
-      
-      if (existingCategory) {
-        existingCategory.amount += transaction.amount
-        existingCategory.transactionCount += 1
+    if (transaction.type === 'withdrawal' && transaction.category) {
+      const categoryId = transaction.category.id
+      const categoryName = transaction.category.displayName
+      const amount = transaction.amount
+      totalAmount += amount
+
+      if (categoryMap.has(categoryId)) {
+        const existing = categoryMap.get(categoryId)!
+        existing.amount += amount
+        existing.transactionCount += 1
       } else {
         categoryMap.set(categoryId, {
           categoryId,
-          categoryName: transaction.category.displayName,
-          amount: transaction.amount,
-          percentage: 0, // Will be calculated below
+          categoryName,
+          amount: amount,
           transactionCount: 1,
-          color: generateCategoryColor(categoryId)
+          percentage: 0
         })
       }
     }
   })
 
   // Calculate percentages and convert to array
-  const breakdown = Array.from(categoryMap.values()).map(category => ({
-    ...category,
-    percentage: totalExpenses > 0 ? (category.amount / totalExpenses) * 100 : 0
+  const breakdown: CategoryBreakdown[] = Array.from(categoryMap.values()).map(item => ({
+    ...item,
+    percentage: totalAmount > 0 ? (item.amount / totalAmount) * 100 : 0,
+    color: generateCategoryColor(item.categoryId)
   }))
 
-  // Sort by amount descending
+  // Sort by total amount (descending)
   return breakdown.sort((a, b) => b.amount - a.amount)
 }
 
 /**
  * Generate time series data
- * @description Creates time-based data for trend analysis
+ * @description Creates time-based data for charts
  * @param transactions - Filtered transactions
- * @param grouping - How to group data by time
+ * @param grouping - Time grouping (daily, weekly, monthly, yearly)
  * @returns Time series data array
  */
 export function generateTimeSeriesData(transactions: Transaction[], grouping: TimeGrouping): TimeSeriesData[] {
-  const groupedData = new Map<string, TimeSeriesData>()
+  const timeMap = new Map<string, TimeSeriesData>()
 
   transactions.forEach(transaction => {
-    const period = getTimePeriod(transaction.date, grouping)
-    const existing = groupedData.get(period.key)
+    const timePeriod = getTimePeriod(new Date(transaction.date), grouping)
+    const key = timePeriod.key
 
-    if (existing) {
-      if (transaction.type === 'deposit') {
-        existing.income += transaction.amount
-      } else if (transaction.type === 'withdrawal') {
-        existing.expenses += transaction.amount
-      }
-      existing.transactionCount += 1
-      existing.net = existing.income - existing.expenses
-    } else {
-      const income = transaction.type === 'deposit' ? transaction.amount : 0
-      const expenses = transaction.type === 'withdrawal' ? transaction.amount : 0
-      
-      groupedData.set(period.key, {
-        period: period.label,
-        date: period.date,
-        income,
-        expenses,
-        net: income - expenses,
-        transactionCount: 1
+    if (!timeMap.has(key)) {
+      timeMap.set(key, {
+        period: timePeriod.label,
+        date: timePeriod.date,
+        income: 0,
+        expenses: 0,
+        net: 0,
+        transactionCount: 0
       })
     }
+
+    const data = timeMap.get(key)!
+    data.transactionCount += 1
+
+    if (transaction.type === 'deposit') {
+      data.income += transaction.amount
+    } else if (transaction.type === 'withdrawal') {
+      data.expenses += transaction.amount
+    }
+    // Transfers don't affect income/expenses
+
+    data.net = data.income - data.expenses
   })
 
-  return Array.from(groupedData.values()).sort((a, b) => a.date.getTime() - b.date.getTime())
+  // Convert to array and sort by date
+  return Array.from(timeMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime())
 }
 
 /**
  * Generate account performance data
  * @description Creates performance metrics for each account
  * @param transactions - Filtered transactions
- * @param accounts - All accounts for mapping
+ * @param accounts - All user accounts
  * @param filters - Applied filters for context
  * @returns Account performance data
  */
@@ -304,21 +281,19 @@ export function generateAccountPerformance(
 ): AccountPerformance[] {
   const accountMap = new Map<string, AccountPerformance>()
 
-  // Initialize with all relevant accounts
+  // Initialize with all accounts
   accounts.forEach(account => {
-    if (filters.accountIds.length === 0 || filters.accountIds.includes(account.id)) {
-      accountMap.set(account.id, {
-        accountId: account.id,
-        accountName: account.name,
-        accountType: account.type,
-        startingBalance: account.initialBalance,
-        endingBalance: account.currentBalance,
-        totalIncome: 0,
-        totalExpenses: 0,
-        netChange: 0,
-        transactionCount: 0
-      })
-    }
+    accountMap.set(account.id, {
+      accountId: account.id,
+      accountName: account.name,
+      accountType: account.type,
+      startingBalance: account.initialBalance,
+      endingBalance: account.currentBalance,
+      totalIncome: 0,
+      totalExpenses: 0,
+      netChange: 0,
+      transactionCount: 0
+    })
   })
 
   // Process transactions
@@ -326,12 +301,12 @@ export function generateAccountPerformance(
     const updateAccount = (accountId: string, isIncome: boolean, amount: number) => {
       const performance = accountMap.get(accountId)
       if (performance) {
+        performance.transactionCount += 1
         if (isIncome) {
           performance.totalIncome += amount
         } else {
           performance.totalExpenses += amount
         }
-        performance.transactionCount += 1
         performance.netChange = performance.totalIncome - performance.totalExpenses
       }
     }
@@ -354,21 +329,21 @@ export function generateAccountPerformance(
 }
 
 /**
- * Generate payee analysis data
- * @description Creates analysis of transactions by payee
+ * Generate payee analysis
+ * @description Creates spending analysis by payee
  * @param transactions - Filtered transactions
- * @param payees - All payees for mapping
  * @returns Payee analysis data
  */
 export function generatePayeeAnalysis(transactions: Transaction[]): PayeeAnalysis[] {
   const payeeMap = new Map<string, PayeeAnalysis>()
 
   transactions.forEach(transaction => {
-    if (transaction.payeeId && transaction.payee) {
-      const payeeId = transaction.payeeId
-      const existing = payeeMap.get(payeeId)
-
-      if (existing) {
+    if (transaction.payee && transaction.type === 'withdrawal') {
+      const payeeId = transaction.payee.id
+      const payeeName = transaction.payee.displayName
+      
+      if (payeeMap.has(payeeId)) {
+        const existing = payeeMap.get(payeeId)!
         existing.totalAmount += transaction.amount
         existing.transactionCount += 1
         existing.avgTransactionAmount = existing.totalAmount / existing.transactionCount
@@ -376,20 +351,24 @@ export function generatePayeeAnalysis(transactions: Transaction[]): PayeeAnalysi
         if (transaction.date > existing.lastTransactionDate) {
           existing.lastTransactionDate = transaction.date
         }
-
-        if (transaction.category && !existing.categories.includes(transaction.category.displayName)) {
-          existing.categories.push(transaction.category.displayName)
-        }
       } else {
         payeeMap.set(payeeId, {
           payeeId,
-          payeeName: transaction.payee.displayName,
+          payeeName,
           totalAmount: transaction.amount,
           transactionCount: 1,
           avgTransactionAmount: transaction.amount,
           lastTransactionDate: transaction.date,
           categories: transaction.category ? [transaction.category.displayName] : []
         })
+      }
+
+      // Update categories
+      if (transaction.category) {
+        const analysis = payeeMap.get(payeeId)!
+        if (!analysis.categories.includes(transaction.category.displayName)) {
+          analysis.categories.push(transaction.category.displayName)
+        }
       }
     }
   })
@@ -398,115 +377,73 @@ export function generatePayeeAnalysis(transactions: Transaction[]): PayeeAnalysi
 }
 
 /**
- * Get time period grouping for transactions
- * @description Groups transaction date into specified time period
+ * Get time period for grouping
+ * @description Determines time period key and label for a given date and grouping
  * @param date - Transaction date
  * @param grouping - Time grouping type
- * @returns Period information with key, label, and date
+ * @returns Time period information
  */
 function getTimePeriod(date: Date, grouping: TimeGrouping): { key: string; label: string; date: Date } {
-  const transactionDate = new Date(date)
-
   switch (grouping) {
     case 'daily':
-      const dayKey = format(transactionDate, 'yyyy-MM-dd')
       return {
-        key: dayKey,
-        label: format(transactionDate, 'MMM dd'),
-        date: transactionDate
+        key: format(date, 'yyyy-MM-dd'),
+        label: format(date, 'MMM dd'),
+        date: new Date(date.getFullYear(), date.getMonth(), date.getDate())
       }
-
     case 'weekly':
-      const weekStart = new Date(transactionDate)
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-      const weekKey = format(weekStart, 'yyyy-MM-dd')
+      const weekStart = new Date(date)
+      weekStart.setDate(date.getDate() - date.getDay())
       return {
-        key: weekKey,
-        label: `Week of ${format(weekStart, 'MMM dd')}`,
+        key: format(weekStart, 'yyyy-\'W\'ww'),
+        label: format(weekStart, 'MMM dd'),
         date: weekStart
       }
-
     case 'monthly':
-      const monthKey = format(transactionDate, 'yyyy-MM')
+      const monthStart = startOfMonth(date)
       return {
-        key: monthKey,
-        label: format(transactionDate, 'MMM yyyy'),
-        date: startOfMonth(transactionDate)
+        key: format(monthStart, 'yyyy-MM'),
+        label: format(monthStart, 'MMM yyyy'),
+        date: monthStart
       }
-
     case 'quarterly':
-      const quarter = Math.floor(transactionDate.getMonth() / 3) + 1
-      const quarterKey = `${transactionDate.getFullYear()}-Q${quarter}`
+      const quarterStart = startOfQuarter(date)
       return {
-        key: quarterKey,
-        label: `Q${quarter} ${transactionDate.getFullYear()}`,
-        date: startOfQuarter(transactionDate)
+        key: format(quarterStart, 'yyyy-\'Q\'Q'),
+        label: `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`,
+        date: quarterStart
       }
-
     case 'yearly':
-      const yearKey = format(transactionDate, 'yyyy')
+      const yearStart = startOfYear(date)
       return {
-        key: yearKey,
-        label: format(transactionDate, 'yyyy'),
-        date: startOfYear(transactionDate)
+        key: format(yearStart, 'yyyy'),
+        label: format(yearStart, 'yyyy'),
+        date: yearStart
       }
-
     default:
-      return {
-        key: format(transactionDate, 'yyyy-MM'),
-        label: format(transactionDate, 'MMM yyyy'),
-        date: startOfMonth(transactionDate)
-      }
+      throw new Error(`Unsupported grouping: ${grouping}`)
   }
 }
 
 /**
- * Generate color for category
- * @description Creates consistent color for category visualization
- * @param categoryId - Category ID
+ * Generate consistent color for category
+ * @description Creates a consistent color based on category ID
+ * @param categoryId - Category identifier
  * @returns Hex color string
  */
 function generateCategoryColor(categoryId: string): string {
-  // Simple hash-based color generation for consistency
+  // Simple hash function to generate consistent colors
   let hash = 0
   for (let i = 0; i < categoryId.length; i++) {
     hash = categoryId.charCodeAt(i) + ((hash << 5) - hash)
   }
   
-  const hue = 270 + (Math.abs(hash) % 90) // Violet range: 270-360
-  return `oklch(0.65 0.15 ${hue})`
-}
-
-/**
- * Quick report generation functions for common reports
- */
-
-/**
- * Generate income vs expenses report
- * @description Quick function to generate income vs expenses data
- * @param userId - User ID
- * @param filters - Report filters
- * @returns Promise resolving to report data
- */
-export async function generateIncomeVsExpensesReport(userId: string, filters: ReportFilters): Promise<Partial<ReportData>> {
-  const transactions = await getTransactions(userId)
-  const filteredTransactions = filterTransactions(transactions, filters)
+  // Convert to HSL for better color distribution
+  const hue = Math.abs(hash) % 360
+  const saturation = 70 + (Math.abs(hash) % 20) // 70-90%
+  const lightness = 45 + (Math.abs(hash) % 15) // 45-60%
   
-  return {
-    summary: generateTransactionSummary(filteredTransactions, filters),
-    timeSeriesData: generateTimeSeriesData(filteredTransactions, 'monthly')
-  }
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`
 }
 
-/**
- * Generate category breakdown report
- * @description Quick function to generate category breakdown
- * @param userId - User ID
- * @param filters - Report filters
- * @returns Promise resolving to category breakdown
- */
-export async function generateCategoryBreakdownReport(userId: string, filters: ReportFilters): Promise<CategoryBreakdown[]> {
-  const transactions = await getTransactions(userId)
-  const filteredTransactions = filterTransactions(transactions, filters)
-  return generateCategoryBreakdown(filteredTransactions)
-} 
+ 

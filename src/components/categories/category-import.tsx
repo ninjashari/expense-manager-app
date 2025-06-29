@@ -161,7 +161,7 @@ export function CategoryImport({ onImportComplete, userId, isLoading = false }: 
 
     // Import categories using the service
     try {
-      const { importCategoriesFromList } = await import('@/lib/services/supabase-category-service')
+      const { importCategoriesFromList } = await import('@/lib/services/category-service')
       
       const displayNames = importItems
         .filter(item => item.status === 'pending')
