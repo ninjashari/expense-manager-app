@@ -496,16 +496,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Data Validation**: Server-side validation for all user inputs
 - **Protected Routes**: Comprehensive route protection for sensitive data
 
-## 📞 Support & Documentation
-
-If you have any questions or need help:
-
-- 💬 **Issues**: [GitHub Issues](https://github.com/your-username/expense-manager-app/issues)
-- 📖 **Documentation**: [Wiki](https://github.com/your-username/expense-manager-app/wiki)
-- 🚀 **Feature Requests**: Use GitHub Issues with the "enhancement" label
-- 💡 **Discussions**: [GitHub Discussions](https://github.com/your-username/expense-manager-app/discussions)
-- 📧 **Email**: [your-email@example.com](mailto:your-email@example.com)
-
 ### Troubleshooting Common Issues
 
 - **CSV Import Failures**: Check file format and column headers match expected format
@@ -514,9 +504,3 @@ If you have any questions or need help:
 - **Credit Card Calculations**: Verify credit limit and transaction amounts are correct
 
 ---
-
-<div align="center">
-  <p>Made with ❤️ for better financial management</p>
-  <p>⭐ Star this repo if you find it helpful!</p>
-  <p><strong>Built with modern technologies for a seamless expense tracking experience</strong></p>
-</div>
