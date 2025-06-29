@@ -152,7 +152,7 @@ export function useDashboardStats(): DashboardStats {
         const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear
 
         // Total balance across all accounts
-        const totalBalance = accounts.reduce((sum, account) => sum + (account.currentBalance || 0), 0)
+        const totalBalance = accounts.reduce((sum, account) => sum + (Number(account.currentBalance) || 0), 0)
 
         // Filter transactions for current month
         const currentMonthTransactions = transactions.filter(t => {
@@ -168,31 +168,31 @@ export function useDashboardStats(): DashboardStats {
                  transactionDate.getFullYear() === lastMonthYear
         })
 
-        // Calculate monthly income and expenses
+        // Calculate monthly income and expenses - only completed transactions
         const monthlyIncome = currentMonthTransactions
-          .filter(t => t.type === 'deposit')
-          .reduce((sum, t) => sum + (t.amount || 0), 0)
+          .filter(t => t.type === 'deposit' && t.status === 'completed')
+          .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
         const monthlyExpenses = currentMonthTransactions
-          .filter(t => t.type === 'withdrawal')
-          .reduce((sum, t) => sum + (t.amount || 0), 0)
+          .filter(t => t.type === 'withdrawal' && t.status === 'completed')
+          .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
         const lastMonthIncome = lastMonthTransactions
-          .filter(t => t.type === 'deposit')
-          .reduce((sum, t) => sum + (t.amount || 0), 0)
+          .filter(t => t.type === 'deposit' && t.status === 'completed')
+          .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
         const lastMonthExpenses = lastMonthTransactions
-          .filter(t => t.type === 'withdrawal')
-          .reduce((sum, t) => sum + (t.amount || 0), 0)
+          .filter(t => t.type === 'withdrawal' && t.status === 'completed')
+          .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
-        // Calculate total income and expenses (all time)
+        // Calculate total income and expenses (all time) - only completed transactions
         const totalIncome = transactions
-          .filter(t => t.type === 'deposit')
-          .reduce((sum, t) => sum + (t.amount || 0), 0)
+          .filter(t => t.type === 'deposit' && t.status === 'completed')
+          .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
         const totalExpenses = transactions
-          .filter(t => t.type === 'withdrawal')
-          .reduce((sum, t) => sum + (t.amount || 0), 0)
+          .filter(t => t.type === 'withdrawal' && t.status === 'completed')
+          .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
         // Calculate changes
         const incomeChange = calculatePercentageChange(monthlyIncome, lastMonthIncome)
@@ -206,7 +206,7 @@ export function useDashboardStats(): DashboardStats {
         // Calculate account balances
         const accountBalances = accounts.map((account: Account) => ({
           account,
-          balance: account.currentBalance || 0
+          balance: Number(account.currentBalance) || 0
         }))
 
         setStats({

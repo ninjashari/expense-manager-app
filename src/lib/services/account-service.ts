@@ -288,7 +288,48 @@ export async function getAccountsWithFreshBalances(userId: string): Promise<Acco
  */
 export async function recalculateAccountBalances(userId: string): Promise<void> {
   try {
-    await query(`SELECT recalculate_user_account_balances($1)`, [userId])
+    // First, try to use the database function if it exists
+    try {
+      await query(`SELECT recalculate_user_account_balances($1)`, [userId])
+    } catch {
+      // If the database function doesn't exist, calculate manually
+      console.log('Database function not available, calculating manually...')
+      
+      // Get all accounts for the user
+      const accounts = await query<AccountRow>(`
+        SELECT id, initial_balance FROM accounts WHERE user_id = $1
+      `, [userId])
+      
+      // For each account, calculate the balance manually
+      for (const account of accounts) {
+        const balanceResult = await query(`
+          SELECT COALESCE(
+            SUM(
+              CASE 
+                WHEN type = 'deposit' AND account_id = $1 THEN amount
+                WHEN type = 'withdrawal' AND account_id = $1 THEN -amount
+                WHEN type = 'transfer' AND to_account_id = $1 THEN amount
+                WHEN type = 'transfer' AND from_account_id = $1 THEN -amount
+                ELSE 0
+              END
+            ), 0
+          ) as transaction_sum
+          FROM transactions 
+          WHERE status = 'completed' 
+            AND (account_id = $1 OR from_account_id = $1 OR to_account_id = $1)
+        `, [account.id])
+        
+        const transactionSum = balanceResult[0]?.transaction_sum || 0
+        const newBalance = parseFloat(account.initial_balance) + parseFloat(transactionSum)
+        
+        // Update the account balance
+        await query(`
+          UPDATE accounts 
+          SET current_balance = $1, updated_at = NOW()
+          WHERE id = $2
+        `, [newBalance, account.id])
+      }
+    }
   } catch (error) {
     console.error('Error recalculating account balances:', error)
     throw new Error(`Failed to recalculate account balances: ${error instanceof Error ? error.message : 'Unknown error'}`)

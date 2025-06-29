@@ -7,9 +7,6 @@
 
 import { query, queryOne } from '@/lib/database'
 import { Transaction, TransactionFormData, isTransferFormData } from '@/types/transaction'
-import { Account } from '@/types/account'
-import { Payee } from '@/types/payee'
-import { Category } from '@/types/category'
 import { formatDateForDatabase, parseDateFromDatabase } from '@/lib/utils'
 
 /**
@@ -82,7 +79,21 @@ function transformRowToTransaction(row: TransactionRow): Transaction {
  * @param row - Database row with joined data
  * @returns Transaction object with populated relations
  */
-function transformRowToTransactionWithRelations(row: any): Transaction {
+function transformRowToTransactionWithRelations(row: TransactionRow & {
+  account_name?: string
+  account_type?: string
+  account_currency?: string
+  from_account_name?: string
+  from_account_type?: string
+  from_account_currency?: string
+  to_account_name?: string
+  to_account_type?: string
+  to_account_currency?: string
+  payee_display_name?: string
+  payee_category?: string
+  category_display_name?: string
+  category_description?: string
+}): Transaction {
   const transaction: Transaction = {
     id: row.id,
     userId: row.user_id,
@@ -105,8 +116,8 @@ function transformRowToTransactionWithRelations(row: any): Transaction {
     transaction.account = {
       id: row.account_id,
       name: row.account_name,
-      type: row.account_type,
-      currency: row.account_currency,
+      type: (row.account_type as any) || 'checking',
+      currency: (row.account_currency as any) || 'INR',
       // Add other required account properties with defaults
       userId: row.user_id,
       status: 'active',
@@ -123,8 +134,8 @@ function transformRowToTransactionWithRelations(row: any): Transaction {
     transaction.fromAccount = {
       id: row.from_account_id,
       name: row.from_account_name,
-      type: row.from_account_type,
-      currency: row.from_account_currency,
+      type: (row.from_account_type as any) || 'checking',
+      currency: (row.from_account_currency as any) || 'INR',
       // Add other required account properties with defaults
       userId: row.user_id,
       status: 'active',
@@ -141,8 +152,8 @@ function transformRowToTransactionWithRelations(row: any): Transaction {
     transaction.toAccount = {
       id: row.to_account_id,
       name: row.to_account_name,
-      type: row.to_account_type,
-      currency: row.to_account_currency,
+      type: (row.to_account_type as any) || 'checking',
+      currency: (row.to_account_currency as any) || 'INR',
       // Add other required account properties with defaults
       userId: row.user_id,
       status: 'active',
