@@ -228,11 +228,28 @@ export default function CreditCardsPage() {
       setIsLoading(true)
       setError(null)
       
+      console.log('Loading credit card data for user:', user.id)
+      
       // Auto-generate any missing bills first
-      await autoGenerateBills(user.id)
+      console.log('Auto-generating bills...')
+      const generatedBills = await autoGenerateBills(user.id)
+      console.log('Generated bills:', generatedBills.length)
       
       // Then load all credit card summaries
+      console.log('Loading credit card summaries...')
       const creditCardSummaries = await getCreditCardSummaries(user.id)
+      console.log('Loaded summaries:', creditCardSummaries.length)
+      console.log('Summary details:', creditCardSummaries.map(s => ({
+        accountName: s.account.name,
+        billsCount: s.recentBills.length,
+        bills: s.recentBills.map(b => ({
+          id: b.id,
+          amount: b.billAmount,
+          status: b.status,
+          paidAmount: b.paidAmount
+        }))
+      })))
+      
       setSummaries(creditCardSummaries)
     } catch (err) {
       console.error('Error loading credit card data:', err)
@@ -249,23 +266,63 @@ export default function CreditCardsPage() {
     if (!user?.id) return
 
     try {
+      console.log('Attempting to mark bill as paid:', billId)
+      console.log('User ID:', user.id)
+      console.log('Available summaries:', summaries.length)
+      
       // For now, mark as fully paid on current date
       // In a real application, this would open a payment form
-      const bill = summaries
-        .flatMap(s => s.recentBills)
-        .find(b => b.id === billId)
+      const allBills = summaries.flatMap(s => s.recentBills)
+      console.log('Total bills available:', allBills.length)
+      console.log('All bill IDs:', allBills.map(b => b.id))
       
-      if (bill) {
-        await markBillAsPaid({
-          billId,
-          paymentAmount: bill.billAmount - bill.paidAmount,
-          paymentDate: new Date(),
-          notes: 'Marked as paid from credit cards page'
-        }, user.id)
-        
-        // Reload data to reflect changes
-        await loadCreditCardData()
+      const bill = allBills.find(b => b.id === billId)
+      console.log('Found bill:', bill)
+      
+      if (!bill) {
+        console.error('Bill not found with ID:', billId)
+        setError(`Bill not found with ID: ${billId}`)
+        return
       }
+      
+      const remainingAmount = bill.billAmount - bill.paidAmount
+      
+      console.log('Payment calculation:', {
+        billAmount: bill.billAmount,
+        alreadyPaid: bill.paidAmount,
+        remainingAmount,
+        minimumPayment: bill.minimumPayment,
+        billStatus: bill.status
+      })
+      
+      // Handle different bill scenarios
+      if (bill.status === 'paid') {
+        console.error('Bill is already marked as paid')
+        setError('Bill is already marked as paid')
+        return
+      }
+      
+      // For bills with remaining amount, pay the full amount
+      // For $0 bills, record a $0 payment to mark as paid
+      const paymentAmount = Math.max(0, remainingAmount)
+      
+      console.log('Final payment amount:', paymentAmount)
+      
+      console.log('Calling markBillAsPaid API...')
+      const result = await markBillAsPaid({
+        billId,
+        paymentAmount,
+        paymentDate: new Date(),
+        notes: 'Marked as paid from credit cards page'
+      }, user.id)
+      
+      console.log('Payment API result:', result)
+      
+      // Reload data to reflect changes
+      console.log('Reloading credit card data...')
+      await loadCreditCardData()
+      console.log('Data reloaded successfully')
+      
     } catch (err) {
       console.error('Error marking bill as paid:', err)
       setError(err instanceof Error ? err.message : 'Failed to mark bill as paid')
