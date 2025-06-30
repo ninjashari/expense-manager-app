@@ -25,6 +25,8 @@ export type DateRangePreset =
   | 'last_quarter'
   | 'this_year'
   | 'last_year'
+  | 'this_financial_year'
+  | 'last_financial_year'
   | 'all_time'
   | 'custom'
 
@@ -222,6 +224,8 @@ export const DATE_RANGE_PRESETS = [
   { value: 'last_quarter', label: 'Last Quarter' },
   { value: 'this_year', label: 'This Year' },
   { value: 'last_year', label: 'Last Year' },
+  { value: 'this_financial_year', label: 'This Financial Year' },
+  { value: 'last_financial_year', label: 'Last Financial Year' },
   { value: 'all_time', label: 'All Time' },
   { value: 'custom', label: 'Custom Range' },
 ] as const
@@ -361,6 +365,19 @@ export function getDateRangeFromPreset(preset: DateRangePreset): { start: Date; 
       const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59)
       return { start: lastYearStart, end: lastYearEnd }
     
+    case 'this_financial_year':
+      // Financial year in India runs from April 1st to March 31st
+      const currentFinancialYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1
+      const thisFinYearStart = new Date(currentFinancialYear, 3, 1) // April 1st
+      return { start: thisFinYearStart, end: now }
+    
+    case 'last_financial_year':
+      // Previous financial year
+      const lastFinancialYear = now.getMonth() >= 3 ? now.getFullYear() - 1 : now.getFullYear() - 2
+      const lastFinYearStart = new Date(lastFinancialYear, 3, 1) // April 1st
+      const lastFinYearEnd = new Date(lastFinancialYear + 1, 2, 31, 23, 59, 59) // March 31st
+      return { start: lastFinYearStart, end: lastFinYearEnd }
+    
     case 'all_time':
       // Return a very early date as start
       return { start: new Date(2000, 0, 1), end: now }
@@ -376,7 +393,7 @@ export function getDateRangeFromPreset(preset: DateRangePreset): { start: Date; 
  * @description Default configuration for report filters
  */
 export const DEFAULT_REPORT_FILTERS: ReportFilters = {
-  dateRange: 'this_month',
+  dateRange: 'this_financial_year',
   accountIds: [],
   categoryIds: [],
   payeeIds: [],

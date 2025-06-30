@@ -202,7 +202,11 @@ export function IncomeVsExpensesChart({
 }: IncomeVsExpensesChartProps) {
   const chartData = data.map(item => ({
     ...item,
-    period: item.period.length > 10 ? item.period.substring(0, 10) : item.period
+    period: item.period.length > 10 ? item.period.substring(0, 10) : item.period,
+    // Ensure values are valid numbers
+    income: Number(item.income) || 0,
+    expenses: Number(item.expenses) || 0,
+    net: Number(item.net) || 0
   }))
 
   const renderChart = () => {

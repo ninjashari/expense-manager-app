@@ -229,10 +229,10 @@ export function generateCategoryBreakdown(transactions: Transaction[]): Category
  * @param grouping - Time grouping (daily, weekly, monthly, yearly)
  * @returns Time series data array
  */
-export function generateTimeSeriesData(transactions: Transaction[], grouping: TimeGrouping): TimeSeriesData[] {
+export function generateTimeSeriesData(transactions: Transaction[], grouping: TimeGrouping, fillEmptyPeriods: boolean = false): TimeSeriesData[] {
   const timeMap = new Map<string, TimeSeriesData>()
 
-  transactions.forEach(transaction => {
+  transactions.forEach((transaction) => {
     const timePeriod = getTimePeriod(new Date(transaction.date), grouping)
     const key = timePeriod.key
 
@@ -250,10 +250,13 @@ export function generateTimeSeriesData(transactions: Transaction[], grouping: Ti
     const data = timeMap.get(key)!
     data.transactionCount += 1
 
+    // Convert amount to number to ensure proper arithmetic
+    const amount = Number(transaction.amount) || 0
+
     if (transaction.type === 'deposit') {
-      data.income += transaction.amount
+      data.income += amount
     } else if (transaction.type === 'withdrawal') {
-      data.expenses += transaction.amount
+      data.expenses += amount
     }
     // Transfers don't affect income/expenses
 
@@ -261,7 +264,62 @@ export function generateTimeSeriesData(transactions: Transaction[], grouping: Ti
   })
 
   // Convert to array and sort by date
-  return Array.from(timeMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime())
+  let result = Array.from(timeMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime())
+  
+  // Fill empty periods if requested (for financial year view)
+  if (fillEmptyPeriods && grouping === 'monthly' && result.length > 0) {
+    result = fillMissingMonths(result)
+  }
+  
+  return result
+}
+
+/**
+ * Fill missing months in a financial year sequence
+ * @description Adds empty data points for missing months in a financial year
+ * @param existingData - Existing time series data
+ * @returns Complete time series data with empty months filled
+ */
+function fillMissingMonths(existingData: TimeSeriesData[]): TimeSeriesData[] {
+  if (existingData.length === 0) return existingData
+  
+  const now = new Date()
+  const currentFinancialYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1
+  
+  // Generate all months in the current financial year
+  const allMonths: TimeSeriesData[] = []
+  
+  for (let i = 0; i < 12; i++) {
+    const monthDate = new Date(currentFinancialYear, 3 + i, 1) // Start from April
+    
+    // If month is in the future beyond current month, stop adding months
+    if (monthDate.getTime() > new Date(now.getFullYear(), now.getMonth(), 1).getTime()) break
+    
+    const timePeriod = getTimePeriod(monthDate, 'monthly')
+    const key = timePeriod.key
+    
+    // Check if we have data for this month
+    const existingDataPoint = existingData.find(d => {
+      const existingKey = format(d.date, 'yyyy-MM')
+      return existingKey === key
+    })
+    
+    if (existingDataPoint) {
+      allMonths.push(existingDataPoint)
+    } else {
+      // Add empty data point for missing month
+      allMonths.push({
+        period: timePeriod.label,
+        date: timePeriod.date,
+        income: 0,
+        expenses: 0,
+        net: 0,
+        transactionCount: 0
+      })
+    }
+  }
+  
+  return allMonths
 }
 
 /**

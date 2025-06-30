@@ -144,7 +144,7 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
   {
     id: 'income-vs-expenses',
     name: 'Income vs Expenses Dashboard',
-    description: 'Complete overview of income versus expenses with net income tracking.',
+    description: 'Complete overview of income versus expenses with net income tracking for the financial year.',
     category: 'overview',
     icon: DollarSign,
     config: {
@@ -152,16 +152,16 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
       type: 'income_vs_expenses',
       filters: {
         ...DEFAULT_REPORT_FILTERS,
-        dateRange: 'this_month',
+        dateRange: 'this_financial_year',
         transactionTypes: ['deposit', 'withdrawal'],
         transactionStatuses: ['completed']
       },
       chartType: 'bar',
-      timeGrouping: 'weekly',
+      timeGrouping: 'monthly',
       showChart: true,
       showTable: false
     },
-    tags: ['income', 'expenses', 'overview'],
+    tags: ['income', 'expenses', 'overview', 'financial-year'],
     difficulty: 'beginner',
     estimatedTime: '1 minute'
   },
