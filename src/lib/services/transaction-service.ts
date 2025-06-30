@@ -50,31 +50,6 @@ interface TransactionData {
 }
 
 /**
- * Transform database row to Transaction object
- * @description Converts database row format to application Transaction interface
- * @param row - Database row from transactions table
- * @returns Transaction object
- */
-function transformRowToTransaction(row: TransactionRow): Transaction {
-  return {
-    id: row.id,
-    userId: row.user_id,
-    date: parseDateFromDatabase(row.date),
-    status: row.status,
-    type: row.type,
-    amount: row.amount,
-    accountId: row.account_id || undefined,
-    payeeId: row.payee_id || undefined,
-    categoryId: row.category_id || undefined,
-    fromAccountId: row.from_account_id || undefined,
-    toAccountId: row.to_account_id || undefined,
-    notes: row.notes || undefined,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
-  }
-}
-
-/**
  * Extended transaction row interface with joined relation data
  * @description Database row with LEFT JOIN data from related tables
  */
@@ -272,7 +247,13 @@ export async function createTransaction(transactionData: TransactionFormData, us
       throw new Error('Failed to create transaction')
     }
 
-    return transformRowToTransaction(row)
+    // Fetch the complete transaction with related data
+    const completeTransaction = await getTransactionById(row.id, userId)
+    if (!completeTransaction) {
+      throw new Error('Failed to fetch created transaction with relations')
+    }
+
+    return completeTransaction
   } catch (error) {
     console.error('Error creating transaction:', error)
     throw new Error(`Failed to create transaction: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -450,7 +431,13 @@ export async function updateTransaction(transactionId: string, transactionData: 
       throw new Error('Transaction not found or you do not have permission to update it')
     }
 
-    return transformRowToTransaction(row)
+    // Fetch the complete transaction with related data
+    const completeTransaction = await getTransactionById(transactionId, userId)
+    if (!completeTransaction) {
+      throw new Error('Failed to fetch updated transaction with relations')
+    }
+
+    return completeTransaction
   } catch (error) {
     console.error('Error updating transaction:', error)
     throw new Error(`Failed to update transaction: ${error instanceof Error ? error.message : 'Unknown error'}`)
