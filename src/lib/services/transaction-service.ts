@@ -7,6 +7,7 @@
 
 import { query, queryOne } from '@/lib/database'
 import { Transaction, TransactionFormData, isTransferFormData } from '@/types/transaction'
+import { AccountType, Currency } from '@/types/account'
 import { formatDateForDatabase, parseDateFromDatabase } from '@/lib/utils'
 
 /**
@@ -74,26 +75,32 @@ function transformRowToTransaction(row: TransactionRow): Transaction {
 }
 
 /**
+ * Extended transaction row interface with joined relation data
+ * @description Database row with LEFT JOIN data from related tables
+ */
+interface TransactionRowWithRelations extends TransactionRow {
+  account_name?: string
+  account_type?: AccountType
+  account_currency?: Currency
+  from_account_name?: string
+  from_account_type?: AccountType
+  from_account_currency?: Currency
+  to_account_name?: string
+  to_account_type?: AccountType
+  to_account_currency?: Currency
+  payee_display_name?: string
+  payee_category?: string
+  category_display_name?: string
+  category_description?: string
+}
+
+/**
  * Transform database row with relations to Transaction object
  * @description Converts joined database row to Transaction with related entities
  * @param row - Database row with joined data
  * @returns Transaction object with populated relations
  */
-function transformRowToTransactionWithRelations(row: TransactionRow & {
-  account_name?: string
-  account_type?: string
-  account_currency?: string
-  from_account_name?: string
-  from_account_type?: string
-  from_account_currency?: string
-  to_account_name?: string
-  to_account_type?: string
-  to_account_currency?: string
-  payee_display_name?: string
-  payee_category?: string
-  category_display_name?: string
-  category_description?: string
-}): Transaction {
+function transformRowToTransactionWithRelations(row: TransactionRowWithRelations): Transaction {
   const transaction: Transaction = {
     id: row.id,
     userId: row.user_id,
@@ -116,8 +123,8 @@ function transformRowToTransactionWithRelations(row: TransactionRow & {
     transaction.account = {
       id: row.account_id,
       name: row.account_name,
-      type: (row.account_type as any) || 'checking',
-      currency: (row.account_currency as any) || 'INR',
+      type: row.account_type || 'checking',
+      currency: row.account_currency || 'INR',
       // Add other required account properties with defaults
       userId: row.user_id,
       status: 'active',
@@ -134,8 +141,8 @@ function transformRowToTransactionWithRelations(row: TransactionRow & {
     transaction.fromAccount = {
       id: row.from_account_id,
       name: row.from_account_name,
-      type: (row.from_account_type as any) || 'checking',
-      currency: (row.from_account_currency as any) || 'INR',
+      type: row.from_account_type || 'checking',
+      currency: row.from_account_currency || 'INR',
       // Add other required account properties with defaults
       userId: row.user_id,
       status: 'active',
@@ -152,8 +159,8 @@ function transformRowToTransactionWithRelations(row: TransactionRow & {
     transaction.toAccount = {
       id: row.to_account_id,
       name: row.to_account_name,
-      type: (row.to_account_type as any) || 'checking',
-      currency: (row.to_account_currency as any) || 'INR',
+      type: row.to_account_type || 'checking',
+      currency: row.to_account_currency || 'INR',
       // Add other required account properties with defaults
       userId: row.user_id,
       status: 'active',
@@ -324,7 +331,7 @@ export async function getTransactions(userId: string, limit?: number, offset?: n
       params.push(offset.toString())
     }
 
-    const rows = await query<any>(sql, params)
+    const rows = await query<TransactionRowWithRelations>(sql, params)
     return rows.map(transformRowToTransactionWithRelations)
   } catch (error) {
     console.error('Error fetching transactions:', error)
@@ -341,7 +348,7 @@ export async function getTransactions(userId: string, limit?: number, offset?: n
  */
 export async function getTransactionById(transactionId: string, userId: string): Promise<Transaction | null> {
   try {
-    const row = await queryOne<any>(`
+    const row = await queryOne<TransactionRowWithRelations>(`
       SELECT 
         t.*,
         -- Account data

@@ -80,10 +80,10 @@ function CreditCardOverview({ summary }: { summary: CreditCardSummary }) {
         <div className="space-y-2">
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">Credit Usage</span>
-            <span className="font-medium">{creditUsagePercentage.toFixed(1)}%</span>
+            <span className="font-medium">{(typeof creditUsagePercentage === 'number' ? creditUsagePercentage.toFixed(1) : '0.0')}%</span>
           </div>
           <Progress 
-            value={creditUsagePercentage} 
+            value={typeof creditUsagePercentage === 'number' ? creditUsagePercentage : 0} 
             className="h-2"
           />
           <div className="flex justify-between text-xs text-muted-foreground">

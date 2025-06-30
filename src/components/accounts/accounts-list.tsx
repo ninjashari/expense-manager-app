@@ -383,7 +383,7 @@ export function AccountsList({
                                 Limit: {formatCurrency(account.creditCardInfo.creditLimit)}
                               </div>
                               <div className="flex items-center gap-2">
-                                <span>Usage: {account.creditUsagePercentage?.toFixed(1) || '0.0'}%</span>
+                                <span>Usage: {(typeof account.creditUsagePercentage === 'number' ? account.creditUsagePercentage.toFixed(1) : '0.0')}%</span>
                                 <div className="flex-1 bg-muted rounded-full h-1.5 max-w-[60px]">
                                   <div 
                                     className={cn(

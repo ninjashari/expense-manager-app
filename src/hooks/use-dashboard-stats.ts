@@ -9,6 +9,7 @@ import { useAuth } from '@/components/auth/auth-provider'
 import { Transaction } from '@/types/transaction'
 import { Account } from '@/types/account'
 import { TimeSeriesData } from '@/types/report'
+import { generateTimeSeriesData } from '@/lib/services/report-service'
 
 /**
  * Dashboard statistics interface
@@ -209,6 +210,12 @@ export function useDashboardStats(): DashboardStats {
           balance: Number(account.currentBalance) || 0
         }))
 
+        // Generate chart data for the current month (weekly grouping)
+        const chartData = generateTimeSeriesData(
+          currentMonthTransactions.filter(t => t.status === 'completed'),
+          'weekly'
+        )
+
         setStats({
           totalBalance,
           totalIncome,
@@ -219,7 +226,7 @@ export function useDashboardStats(): DashboardStats {
           monthlyNet: monthlyIncome - monthlyExpenses,
           incomeChange,
           expenseChange,
-          chartData: [], // Empty for now, can be populated later if needed
+          chartData,
           recentTransactions,
           accountBalances,
           isLoading: false,

@@ -19,8 +19,11 @@ export const CURRENCY_SYMBOL = '₹'
  * @returns Formatted currency string
  */
 export function formatCurrency(amount: number, currency: string = 'INR'): string {
+  // Convert string numbers to actual numbers if needed
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  
   // Handle invalid numbers
-  if (typeof amount !== 'number' || isNaN(amount) || !isFinite(amount)) {
+  if (typeof numericAmount !== 'number' || isNaN(numericAmount) || !isFinite(numericAmount)) {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: currency,
@@ -32,5 +35,5 @@ export function formatCurrency(amount: number, currency: string = 'INR'): string
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 2,
-  }).format(amount)
+  }).format(numericAmount)
 } 

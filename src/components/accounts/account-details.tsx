@@ -180,7 +180,7 @@ export function AccountDetails({ account, onEdit, onClose }: AccountDetailsProps
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-xl font-semibold">
-                      {account.creditUsagePercentage?.toFixed(1) || '0.0'}%
+                      {(typeof account.creditUsagePercentage === 'number' ? account.creditUsagePercentage.toFixed(1) : '0.0')}%
                     </div>
                     <div className="flex-1 bg-muted rounded-full h-2 max-w-[120px]">
                       <div 

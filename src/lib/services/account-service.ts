@@ -302,7 +302,7 @@ export async function recalculateAccountBalances(userId: string): Promise<void> 
       
       // For each account, calculate the balance manually
       for (const account of accounts) {
-        const balanceResult = await query(`
+        const balanceResult = await query<{ transaction_sum: number }>(`
           SELECT COALESCE(
             SUM(
               CASE 
@@ -320,7 +320,7 @@ export async function recalculateAccountBalances(userId: string): Promise<void> 
         `, [account.id])
         
         const transactionSum = balanceResult[0]?.transaction_sum || 0
-        const newBalance = parseFloat(account.initial_balance) + parseFloat(transactionSum)
+        const newBalance = account.initial_balance + transactionSum
         
         // Update the account balance
         await query(`

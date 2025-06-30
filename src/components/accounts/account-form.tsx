@@ -78,9 +78,9 @@ export function AccountForm({ account, onSubmit, onCancel, isLoading = false }: 
       currency: account?.currency || 'INR',
       accountOpeningDate: account?.accountOpeningDate || new Date(),
       notes: account?.notes || '',
-      creditLimit: account?.creditCardInfo?.creditLimit || undefined,
-      paymentDueDate: account?.creditCardInfo?.paymentDueDate || undefined,
-      billGenerationDate: account?.creditCardInfo?.billGenerationDate || undefined,
+      creditLimit: account?.creditCardInfo?.creditLimit || 0,
+      paymentDueDate: account?.creditCardInfo?.paymentDueDate || 1,
+      billGenerationDate: account?.creditCardInfo?.billGenerationDate || 1,
       currentBillPaid: account?.creditCardInfo?.currentBillPaid || false,
     },
   })
@@ -340,7 +340,7 @@ export function AccountForm({ account, onSubmit, onCancel, isLoading = false }: 
                               max="31"
                               placeholder="15"
                               {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                               disabled={isLoading}
                             />
                           </FormControl>
@@ -365,7 +365,7 @@ export function AccountForm({ account, onSubmit, onCancel, isLoading = false }: 
                               max="31"
                               placeholder="20"
                               {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                               disabled={isLoading}
                             />
                           </FormControl>

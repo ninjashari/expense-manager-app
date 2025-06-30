@@ -25,7 +25,7 @@ export async function POST() {
     const userId = session.user.id
 
     // Get all accounts for the user
-    const accounts = await query(`
+    const accounts = await query<{ id: string; initial_balance: number }>(`
       SELECT id, initial_balance FROM accounts WHERE user_id = $1
     `, [userId])
     
@@ -33,7 +33,7 @@ export async function POST() {
 
     // For each account, calculate the balance manually
     for (const account of accounts) {
-      const balanceResult = await query(`
+      const balanceResult = await query<{ transaction_sum: number }>(`
         SELECT COALESCE(
           SUM(
             CASE 
@@ -51,7 +51,7 @@ export async function POST() {
       `, [account.id])
       
       const transactionSum = balanceResult[0]?.transaction_sum || 0
-      const newBalance = parseFloat(account.initial_balance) + parseFloat(transactionSum)
+      const newBalance = parseFloat(account.initial_balance.toString()) + parseFloat(transactionSum.toString())
       
       // Update the account balance
       await query(`
