@@ -170,16 +170,11 @@ async function createAccountViaAPI(accountName: string): Promise<Account> {
  * @returns Account object or null if not found
  */
 export function findAccountByName(accountName: string, accounts: Account[]): Account | null {
-  console.log(`🔍 Finding account for: "${accountName}"`)
-  console.log(`📋 Available accounts:`, accounts.map(a => ({ id: a.id, name: a.name })))
-  
   if (!accountName) {
-    console.log(`❌ Account name is empty`)
     return null
   }
   
   const normalizedName = accountName.toLowerCase().trim()
-  console.log(`🔧 Normalized account name: "${normalizedName}"`)
   
   // Exact match first
   let match = accounts.find(account => 
@@ -187,7 +182,6 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
   )
   
   if (match) {
-    console.log(`✅ Found exact account match: ${match.name} (ID: ${match.id})`)
     return match
   }
   
@@ -198,7 +192,6 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
   )
   
   if (match) {
-    console.log(`✅ Found partial account match: ${match.name} (ID: ${match.id})`)
     return match
   }
   
@@ -208,8 +201,6 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
   
   let bestMatch: Account | null = null
   let bestScore = 0
-  
-  console.log(`🔍 Trying fuzzy matching with words:`, accountWords)
   
   for (const account of accounts) {
     const accountNameWords = account.name.toLowerCase().trim().split(/\s+/)
@@ -241,10 +232,6 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
       score += 20
     }
     
-    if (score > 0) {
-      console.log(`🎯 Account "${account.name}" scored ${score} points`)
-    }
-    
     if (score > bestScore && score > 0) {
       bestScore = score
       bestMatch = account
@@ -252,11 +239,9 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
   }
   
   if (bestMatch) {
-    console.log(`✅ Found fuzzy account match: ${bestMatch.name} (ID: ${bestMatch.id}) with score ${bestScore}`)
     return bestMatch
   }
 
-  console.log(`❌ No account match found for: "${accountName}"`)
   return null
 }
 
@@ -268,16 +253,11 @@ export function findAccountByName(accountName: string, accounts: Account[]): Acc
  * @returns Category object or null if not found
  */
 export function findCategoryByName(categoryName: string, categories: Category[]): Category | null {
-  console.log(`🔍 Finding category for: "${categoryName}"`)
-  console.log(`📋 Available categories:`, categories.map(c => ({ id: c.id, name: c.name, displayName: c.displayName })))
-  
   if (!categoryName) {
-    console.log(`❌ Category name is empty`)
     return null
   }
   
   const normalizedName = categoryName.toLowerCase().trim()
-  console.log(`🔧 Normalized category name: "${normalizedName}"`)
   
   // Check both display name and internal name
   const match = categories.find(category => 
@@ -286,11 +266,9 @@ export function findCategoryByName(categoryName: string, categories: Category[])
   )
   
   if (match) {
-    console.log(`✅ Found category match: ${match.displayName} (ID: ${match.id})`)
     return match
   }
   
-  console.log(`❌ No category match found for: "${categoryName}"`)
   return null
 }
 
@@ -302,22 +280,16 @@ export function findCategoryByName(categoryName: string, categories: Category[])
  * @returns Payee object or null if not found
  */
 export function findPayeeByName(payeeName: string, payees: Payee[]): Payee | null {
-  console.log(`🔍 Finding payee for: "${payeeName}"`)
-  console.log(`📋 Available payees:`, payees.map(p => ({ id: p.id, name: p.name, displayName: p.displayName })))
-  
   if (!payeeName) {
-    console.log(`❌ Payee name is empty`)
     return null
   }
   
   // Handle transfer transactions (payee starts with '>')
   if (payeeName.startsWith('>')) {
-    console.log(`🔄 Transfer transaction detected, skipping payee lookup`)
     return null // Transfer transactions don't use payees
   }
   
   const normalizedName = payeeName.toLowerCase().trim()
-  console.log(`🔧 Normalized payee name: "${normalizedName}"`)
   
   // Check both display name and internal name
   const match = payees.find(payee => 
@@ -326,11 +298,9 @@ export function findPayeeByName(payeeName: string, payees: Payee[]): Payee | nul
   )
   
   if (match) {
-    console.log(`✅ Found payee match: ${match.displayName} (ID: ${match.id})`)
     return match
   }
   
-  console.log(`❌ No payee match found for: "${payeeName}"`)
   return null
 }
 
@@ -410,24 +380,10 @@ export async function importSingleTransaction(
   userId: string,
   options: ImportOptions = {}
 ): Promise<TransactionImportResult> {
-  console.log(`\n🚀 Importing transaction:`, {
-    id: transaction.id,
-    date: transaction.date,
-    account: transaction.account,
-    payee: transaction.payee,
-    category: transaction.category,
-    amount: transaction.amount,
-    type: transaction.type,
-    isTransfer: transaction.isTransfer,
-    transferToAccount: transaction.transferToAccount
-  })
-  console.log(`⚙️ Import options:`, options)
-  
   try {
     // Validate transaction data
     const validationErrors = validateTransactionData(transaction, accounts)
     if (validationErrors.length > 0) {
-      console.log(`❌ Validation failed:`, validationErrors)
       return {
         success: false,
         transaction,
@@ -435,21 +391,16 @@ export async function importSingleTransaction(
       }
     }
     
-    console.log(`✅ Transaction validation passed`)
-    
     // Find or create account
     let account = findAccountByName(transaction.account, accounts)
     let createdAccount = false
     
     if (!account && options.createMissingAccounts) {
-      console.log(`🔨 Creating missing account: "${transaction.account}"`)
       try {
         account = await createAccountViaAPI(transaction.account)
         accounts.push(account) // Add to local array for subsequent transactions
         createdAccount = true
-        console.log(`✅ Account created: ${account.name} (ID: ${account.id})`)
       } catch (error) {
-        console.log(`❌ Failed to create account:`, error)
         return {
           success: false,
           transaction,
@@ -459,7 +410,6 @@ export async function importSingleTransaction(
     }
     
     if (!account) {
-      console.log(`❌ Account not found and creation disabled: "${transaction.account}"`)
       return {
         success: false,
         transaction,
@@ -467,27 +417,20 @@ export async function importSingleTransaction(
       }
     }
     
-    console.log(`✅ Account resolved: ${account.name} (ID: ${account.id})`)
-    
     let categoryId: string | undefined
     let payeeId: string | undefined
     let createdCategory = false
     let createdPayee = false
     
     if (!transaction.isTransfer) {
-      console.log(`📝 Processing non-transfer transaction`)
-      
       // Handle category
       let category = findCategoryByName(transaction.category, categories)
       if (!category && options.createMissingCategories) {
-        console.log(`🔨 Creating missing category: "${transaction.category}"`)
         try {
           category = await createCategoryViaAPI(transaction.category)
           categories.push(category) // Add to local array for subsequent transactions
           createdCategory = true
-          console.log(`✅ Category created: ${category.displayName} (ID: ${category.id})`)
         } catch (error) {
-          console.log(`❌ Failed to create category:`, error)
           return {
             success: false,
             transaction,
@@ -497,7 +440,6 @@ export async function importSingleTransaction(
       }
       
       if (!category) {
-        console.log(`❌ Category not found and creation disabled: "${transaction.category}"`)
         return {
           success: false,
           transaction,
@@ -506,19 +448,15 @@ export async function importSingleTransaction(
       }
       
       categoryId = category.id
-      console.log(`✅ Category resolved: ${category.displayName} (ID: ${category.id})`)
       
       // Handle payee
       let payee = findPayeeByName(transaction.payee, payees)
       if (!payee && options.createMissingPayees) {
-        console.log(`🔨 Creating missing payee: "${transaction.payee}"`)
         try {
           payee = await createPayeeViaAPI(transaction.payee, transaction.category)
           payees.push(payee) // Add to local array for subsequent transactions
           createdPayee = true
-          console.log(`✅ Payee created: ${payee.displayName} (ID: ${payee.id})`)
         } catch (error) {
-          console.log(`❌ Failed to create payee:`, error)
           return {
             success: false,
             transaction,
@@ -528,7 +466,6 @@ export async function importSingleTransaction(
       }
       
       if (!payee) {
-        console.log(`❌ Payee not found and creation disabled: "${transaction.payee}"`)
         return {
           success: false,
           transaction,
@@ -537,9 +474,6 @@ export async function importSingleTransaction(
       }
       
       payeeId = payee.id
-      console.log(`✅ Payee resolved: ${payee.displayName} (ID: ${payee.id})`)
-    } else {
-      console.log(`🔄 Processing transfer transaction`)
     }
     
     // Prepare transaction data
@@ -551,13 +485,10 @@ export async function importSingleTransaction(
       let toAccount = findAccountByName(transaction.transferToAccount!, accounts)
       
       if (!toAccount && options.createMissingAccounts) {
-        console.log(`🔨 Creating missing transfer destination account: "${transaction.transferToAccount}"`)
         try {
           toAccount = await createAccountViaAPI(transaction.transferToAccount!)
           accounts.push(toAccount) // Add to local array for subsequent transactions
-          console.log(`✅ Transfer destination account created: ${toAccount.name} (ID: ${toAccount.id})`)
         } catch (error) {
-          console.log(`❌ Failed to create transfer destination account:`, error)
           return {
             success: false,
             transaction,
@@ -567,7 +498,6 @@ export async function importSingleTransaction(
       }
       
       if (!toAccount) {
-        console.log(`❌ Transfer destination account not found and creation disabled: "${transaction.transferToAccount}"`)
         return {
           success: false,
           transaction,
@@ -576,7 +506,6 @@ export async function importSingleTransaction(
       }
       
       toAccountId = toAccount.id
-      console.log(`✅ Transfer destination account resolved: ${toAccount.name} (ID: ${toAccount.id})`)
       
       transactionData = {
         type: 'transfer',
@@ -600,15 +529,9 @@ export async function importSingleTransaction(
       }
     }
     
-    console.log(`📤 Transaction data prepared:`, transactionData)
-    
     // Create transaction if not dry run
     if (!options.dryRun) {
-      console.log(`💾 Creating transaction in database...`)
       await createTransactionViaAPI(transactionData)
-      console.log(`✅ Transaction created successfully`)
-    } else {
-      console.log(`🧪 Dry run mode - transaction not created`)
     }
     
     const result = {
@@ -624,11 +547,9 @@ export async function importSingleTransaction(
       toAccountId: transaction.isTransfer ? toAccountId : undefined
     }
     
-    console.log(`✅ Transaction import completed successfully:`, result)
     return result
     
   } catch (error) {
-    console.log(`❌ Transaction import failed:`, error)
     return {
       success: false,
       transaction,

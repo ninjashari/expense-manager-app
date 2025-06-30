@@ -162,8 +162,7 @@ export function useDashboardStats(): DashboardStats {
         const finYearStart = new Date(currentFinancialYear, 3, 1) // April 1st
         const finYearEnd = new Date(currentFinancialYear + 1, 2, 31, 23, 59, 59) // March 31st
         
-        console.log('📊 Financial Year:', `${currentFinancialYear}-${currentFinancialYear + 1}`, `(${finYearStart.toLocaleDateString()} to ${finYearEnd.toLocaleDateString()})`)
-        console.log('📈 Total Transactions Available:', transactions.length)
+
         
         const currentFinYearTransactions = transactions.filter(t => {
           const transactionDate = new Date(t.date)
@@ -185,9 +184,6 @@ export function useDashboardStats(): DashboardStats {
           })
           chartDescription = "Your financial performance for the last 12 months"
           
-          console.log('📊 Using last 12 months data:', chartTransactions.length, 'transactions')
-        } else {
-          console.log('📊 Using financial year data:', currentFinYearTransactions.length, 'transactions')
         }
 
         // Filter transactions for current month
@@ -257,7 +253,7 @@ export function useDashboardStats(): DashboardStats {
           isFinancialYearData // Fill empty months for financial year view
         )
         
-        console.log('📊 Generated chart with', chartData.length, 'data points for', completedChartTransactions.length, 'completed transactions')
+
 
         setStats({
           totalBalance,

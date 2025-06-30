@@ -45,8 +45,8 @@ function transformRowToAccount(row: AccountRow): Account {
     name: row.name,
     type: row.type as Account['type'],
     status: row.status as Account['status'],
-    initialBalance: row.initial_balance,
-    currentBalance: row.current_balance,
+    initialBalance: Number(row.initial_balance) || 0,
+    currentBalance: Number(row.current_balance) || 0,
     currency: row.currency as Account['currency'],
     accountOpeningDate: parseDateFromDatabase(row.account_opening_date),
     notes: row.notes || undefined,
@@ -59,13 +59,13 @@ function transformRowToAccount(row: AccountRow): Account {
   // Add credit card specific info if applicable
   if (row.type === 'credit_card' && row.credit_limit) {
     account.creditCardInfo = {
-      creditLimit: row.credit_limit,
-      paymentDueDate: row.payment_due_date || 1,
-      billGenerationDate: row.bill_generation_date || 1,
+      creditLimit: Number(row.credit_limit) || 0,
+      paymentDueDate: Number(row.payment_due_date) || 1,
+      billGenerationDate: Number(row.bill_generation_date) || 1,
       currentBillPaid: row.current_bill_paid || false,
-      creditUsagePercentage: row.credit_usage_percentage || 0,
+      creditUsagePercentage: Number(row.credit_usage_percentage) || 0,
     }
-    account.creditUsagePercentage = row.credit_usage_percentage || 0
+    account.creditUsagePercentage = Number(row.credit_usage_percentage) || 0
   }
 
   return account
@@ -293,7 +293,7 @@ export async function recalculateAccountBalances(userId: string): Promise<void> 
       await query(`SELECT recalculate_user_account_balances($1)`, [userId])
     } catch {
       // If the database function doesn't exist, calculate manually
-      console.log('Database function not available, calculating manually...')
+      // Database function not available, calculating manually
       
       // Get all accounts for the user
       const accounts = await query<AccountRow>(`

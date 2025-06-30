@@ -82,7 +82,7 @@ function transformRowToTransactionWithRelations(row: TransactionRowWithRelations
     date: parseDateFromDatabase(row.date),
     status: row.status,
     type: row.type,
-    amount: row.amount,
+    amount: Number(row.amount) || 0,
     accountId: row.account_id || undefined,
     payeeId: row.payee_id || undefined,
     categoryId: row.category_id || undefined,

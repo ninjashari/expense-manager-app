@@ -65,12 +65,14 @@ interface CustomReportBuilderProps {
  * @returns Formatted currency string
  */
 function formatCurrency(amount: number): string {
+  // Ensure amount is a valid number
+  const validAmount = Number(amount) || 0
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount)
+  }).format(validAmount)
 }
 
 /**
@@ -112,7 +114,7 @@ function groupTransactions(transactions: Transaction[], groupBy: GroupByOption):
       groupKey: 'all',
       groupLabel: 'All Transactions',
       transactions,
-      totalAmount: transactions.reduce((sum, t) => sum + t.amount, 0),
+      totalAmount: transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
       count: transactions.length
     }]
   }
@@ -162,7 +164,7 @@ function groupTransactions(transactions: Transaction[], groupBy: GroupByOption):
       groupKey,
       groupLabel,
       transactions: groupTransactions,
-      totalAmount: groupTransactions.reduce((sum, t) => sum + t.amount, 0),
+      totalAmount: groupTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
       count: groupTransactions.length
     }
   }).sort((a, b) => b.totalAmount - a.totalAmount)
@@ -450,13 +452,13 @@ export function CustomReportBuilder({
     totalTransactions: filteredTransactions.length,
     totalIncome: filteredTransactions
       .filter(t => t.type === 'deposit')
-      .reduce((sum, t) => sum + t.amount, 0),
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
     totalExpenses: filteredTransactions
       .filter(t => t.type === 'withdrawal')
-      .reduce((sum, t) => sum + t.amount, 0),
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
     totalTransfers: filteredTransactions
       .filter(t => t.type === 'transfer')
-      .reduce((sum, t) => sum + t.amount, 0)
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
   }
 
   return (

@@ -179,9 +179,7 @@ export function TransactionImport({
    * @returns Array of parsed transactions
    */
   const parseCSVContent = useCallback((csvContent: string): ParsedTransaction[] => {
-    console.log(`📁 Starting CSV parsing...`)
     const lines = csvContent.split('\n').filter(line => line.trim())
-    console.log(`📄 Found ${lines.length} lines in CSV`)
     
     if (lines.length < 2) {
       throw new Error('CSV file must have at least a header and one data row')
@@ -189,29 +187,22 @@ export function TransactionImport({
 
     const headerLine = lines[0]
     const headers = parseCSVLine(headerLine).map(h => h.replace(/^"|"$/g, ''))
-    console.log(`📋 CSV Headers:`, headers)
 
     const transactions: ParsedTransaction[] = []
 
     for (let i = 1; i < lines.length; i++) {
-      console.log(`\n📝 Processing line ${i}: "${lines[i]}"`)
-      
       const values = parseCSVLine(lines[i]).map(v => v.replace(/^"|"$/g, ''))
-      console.log(`🔧 Parsed values:`, values)
       
       const row: Partial<CSVRow> = {}
       
       headers.forEach((header, index) => {
         row[header as keyof CSVRow] = values[index] || ''
       })
-      
-      console.log(`📊 Mapped row data:`, row)
 
       const validationErrors: string[] = []
       
       // Parse date
       const parsedDate = parseDate(row.Date || '')
-      console.log(`📅 Date parsing: "${row.Date}" -> ${parsedDate}`)
       if (!parsedDate) {
         validationErrors.push('Invalid date format')
       }
@@ -219,11 +210,9 @@ export function TransactionImport({
       // Parse amounts
       const withdrawal = parseFloat(row.Withdrawal || '0') || 0
       const deposit = parseFloat(row.Deposit || '0') || 0
-      console.log(`💰 Amount parsing: Withdrawal="${row.Withdrawal}" -> ${withdrawal}, Deposit="${row.Deposit}" -> ${deposit}`)
       
       // Skip amount validation for transfer transactions (they'll be validated later)
       const isTransferTransaction = (row.Payee || '').startsWith('>')
-      console.log(`🔄 Transfer check: Payee="${row.Payee}" -> isTransfer=${isTransferTransaction}`)
       
       if (!isTransferTransaction) {
         if (withdrawal === 0 && deposit === 0) {
@@ -252,15 +241,12 @@ export function TransactionImport({
         // Clear withdrawal/deposit for transfers to avoid validation error
         finalWithdrawal = 0
         finalDeposit = 0
-        console.log(`🔄 Transfer transaction: amount=${amount}, to="${transferToAccount}"`)
       } else if (withdrawal > 0) {
         type = 'withdrawal'
         amount = withdrawal
-        console.log(`💸 Withdrawal transaction: amount=${amount}`)
       } else {
         type = 'deposit'
         amount = deposit
-        console.log(`💵 Deposit transaction: amount=${amount}`)
       }
 
       const transaction: ParsedTransaction = {
@@ -279,18 +265,8 @@ export function TransactionImport({
         transferToAccount: transferToAccount
       }
 
-      console.log(`✅ Parsed transaction:`, transaction)
       transactions.push(transaction)
     }
-
-    console.log(`🎉 CSV parsing completed. Total transactions: ${transactions.length}`)
-    console.log(`📊 Summary:`, {
-      total: transactions.length,
-      transfers: transactions.filter(t => t.isTransfer).length,
-      deposits: transactions.filter(t => t.type === 'deposit' && !t.isTransfer).length,
-      withdrawals: transactions.filter(t => t.type === 'withdrawal' && !t.isTransfer).length,
-      withErrors: transactions.filter(t => t.validationErrors.length > 0).length
-    })
 
     return transactions
   }, [parseDate, parseCSVLine])
@@ -366,20 +342,7 @@ export function TransactionImport({
       return
     }
 
-    console.log(`🚀 Starting transaction import process...`)
-    console.log(`📊 Import summary:`, {
-      totalTransactions: parsedTransactions.length,
-      accounts: accounts.length,
-      categories: categories.length,
-      payees: payees.length,
-      userId: userId,
-      options: importOptions
-    })
-    
-    console.log(`📋 Available entities:`)
-    console.log(`  Accounts:`, accounts.map(a => ({ id: a.id, name: a.name })))
-    console.log(`  Categories:`, categories.map(c => ({ id: c.id, name: c.name, displayName: c.displayName })))
-    console.log(`  Payees:`, payees.map(p => ({ id: p.id, name: p.name, displayName: p.displayName })))
+
 
     setIsProcessing(true)
     setProgress(0)
@@ -395,15 +358,11 @@ export function TransactionImport({
         importOptions,
         (completed, total) => {
           setProgress((completed / total) * 100)
-          console.log(`📈 Progress: ${completed}/${total} (${Math.round((completed / total) * 100)}%)`)
         }
       )
 
-      console.log(`🎉 Import completed. Results:`, results)
-
       // Generate summary statistics
       const summary = generateImportSummary(results)
-      console.log(`📊 Import summary:`, summary)
 
       if (summary.successful > 0) {
         let message = `Successfully imported ${summary.successful} transactions`
@@ -422,7 +381,6 @@ export function TransactionImport({
       }
 
       if (summary.failed > 0) {
-        console.log(`❌ Failed transactions:`, results.filter(r => !r.success))
         toast.warning(`${summary.failed} transactions failed to import`)
       }
       

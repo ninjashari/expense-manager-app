@@ -58,13 +58,13 @@ function transformRowToBill(row: CreditCardBillRow): CreditCardBill {
     billPeriodEnd: new Date(row.bill_period_end),
     billGenerationDate: new Date(row.bill_generation_date),
     paymentDueDate: new Date(row.payment_due_date),
-    previousBalance: row.previous_balance,
-    totalSpending: row.total_spending,
-    totalPayments: row.total_payments,
-    billAmount: row.bill_amount,
-    minimumPayment: row.minimum_payment,
+    previousBalance: Number(row.previous_balance) || 0,
+    totalSpending: Number(row.total_spending) || 0,
+    totalPayments: Number(row.total_payments) || 0,
+    billAmount: Number(row.bill_amount) || 0,
+    minimumPayment: Number(row.minimum_payment) || 0,
     status: row.status,
-    paidAmount: row.paid_amount,
+    paidAmount: Number(row.paid_amount) || 0,
     paidDate: row.paid_date ? new Date(row.paid_date) : undefined,
     transactionIds: row.transaction_ids,
     paymentTransactionIds: row.payment_transaction_ids,
@@ -378,17 +378,7 @@ export async function generateBillForAccount(
         ? Math.max(0, previousBillResult.rows[0].bill_amount - previousBillResult.rows[0].paid_amount)
         : Math.max(0, Math.abs(account.current_balance)) // Use current balance as starting point
         
-      // Debug logging for previous balance calculation
-      console.log('Previous balance calculation:', {
-        hasPreviousBill: previousBillResult.rows.length > 0,
-        accountCurrentBalance: account.current_balance,
-        calculatedPreviousBalance: previousBalance,
-        previousBillData: previousBillResult.rows.length > 0 ? {
-          billAmount: previousBillResult.rows[0].bill_amount,
-          paidAmount: previousBillResult.rows[0].paid_amount,
-          unpaidAmount: previousBillResult.rows[0].bill_amount - previousBillResult.rows[0].paid_amount
-        } : null
-      })
+
 
       // Get transactions for the billing period
       const transactionsResult = await client.query(
@@ -427,17 +417,7 @@ export async function generateBillForAccount(
       const billAmount = Math.max(0, previousBalance + totalSpending - totalPayments)
       const minimumPayment = billAmount > 0 ? calculateMinimumPayment(billAmount) : 0
       
-      // Debug logging for bill calculation
-      console.log('Bill calculation debug:', {
-        accountId,
-        previousBalance,
-        totalSpending,
-        totalPayments,
-        calculatedBillAmount: previousBalance + totalSpending - totalPayments,
-        finalBillAmount: billAmount,
-        minimumPayment,
-        transactionCount: transactions.length
-      })
+
 
       // Calculate bill generation and due dates
       const billGenerationDate = new Date(billPeriodEnd)
