@@ -5,7 +5,7 @@
  */
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
@@ -102,6 +102,24 @@ export function AccountForm({ account, onSubmit, onCancel, isLoading = false }: 
       setSubmitError(errorMessage)
     }
   }
+
+  useEffect(() => {
+    if (account) {
+      form.reset({
+        name: account.name,
+        type: account.type,
+        status: account.status,
+        initialBalance: account.initialBalance,
+        currency: account.currency,
+        accountOpeningDate: account.accountOpeningDate,
+        notes: account.notes,
+        creditLimit: account.creditCardInfo?.creditLimit || 0,
+        paymentDueDate: account.creditCardInfo?.paymentDueDate || 1,
+        billGenerationDate: account.creditCardInfo?.billGenerationDate || 1,
+        currentBillPaid: account.creditCardInfo?.currentBillPaid || false,
+      })
+    }
+  }, [account, form])
 
   return (
     <Card className="w-full max-w-2xl">

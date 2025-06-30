@@ -16,34 +16,72 @@ import { AccountImport } from '@/components/accounts/account-import'
 
 import { Account } from '@/types/account'
 import { AccountFormData } from '@/lib/validations/account'
+import { formatDateForDatabase, parseDateFromDatabase } from '@/lib/utils'
 // Accounts API functions
 const getAccounts = async (): Promise<Account[]> => {
   const res = await fetch('/api/accounts')
   if (!res.ok) throw new Error('Failed to fetch accounts')
   const data = await res.json()
-  return data.accounts
+  
+  // Parse date strings back to Date objects
+  return data.accounts.map((account: Account & { 
+    accountOpeningDate: string; 
+    createdAt: string; 
+    updatedAt: string; 
+  }) => ({
+    ...account,
+    accountOpeningDate: parseDateFromDatabase(account.accountOpeningDate),
+    createdAt: new Date(account.createdAt),
+    updatedAt: new Date(account.updatedAt)
+  }))
 }
 
 const createAccount = async (formData: AccountFormData): Promise<Account> => {
+  // Format the date properly before sending to API
+  const requestData = {
+    ...formData,
+    accountOpeningDate: formatDateForDatabase(formData.accountOpeningDate)
+  }
+  
   const res = await fetch('/api/accounts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(formData)
+    body: JSON.stringify(requestData)
   })
   if (!res.ok) throw new Error('Failed to create account')
   const data = await res.json()
-  return data.account
+  
+  // Parse date strings back to Date objects
+  return {
+    ...data.account,
+    accountOpeningDate: parseDateFromDatabase(data.account.accountOpeningDate),
+    createdAt: new Date(data.account.createdAt),
+    updatedAt: new Date(data.account.updatedAt)
+  }
 }
 
 const updateAccount = async (id: string, formData: AccountFormData): Promise<Account> => {
+  // Format the date properly before sending to API
+  const requestData = {
+    ...formData,
+    accountOpeningDate: formatDateForDatabase(formData.accountOpeningDate)
+  }
+  
   const res = await fetch(`/api/accounts/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(formData)
+    body: JSON.stringify(requestData)
   })
   if (!res.ok) throw new Error('Failed to update account')
   const data = await res.json()
-  return data.account
+  
+  // Parse date strings back to Date objects
+  return {
+    ...data.account,
+    accountOpeningDate: parseDateFromDatabase(data.account.accountOpeningDate),
+    createdAt: new Date(data.account.createdAt),
+    updatedAt: new Date(data.account.updatedAt)
+  }
 }
 
 const deleteAccount = async (id: string): Promise<boolean> => {

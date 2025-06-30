@@ -18,16 +18,45 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatDateForDatabase(date: Date | string): string {
   // Handle string input (ISO date string from JSON serialization)
-  const dateObj = typeof date === 'string' ? new Date(date) : date
+  if (typeof date === 'string') {
+    // If it's already in YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date
+    }
+    
+    // If it's an ISO string, parse it carefully to avoid timezone issues
+    if (date.includes('T') || date.includes('Z')) {
+      // Extract date part from ISO string to avoid timezone conversion
+      const datePart = date.split('T')[0]
+      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        return datePart
+      }
+    }
+    
+    // Fallback to Date parsing with timezone correction
+    const dateObj = new Date(date)
+    if (isNaN(dateObj.getTime())) {
+      throw new Error('Invalid date string provided to formatDateForDatabase')
+    }
+    
+    // Get the timezone offset and adjust for local date
+    const timezoneOffset = dateObj.getTimezoneOffset()
+    const localDate = new Date(dateObj.getTime() - (timezoneOffset * 60 * 1000))
+    
+    const year = localDate.getUTCFullYear()
+    const month = String(localDate.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(localDate.getUTCDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
   
-  // Validate that we have a valid date
-  if (!dateObj || isNaN(dateObj.getTime())) {
+  // Handle Date object input
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
     throw new Error('Invalid date provided to formatDateForDatabase')
   }
   
-  const year = dateObj.getFullYear()
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0')
-  const day = String(dateObj.getDate()).padStart(2, '0')
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
 
@@ -45,8 +74,27 @@ export function parseDateFromDatabase(dateInput: string | Date): Date {
   
   // If it's a string, parse it
   if (typeof dateInput === 'string') {
-    const [year, month, day] = dateInput.split('-').map(Number)
-    return new Date(year, month - 1, day)
+    // Handle YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+      const [year, month, day] = dateInput.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+    
+    // Handle ISO date strings by extracting date part
+    if (dateInput.includes('T') || dateInput.includes('Z')) {
+      const datePart = dateInput.split('T')[0]
+      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        const [year, month, day] = datePart.split('-').map(Number)
+        return new Date(year, month - 1, day)
+      }
+    }
+    
+    // Fallback to regular Date parsing
+    const date = new Date(dateInput)
+    if (isNaN(date.getTime())) {
+      throw new Error(`Invalid date string: ${dateInput}`)
+    }
+    return date
   }
   
   // Handle unexpected input types

@@ -8,6 +8,7 @@ import { Account } from '@/types/account'
 import { Category } from '@/types/category'
 import { Payee } from '@/types/payee'
 import { Transaction, TransactionFormData } from '@/types/transaction'
+import { formatDateForDatabase } from '@/lib/utils'
 
 /**
  * Interface for CSV transaction data structure
@@ -148,7 +149,7 @@ async function createAccountViaAPI(accountName: string): Promise<Account> {
       status: 'active',
       initialBalance: 0,
       currency: 'INR',
-      accountOpeningDate: new Date(),
+      accountOpeningDate: formatDateForDatabase(new Date()),
       notes: `Auto-created during transaction import`
     })
   })

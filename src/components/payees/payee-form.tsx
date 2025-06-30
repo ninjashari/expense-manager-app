@@ -7,6 +7,7 @@
 "use client"
 
 import { useForm } from "react-hook-form"
+import { useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,6 +68,17 @@ export function PayeeForm({ payee, categories, onSubmit, onCancel, isLoading = f
   }
 
   const isEditing = !!payee
+
+  useEffect(() => {
+    if (payee) {
+      form.reset({
+        displayName: payee.displayName,
+        description: payee.description,
+        category: payee.category,
+        isActive: payee.isActive,
+      })
+    }
+  }, [payee, form])
 
   return (
     <Card className="w-full max-w-2xl">

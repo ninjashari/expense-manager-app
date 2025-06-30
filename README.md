@@ -1,15 +1,15 @@
 # 💰 Expense Manager App
 
-A modern, full-featured personal expense management application built with Next.js, TypeScript, and Supabase. Track your income, expenses, and transfers across multiple accounts with powerful filtering, categorization, and advanced analytics features.
+A modern, full-featured personal expense management application built with Next.js, TypeScript, and PostgreSQL. Track your income, expenses, and transfers across multiple accounts with powerful filtering, categorization, and advanced analytics features.
 
 [![Next.js](https://img.shields.io/badge/Next.js-15.3.4-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Supabase](https://img.shields.io/badge/Supabase-Latest-green?style=flat-square&logo=supabase)](https://supabase.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Latest-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.1.10-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-20.19.2-green?style=flat-square&logo=node.js)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **🚀 Live Demo:** [View Demo](https://moneyx-b7vn.onrender.com)
+> **🚀 Recently Migrated:** Successfully migrated from Supabase to PostgreSQL with enhanced performance and security
 
 ## Table of Contents
 
@@ -21,11 +21,13 @@ A modern, full-featured personal expense management application built with Next.
 - [Usage Guide](#-usage-guide)
 - [Available Scripts](#-available-scripts)
 - [Environment Variables](#-environment-variables)
+- [Database Setup](#-database-setup)
+- [API Routes](#-api-routes)
 - [Deployment](#-deployment)
+- [Recent Updates](#-recent-updates)
 - [Contributing](#-contributing)
 - [License](#-license)
-- [Acknowledgments](#-acknowledgments)
-- [Support & Documentation](#-support--documentation)
+- [Support](#-support)
 
 ## ✨ Features
 
@@ -38,8 +40,9 @@ A modern, full-featured personal expense management application built with Next.
   - Current bill status tracking (paid/unpaid)
   - Credit usage visualization with progress bars
 - **Real-time Balance Updates**: Automatic balance calculations with transaction processing
-- **Smart Sorting**: Accounts are automatically sorted by type first, then alphabetically by name for organized navigation
+- **Smart Sorting**: Accounts are automatically sorted by type first, then alphabetically by name
 - **Account Status Management**: Active, inactive, and closed account states
+- **Fixed Date Handling**: Resolved timezone issues for accurate account opening dates
 
 ### 💸 Transaction Management
 - **Three Transaction Types**: 
@@ -56,8 +59,8 @@ A modern, full-featured personal expense management application built with Next.
 - **Bulk CSV Import**: Import transactions from CSV files with intelligent parsing and validation
 - **Auto-Entity Creation**: Automatically create missing categories and payees during import
 
-### 💳 Specialized Credit Card Features
-- **Comprehensive Bill Management**: 
+### 💳 Credit Card Bill Management
+- **Comprehensive Bill Tracking**: 
   - Automatic bill generation based on billing cycles
   - Bill status tracking (generated, paid, overdue, partial)
   - Payment tracking with partial payment support
@@ -72,17 +75,14 @@ A modern, full-featured personal expense management application built with Next.
 - **Payment Integration**: Mark bills as paid with transaction linking
 
 ### 📊 Advanced Reports & Analytics
-- **Custom Report Builder**: 
-  - Drag-and-drop interface for creating custom reports
-  - Advanced filtering by accounts, categories, payees, and date ranges
-  - Multiple chart types (bar, line, pie, area charts)
-- **Financial Dashboards**: 
-  - Real-time income vs expense tracking
+- **Interactive Dashboard**: 
+  - Real-time income vs expense tracking for current financial year
   - Monthly and yearly trend analysis
   - Account balance summaries with change indicators
-- **Visual Analytics**: 
-  - Interactive charts with hover details
-  - Responsive chart layouts for all device sizes
+  - Visual charts with responsive design
+- **Custom Report Builder**: 
+  - Advanced filtering by accounts, categories, payees, and date ranges
+  - Multiple chart types (bar, line, pie, area charts)
   - Export capabilities for reports and data
 - **Performance Metrics**: 
   - Net income calculations
@@ -106,29 +106,31 @@ A modern, full-featured personal expense management application built with Next.
   - Detailed error messages for failed entries
   - Batch processing with progress indicators
 
-### 🔐 Security & Privacy
-- **User Authentication**: Secure login with Supabase Auth
-- **Row Level Security**: Database-level data isolation between users
-- **Protected Routes**: Secure access to all sensitive financial data
-- **Data Encryption**: All sensitive data encrypted at rest
-- **Session Management**: Automatic session handling with secure token management
+### 🔐 Security & Authentication
+- **JWT Authentication**: Secure token-based authentication with HTTP-only cookies
+- **Password Security**: bcryptjs encryption for secure password storage
+- **Protected Routes**: Comprehensive route protection for all sensitive data
+- **Session Management**: Automatic session handling with secure token refresh
+- **Server-side Validation**: All inputs validated on both client and server
+- **Error Boundaries**: Graceful error handling throughout the application
 
 ### 🎨 Modern UI/UX
 - **Responsive Design**: Seamless experience on desktop, tablet, and mobile devices
-- **Dark/Light Mode**: Comfortable viewing in any lighting condition (system preference)
 - **Accessible Design**: Built with accessibility best practices and ARIA support
 - **Intuitive Interface**: Clean, modern design with excellent user experience
 - **Enhanced Calendar**: Month and year selection with keyboard navigation
 - **Loading States**: Smooth loading indicators and skeleton UI
 - **Toast Notifications**: Real-time feedback for all user actions
+- **Form Validation**: Advanced form validation with Zod schemas and real-time feedback
 
 ### 🛠️ Advanced Technical Features
+- **PostgreSQL Integration**: High-performance database with custom functions
+- **API Layer**: Complete RESTful API with proper error handling
 - **Real-time Updates**: Automatic balance recalculation on transaction changes
 - **Database Functions**: Custom PostgreSQL functions for complex calculations
 - **Optimized Queries**: Efficient database queries with proper indexing
 - **Type Safety**: Full TypeScript implementation with comprehensive type definitions
-- **Form Validation**: Advanced form validation with Zod schemas
-- **Error Boundaries**: Graceful error handling throughout the application
+- **Connection Pooling**: Optimized database connections for better performance
 
 ## 📸 Screenshots
 
@@ -159,7 +161,7 @@ A modern, full-featured personal expense management application built with Next.
 
 - **Node.js** 20.19.2 or higher
 - **npm** or **yarn** package manager
-- **Supabase** account and project
+- **PostgreSQL** 12+ database server
 
 ### Installation
 
@@ -168,43 +170,41 @@ A modern, full-featured personal expense management application built with Next.
    git clone https://github.com/your-username/expense-manager-app.git
    cd expense-manager-app
    ```
-   
-   Or using GitHub CLI:
-   ```bash
-   gh repo clone your-username/expense-manager-app
-   ```
 
 2. **Install dependencies**
    ```bash
    npm install
-   # or
-   yarn install
    ```
 
-3. **Set up environment variables**
+3. **Set up PostgreSQL database**
+   ```bash
+   # Create database and user
+   sudo -u postgres psql
+   CREATE DATABASE expense_manager;
+   CREATE USER expense_user WITH PASSWORD 'your_secure_password';
+   GRANT ALL PRIVILEGES ON DATABASE expense_manager TO expense_user;
+   ```
+
+4. **Set up environment variables**
    
    Create a `.env.local` file in the root directory:
    ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   DATABASE_URL=postgresql://expense_user:your_secure_password@localhost:5432/expense_manager
+   JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters-long
+   NODE_ENV=development
    ```
 
-4. **Set up the database**
-   
-   Run the SQL schema in your Supabase SQL editor:
+5. **Initialize database schema**
    ```bash
-   # Copy the contents of src/lib/database-schema.sql
-   # and execute it in your Supabase project's SQL editor
+   npm run db:setup
    ```
 
-5. **Start the development server**
+6. **Start the development server**
    ```bash
    npm run dev
-   # or
-   yarn dev
    ```
 
-6. **Open your browser**
+7. **Open your browser**
    
    Navigate to [http://localhost:3000](http://localhost:3000)
 
@@ -218,9 +218,14 @@ A modern, full-featured personal expense management application built with Next.
 - **[Shadcn/ui](https://ui.shadcn.com/)** - Beautiful, customizable component library
 
 ### Backend & Database
-- **[Supabase](https://supabase.com/)** - Backend-as-a-Service with PostgreSQL
-- **[PostgreSQL](https://www.postgresql.org/)** - Robust relational database with custom functions
-- **Row Level Security** - Database-level security policies for data isolation
+- **[PostgreSQL](https://www.postgresql.org/)** - Advanced relational database with custom functions
+- **[Node.js](https://nodejs.org/)** - JavaScript runtime with connection pooling
+- **[pg](https://node-postgres.com/)** - PostgreSQL client for Node.js
+
+### Authentication & Security
+- **[JSON Web Tokens](https://jwt.io/)** - Secure token-based authentication
+- **[bcryptjs](https://github.com/dcodeIO/bcrypt.js/)** - Password hashing and security
+- **HTTP-only Cookies** - Secure token storage
 
 ### Form Management & Validation
 - **[React Hook Form](https://react-hook-form.com/)** - Performant forms with easy validation
@@ -230,7 +235,7 @@ A modern, full-featured personal expense management application built with Next.
 ### Data Visualization & Analytics
 - **[Recharts](https://recharts.org/)** - Powerful chart library for React
 - **[date-fns](https://date-fns.org/)** - Modern JavaScript date utility library
-- **Custom Report Builder** - Advanced reporting with drag-and-drop interface
+- **Custom Report Builder** - Advanced reporting with interactive charts
 
 ### UI Components & Icons
 - **[Lucide React](https://lucide.dev/)** - Beautiful & consistent icon set
@@ -249,12 +254,19 @@ expense-manager-app/
 ├── src/
 │   ├── app/                    # Next.js App Router pages
 │   │   ├── accounts/          # Account management page
-│   │   ├── categories/        # Category management page with CSV import
-│   │   ├── credit-cards/      # Credit card bill management page
+│   │   ├── categories/        # Category management with CSV import
+│   │   ├── credit-cards/      # Credit card bill management
 │   │   ├── dashboard/         # Main dashboard with analytics
-│   │   ├── payees/           # Payee management page with CSV import
+│   │   ├── payees/           # Payee management with CSV import
 │   │   ├── reports/          # Advanced reports and analytics
-│   │   └── transactions/     # Transaction management with import
+│   │   ├── transactions/     # Transaction management with import
+│   │   └── api/              # API routes for all entities
+│   │       ├── accounts/     # Account CRUD operations
+│   │       ├── auth/         # Authentication endpoints
+│   │       ├── categories/   # Category management API
+│   │       ├── credit-card-bills/ # Credit card bill API
+│   │       ├── payees/       # Payee management API
+│   │       └── transactions/ # Transaction CRUD operations
 │   ├── components/            # Reusable React components
 │   │   ├── accounts/         # Account-specific components
 │   │   ├── auth/             # Authentication components
@@ -268,7 +280,11 @@ expense-manager-app/
 │   ├── hooks/                # Custom React hooks for data management
 │   ├── lib/                  # Utility libraries and configurations
 │   │   ├── services/         # API service functions for all entities
-│   │   └── validations/      # Zod validation schemas
+│   │   ├── validations/      # Zod validation schemas
+│   │   ├── auth-client.ts    # Client-side authentication utilities
+│   │   ├── auth-server.ts    # Server-side authentication
+│   │   ├── database.ts       # PostgreSQL connection and utilities
+│   │   └── utils.ts          # General utility functions
 │   └── types/                # TypeScript type definitions
 │       ├── account.ts        # Account and credit card types
 │       ├── category.ts       # Category management types
@@ -276,21 +292,24 @@ expense-manager-app/
 │       ├── payee.ts          # Payee management types
 │       ├── report.ts         # Report and analytics types
 │       └── transaction.ts    # Transaction types with import support
+├── scripts/                  # Database setup and utility scripts
+│   └── setup-database.js    # Database schema initialization
 ├── public/                   # Static assets and sample files
-└── docs/                     # Documentation files
+├── screens/                  # Screenshot images for documentation
+└── docs/                     # Additional documentation files
 ```
 
 ## 🎯 Usage Guide
 
-### Managing Accounts
+### Account Management
 1. Navigate to **Accounts** page
 2. Click **Add Account** to create new accounts
 3. Configure account type, currency, and initial balance
 4. For **credit cards**, set credit limits, bill generation dates, and payment due dates
 5. View real-time credit usage with visual progress indicators
-6. Accounts are automatically sorted by type, then alphabetically for organized browsing
+6. **Fixed Issue**: Account opening dates now save correctly without timezone-related date shifts
 
-### Recording Transactions
+### Transaction Management
 1. Go to **Transactions** page
 2. Click **Add Transaction**
 3. Choose transaction type:
@@ -298,79 +317,25 @@ expense-manager-app/
    - **Withdrawal**: Money going out (expenses, purchases, etc.)
    - **Transfer**: Moving money between your accounts
 4. Fill in details including payee, category, and notes
-5. Categories and payees can be created on-the-fly during transaction entry
+5. Use advanced filtering to find specific transactions
 
-### Advanced Filtering & Search
-- Use the **search bar** to find specific transactions by description or payee
-- Filter by **transaction type** (deposit, withdrawal, transfer)
-- Filter by **status** (completed, pending, cancelled)
-- Use **multi-select accounts filter** to view transactions from specific accounts
-- Apply **date range filters** for historical analysis
-
-### Categories & Payees Management
-- Create **categories** to organize your expenses with descriptions
-- Add **payees** to track who you transact with
-- Use **CSV import** for bulk creation of categories and payees
-- Set active/inactive status for better organization
-- Auto-complete suggestions when entering transactions
-
-### CSV Import Capabilities
-
-#### Transaction Import
-1. Navigate to **Transactions** page
-2. Click **Import CSV** button
-3. Select your transaction CSV file
-4. Review the import preview showing:
-   - Valid transactions to be imported
-   - Transfer transactions (detected by payee starting with ">")
-   - Validation errors with detailed messages
-5. Configure import options:
-   - Create missing categories automatically
-   - Create missing payees automatically
-   - Skip duplicate transactions
-6. Monitor real-time progress during import
-7. Review comprehensive import results
-
-#### Category & Payee Import
-1. Navigate to **Categories** or **Payees** page
-2. Click **Import CSV** button
-3. Download sample CSV template if needed
-4. Select your CSV file (must have .csv extension)
-5. Review the import preview showing:
-   - Valid entries to be imported
-   - Duplicate entries (will be skipped)
-   - Invalid entries with error messages
-6. Click **Import** to process the file
-7. Monitor progress with real-time progress bar
-8. Review import results summary
-
-**CSV Format Requirements:**
-- **Categories**: 2-50 characters, letters, numbers, spaces, and common punctuation
-- **Payees**: 2-100 characters, similar character restrictions
-- **Transactions**: Support for complex CSV with Date (DD-MM-YYYY), Account, Payee, Category, Withdrawal, Deposit columns
-- Optional header rows are automatically detected and skipped
+### CSV Import Features
+- **Transaction Import**: Support for complex CSV formats with intelligent parsing
+- **Category/Payee Import**: Bulk creation with validation and duplicate detection
+- **Progress Tracking**: Real-time import progress with detailed error reporting
+- **Sample Templates**: Download CSV templates for proper formatting
 
 ### Credit Card Management
-1. Create credit card accounts with credit limits and billing dates
+1. Create credit card accounts with proper limits and billing cycles
 2. View **Credit Cards** page for comprehensive bill management
-3. Monitor credit usage with visual progress indicators
-4. Track upcoming bill generation and payment due dates
-5. View bill history with payment tracking
-6. Mark bills as paid with automatic status updates
-7. Get alerts for overdue and upcoming payments
+3. Track credit usage, upcoming bills, and payment due dates
+4. Mark bills as paid and view payment history
 
-### Advanced Reports & Analytics
-1. Navigate to **Reports** page
-2. Use the **Custom Report Builder** to:
-   - Select date ranges for analysis
-   - Filter by specific accounts, categories, or payees
-   - Choose from multiple chart types (bar, line, pie, area)
-   - Create income vs expense comparisons
-3. View **Dashboard** for quick financial overview:
-   - Total balance across all accounts
-   - Monthly income and expense summaries
-   - Recent transaction highlights
-   - Interactive charts with trend analysis
+### Reports & Analytics
+1. Navigate to **Reports** page for advanced analytics
+2. Use **Dashboard** for quick financial overview
+3. Create custom reports with multiple chart types
+4. Filter by date ranges, accounts, categories, and payees
 
 ## 🔧 Available Scripts
 
@@ -381,6 +346,9 @@ npm run build        # Build optimized production bundle
 npm run start        # Start production server
 npm run lint         # Run ESLint for code quality
 
+# Database
+npm run db:setup     # Initialize database schema
+
 # Type checking
 npx tsc --noEmit     # Check TypeScript types without compilation
 ```
@@ -390,38 +358,179 @@ npx tsc --noEmit     # Check TypeScript types without compilation
 Create a `.env.local` file with the following variables:
 
 ```env
-# Supabase Configuration (Required)
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+# Database Configuration (Required)
+DATABASE_URL=postgresql://username:password@localhost:5432/expense_manager
+
+# Authentication (Required)
+JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters-long
+
+# Environment
+NODE_ENV=development
 
 # Optional: Custom configuration
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
+## 🗄️ Database Setup
+
+### Manual Setup
+
+1. **Install PostgreSQL** (if not already installed)
+   ```bash
+   # Ubuntu/Debian
+   sudo apt update
+   sudo apt install postgresql postgresql-contrib
+   
+   # macOS with Homebrew
+   brew install postgresql
+   brew services start postgresql
+   
+   # Windows - Download from postgresql.org
+   ```
+
+2. **Create Database and User**
+   ```bash
+   sudo -u postgres psql
+   ```
+   ```sql
+   CREATE DATABASE expense_manager;
+   CREATE USER expense_user WITH PASSWORD 'your_secure_password';
+   GRANT ALL PRIVILEGES ON DATABASE expense_manager TO expense_user;
+   \q
+   ```
+
+3. **Run Database Setup Script**
+   ```bash
+   npm run db:setup
+   ```
+
+### Docker Setup (Alternative)
+
+```bash
+# Run PostgreSQL in Docker
+docker run --name expense-postgres \
+  -e POSTGRES_DB=expense_manager \
+  -e POSTGRES_USER=expense_user \
+  -e POSTGRES_PASSWORD=your_secure_password \
+  -p 5432:5432 -d postgres:14
+
+# Initialize schema
+npm run db:setup
+```
+
+## 🌐 API Routes
+
+### Authentication
+- `POST /api/auth/signup` - User registration
+- `POST /api/auth/signin` - User login
+- `POST /api/auth/signout` - User logout
+- `GET /api/auth/session` - Get current session
+
+### Accounts
+- `GET /api/accounts` - List all accounts
+- `POST /api/accounts` - Create new account
+- `PUT /api/accounts/[id]` - Update account
+- `DELETE /api/accounts/[id]` - Delete account
+- `POST /api/accounts/recalculate-balances` - Recalculate account balances
+
+### Transactions
+- `GET /api/transactions` - List transactions with filtering
+- `POST /api/transactions` - Create new transaction
+- `PUT /api/transactions/[id]` - Update transaction
+- `DELETE /api/transactions/[id]` - Delete transaction
+
+### Categories
+- `GET /api/categories` - List all categories
+- `POST /api/categories` - Create new category
+- `PUT /api/categories/[id]` - Update category
+- `DELETE /api/categories/[id]` - Delete category
+
+### Payees
+- `GET /api/payees` - List all payees
+- `POST /api/payees` - Create new payee
+- `PUT /api/payees/[id]` - Update payee
+- `DELETE /api/payees/[id]` - Delete payee
+
+### Credit Card Bills
+- `GET /api/credit-card-bills` - List credit card bills
+- `POST /api/credit-card-bills` - Create new bill
+- `PUT /api/credit-card-bills/[id]` - Update bill
+- `POST /api/credit-card-bills/[id]/payment` - Mark bill as paid
+
+### Health Check
+- `GET /api/health` - Application health status
+
 ## 🚀 Deployment
 
-### Deploy on Vercel (Recommended)
+### Production Environment Setup
+
+1. **Database Configuration**
+   ```env
+   DATABASE_URL=postgresql://user:password@your-db-host:5432/expense_manager
+   JWT_SECRET=your-production-jwt-secret-key
+   NODE_ENV=production
+   ```
+
+2. **Build Application**
+   ```bash
+   npm run build
+   ```
+
+3. **Start Production Server**
+   ```bash
+   npm run start
+   ```
+
+### Deploy on Vercel
 
 1. Push your code to GitHub
-2. Connect your repository to [Vercel](https://vercel.com)
+2. Connect repository to [Vercel](https://vercel.com)
 3. Set environment variables in Vercel dashboard
-4. Deploy automatically on every push
-5. Configure Supabase URL in production environment
+4. Configure PostgreSQL database (Vercel Postgres, Railway, etc.)
+5. Deploy automatically on every push
 
-### Deploy on Netlify
+### Deploy on Railway
 
-1. Build the application: `npm run build`
-2. Deploy the `out` folder to Netlify
-3. Configure environment variables in Netlify dashboard
-4. Set up continuous deployment from GitHub
+1. Connect to [Railway](https://railway.app)
+2. Create PostgreSQL database service
+3. Deploy Next.js application
+4. Configure environment variables
+5. Set up custom domain if needed
 
 ### Self-Hosted Deployment
 
-1. Build the application: `npm run build`
-2. Start the production server: `npm run start`
-3. Configure reverse proxy (nginx/Apache) for domain routing
-4. Set up SSL certificates for secure connections
-5. Configure database connection for production
+1. Set up PostgreSQL server
+2. Configure reverse proxy (nginx/Apache)
+3. Set up SSL certificates
+4. Deploy with PM2 or Docker
+5. Configure automatic backups
+
+## 🆕 Recent Updates & Features
+
+### Version 2.0 - PostgreSQL Migration ✅
+- **Complete Migration**: Successfully migrated from Supabase to PostgreSQL
+- **Enhanced Performance**: Connection pooling and optimized queries
+- **Improved Security**: JWT authentication with HTTP-only cookies
+- **API Layer**: Complete RESTful API with proper error handling
+- **Build Optimization**: Zero build errors, optimized bundle sizes
+
+### Bug Fixes & Improvements
+- **Fixed Date Handling**: Resolved account opening date timezone issues
+- **Enhanced Validation**: Improved date parsing and validation
+- **Real-time Updates**: Fixed transaction creation with complete data fetching
+- **Performance**: Optimized database queries and connection management
+
+### New Features
+- **Credit Card Bill Management**: Complete bill tracking and payment system
+- **Advanced Analytics**: Enhanced dashboard with financial year data
+- **Improved CSV Import**: Better error handling and progress tracking
+- **Enhanced Security**: Server-side validation and protected routes
+
+### Technical Improvements
+- **Type Safety**: Complete TypeScript implementation
+- **Error Handling**: Comprehensive error boundaries and validation
+- **Code Quality**: ESLint compliance and clean architecture
+- **Documentation**: Updated README and comprehensive inline documentation
 
 ## 🤝 Contributing
 
@@ -433,90 +542,55 @@ We welcome contributions! Please follow these steps:
    git checkout -b feature/amazing-feature
    ```
 3. **Make your changes**
-   - Follow the existing code style and patterns
+   - Follow TypeScript best practices
    - Add comprehensive comments and documentation
-   - Include type definitions for TypeScript
-4. **Commit your changes**
+   - Include proper error handling
+4. **Test your changes**
+   ```bash
+   npm run build  # Ensure build succeeds
+   npm run lint   # Check code quality
+   ```
+5. **Commit your changes**
    ```bash
    git commit -m 'Add amazing feature with detailed description'
    ```
-5. **Push to the branch**
+6. **Push to the branch**
    ```bash
    git push origin feature/amazing-feature
    ```
-6. **Open a Pull Request**
+7. **Open a Pull Request**
 
 ### Development Guidelines
 
-- Follow **TypeScript best practices** with strict type checking
-- Use **meaningful commit messages** following conventional commits
-- Add **comprehensive tests** for new features
-- Update **documentation** as needed, including inline comments
-- Follow the **existing code style** with proper formatting
-- Ensure **accessibility compliance** in UI components
-- **Performance considerations** for large datasets and CSV imports
+- **TypeScript**: Strict type checking with comprehensive type definitions
+- **Code Style**: Follow existing patterns and ESLint configuration
+- **Documentation**: Add inline comments and update README as needed
+- **Testing**: Ensure all functionality works before submitting
+- **Security**: Follow security best practices for authentication and validation
 
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## 📞 Support
 
-- **[Next.js](https://nextjs.org/)** for the powerful React framework with App Router
-- **[Supabase](https://supabase.com/)** for the comprehensive backend infrastructure
-- **[Shadcn/ui](https://ui.shadcn.com/)** for the beautiful and accessible component library
-- **[Radix UI](https://www.radix-ui.com/)** for the foundational accessible primitives
-- **[Recharts](https://recharts.org/)** for the powerful data visualization capabilities
-- **[Vercel](https://vercel.com/)** for hosting and deployment platform
+For questions, issues, or feature requests:
 
-## 🆕 Recent Updates & Features
+- **GitHub Issues**: [Create an issue](https://github.com/your-username/expense-manager-app/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-username/expense-manager-app/discussions)
+- **Documentation**: Check inline code comments and this README
 
-### Latest Major Features
-- **Advanced Credit Card Management**: Complete bill tracking, payment management, and usage analytics
-- **Custom Report Builder**: Drag-and-drop interface for creating detailed financial reports
-- **Enhanced CSV Import System**: 
-  - Bulk transaction import with intelligent parsing
-  - Category and payee import with validation
-  - Progress tracking and comprehensive error handling
-- **Real-time Dashboard Analytics**: Interactive charts with income vs expense tracking
-- **Multi-Account Transfer Support**: Seamless money transfers between accounts
-- **Advanced Filtering System**: Multi-select filters for accounts, categories, and payees
+### Common Issues & Solutions
 
-### Performance & UX Improvements
-- **Optimized Database Queries**: Custom PostgreSQL functions for complex calculations
-- **Enhanced Form Validation**: Comprehensive Zod schemas with real-time validation
-- **Improved Mobile Experience**: Responsive design optimized for all device sizes
-- **Loading State Management**: Skeleton UI and smooth loading indicators
-- **Error Boundary Implementation**: Graceful error handling throughout the application
-- **Type Safety**: Complete TypeScript implementation with strict type checking
-
-### Security Enhancements
-- **Row Level Security**: Database-level data isolation between users
-- **Enhanced Authentication**: Secure session management with Supabase Auth
-- **Data Validation**: Server-side validation for all user inputs
-- **Protected Routes**: Comprehensive route protection for sensitive data
-
-## 📞 Support & Documentation
-
-If you have any questions or need help:
-
-- 💬 **Issues**: [GitHub Issues](https://github.com/your-username/expense-manager-app/issues)
-- 📖 **Documentation**: [Wiki](https://github.com/your-username/expense-manager-app/wiki)
-- 🚀 **Feature Requests**: Use GitHub Issues with the "enhancement" label
-- 💡 **Discussions**: [GitHub Discussions](https://github.com/your-username/expense-manager-app/discussions)
-- 📧 **Email**: [your-email@example.com](mailto:your-email@example.com)
-
-### Troubleshooting Common Issues
-
-- **CSV Import Failures**: Check file format and column headers match expected format
-- **Database Connection Issues**: Verify Supabase credentials and network connectivity
-- **Transaction Validation Errors**: Ensure all required fields are properly filled
-- **Credit Card Calculations**: Verify credit limit and transaction amounts are correct
+- **Database Connection**: Verify PostgreSQL is running and credentials are correct
+- **Date Issues**: Ensure timezone settings are properly configured
+- **CSV Import**: Check file format matches expected columns and data types
+- **Build Errors**: Run `npm run lint` and fix any TypeScript/ESLint issues
 
 ---
 
 <div align="center">
   <p>Made with ❤️ for better financial management</p>
   <p>⭐ Star this repo if you find it helpful!</p>
-  <p><strong>Built with modern technologies for a seamless expense tracking experience</strong></p>
+  <p><strong>Built with modern technologies for reliable expense tracking</strong></p>
 </div>
