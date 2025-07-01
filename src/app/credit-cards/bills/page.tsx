@@ -6,24 +6,22 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { format, isAfter, isBefore, addDays, startOfMonth, endOfMonth } from 'date-fns'
-import { 
-  CreditCard, 
-  Filter, 
-  Calendar, 
-  Download, 
+import { format, isAfter, isBefore, addDays } from 'date-fns'
+import {
+  CreditCard,
+  Filter,
+  Calendar,
   Search,
   Eye,
-  AlertCircle, 
-  Clock, 
+  AlertCircle,
+  Clock,
   CheckCircle,
-  Plus,
   FileText,
   TrendingUp
 } from 'lucide-react'
 import Link from 'next/link'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -32,14 +30,14 @@ import { DatePicker } from '@/components/ui/date-picker'
 
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { useAuth } from '@/components/auth/auth-provider'
-import { 
+import {
   getAllCreditCardBills,
   getCreditCardAccounts,
   markBillAsPaid,
   generateComprehensiveHistoricalBills
 } from '@/lib/services/credit-card-service'
-import { 
-  CreditCardBill, 
+import {
+  CreditCardBill,
   CreditCardBillStatus,
   getBillStatusConfig
 } from '@/types/credit-card'
@@ -53,7 +51,7 @@ import { toast } from 'sonner'
  */
 function BillStatusBadge({ status }: { status: CreditCardBillStatus }) {
   const config = getBillStatusConfig(status)
-  
+
   const getVariant = (color: string) => {
     switch (color) {
       case 'green': return 'default'
@@ -106,18 +104,18 @@ export default function CreditCardBillsPage() {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       const [billsData, accountsData] = await Promise.all([
         getAllCreditCardBills(user.id),
         getCreditCardAccounts(user.id)
       ])
-      
+
       // Attach account information to bills
       const billsWithAccounts = billsData.map(bill => ({
         ...bill,
         account: accountsData.find(acc => acc.id === bill.accountId)
       }))
-      
+
       setBills(billsWithAccounts)
       setAccounts(accountsData)
       setFilteredBills(billsWithAccounts)
@@ -156,7 +154,7 @@ export default function CreditCardBillsPage() {
     // Filter by search term
     if (filters.searchTerm) {
       const searchLower = filters.searchTerm.toLowerCase()
-      filtered = filtered.filter(bill => 
+      filtered = filtered.filter(bill =>
         bill.account?.name.toLowerCase().includes(searchLower) ||
         bill.notes?.toLowerCase().includes(searchLower)
       )
@@ -177,16 +175,16 @@ export default function CreditCardBillsPage() {
     try {
       setIsGeneratingHistorical(true)
       setError(null)
-      
+
       const generatedBills = await generateComprehensiveHistoricalBills(user.id)
-      
+
       if (generatedBills.length > 0) {
         toast.success(`Generated ${generatedBills.length} historical bills`)
         await loadBillsData()
       } else {
         toast.info('All historical bills are up to date')
       }
-      
+
     } catch (err) {
       console.error('Error generating historical bills:', err)
       setError(err instanceof Error ? err.message : 'Failed to generate historical bills')
@@ -204,7 +202,7 @@ export default function CreditCardBillsPage() {
     if (!bill) return
 
     const remainingAmount = Math.max(0, bill.billAmount - bill.paidAmount)
-    
+
     try {
       await markBillAsPaid({
         billId,
@@ -212,7 +210,7 @@ export default function CreditCardBillsPage() {
         paymentDate: new Date(),
         notes: `Full payment via bills management page`
       }, user!.id)
-      
+
       toast.success('Bill marked as paid successfully')
       await loadBillsData()
     } catch (err) {
@@ -227,16 +225,16 @@ export default function CreditCardBillsPage() {
   const calculateStats = useCallback(() => {
     const totalBills = filteredBills.length
     const unpaidBills = filteredBills.filter(bill => bill.status !== 'paid')
-    const overdueBills = filteredBills.filter(bill => 
+    const overdueBills = filteredBills.filter(bill =>
       isAfter(new Date(), bill.paymentDueDate) && bill.status !== 'paid'
     )
-    const dueSoonBills = filteredBills.filter(bill => 
-      isBefore(new Date(), bill.paymentDueDate) && 
-      isAfter(addDays(new Date(), 7), bill.paymentDueDate) && 
+    const dueSoonBills = filteredBills.filter(bill =>
+      isBefore(new Date(), bill.paymentDueDate) &&
+      isAfter(addDays(new Date(), 7), bill.paymentDueDate) &&
       bill.status !== 'paid'
     )
 
-    const totalOutstanding = unpaidBills.reduce((sum, bill) => 
+    const totalOutstanding = unpaidBills.reduce((sum, bill) =>
       sum + Math.max(0, bill.billAmount - bill.paidAmount), 0
     )
 
@@ -300,8 +298,8 @@ export default function CreditCardBillsPage() {
             </p>
           </div>
           <div className="flex space-x-2">
-            <Button 
-              onClick={handleGenerateHistoricalBills} 
+            <Button
+              onClick={handleGenerateHistoricalBills}
               variant="outline"
               disabled={isGeneratingHistorical}
             >
@@ -328,7 +326,7 @@ export default function CreditCardBillsPage() {
               <div className="text-2xl font-bold">{stats.totalBills}</div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Unpaid Bills</CardTitle>
@@ -338,7 +336,7 @@ export default function CreditCardBillsPage() {
               <div className="text-2xl font-bold text-orange-600">{stats.unpaidBills}</div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Overdue Bills</CardTitle>
@@ -348,7 +346,7 @@ export default function CreditCardBillsPage() {
               <div className="text-2xl font-bold text-red-600">{stats.overdueBills}</div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Due Soon</CardTitle>
@@ -358,7 +356,7 @@ export default function CreditCardBillsPage() {
               <div className="text-2xl font-bold text-yellow-600">{stats.dueSoonBills}</div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
@@ -401,9 +399,9 @@ export default function CreditCardBillsPage() {
                 <label className="text-sm font-medium">Credit Card</label>
                 <Select
                   value={filters.accountId || 'all'}
-                  onValueChange={(value) => setFilters(prev => ({ 
-                    ...prev, 
-                    accountId: value === 'all' ? undefined : value 
+                  onValueChange={(value) => setFilters(prev => ({
+                    ...prev,
+                    accountId: value === 'all' ? undefined : value
                   }))}
                 >
                   <SelectTrigger>
@@ -425,9 +423,9 @@ export default function CreditCardBillsPage() {
                 <label className="text-sm font-medium">Status</label>
                 <Select
                   value={filters.status || 'all'}
-                  onValueChange={(value) => setFilters(prev => ({ 
-                    ...prev, 
-                    status: value === 'all' ? undefined : value as CreditCardBillStatus 
+                  onValueChange={(value) => setFilters(prev => ({
+                    ...prev,
+                    status: value === 'all' ? undefined : value as CreditCardBillStatus
                   }))}
                 >
                   <SelectTrigger>
@@ -488,8 +486,8 @@ export default function CreditCardBillsPage() {
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <div className="text-lg font-medium">No bills found</div>
                 <div className="text-muted-foreground">
-                  {bills.length === 0 
-                    ? 'No credit card bills have been generated yet.' 
+                  {bills.length === 0
+                    ? 'No credit card bills have been generated yet.'
                     : 'Try adjusting your filters to see more bills.'
                   }
                 </div>
@@ -498,14 +496,14 @@ export default function CreditCardBillsPage() {
               <div className="space-y-4">
                 {filteredBills.map((bill) => {
                   const isOverdue = isAfter(new Date(), bill.paymentDueDate) && bill.status !== 'paid'
-                  const isDueSoon = isBefore(new Date(), bill.paymentDueDate) && 
-                                   isAfter(addDays(new Date(), 7), bill.paymentDueDate) && 
-                                   bill.status !== 'paid'
+                  const isDueSoon = isBefore(new Date(), bill.paymentDueDate) &&
+                    isAfter(addDays(new Date(), 7), bill.paymentDueDate) &&
+                    bill.status !== 'paid'
                   const remainingAmount = Math.max(0, bill.billAmount - bill.paidAmount)
 
                   return (
-                    <Card 
-                      key={bill.id} 
+                    <Card
+                      key={bill.id}
                       className={`${isOverdue ? 'border-red-200' : isDueSoon ? 'border-orange-200' : ''}`}
                     >
                       <CardContent className="p-6">
@@ -522,7 +520,7 @@ export default function CreditCardBillsPage() {
                               {isOverdue && <AlertCircle className="h-5 w-5 text-red-500" />}
                               {isDueSoon && <Clock className="h-5 w-5 text-orange-500" />}
                             </div>
-                            
+
                             <div className="flex items-center space-x-6 text-sm text-muted-foreground">
                               <span>Generated: {format(bill.billGenerationDate, 'MMM dd, yyyy')}</span>
                               <span>Due: {format(bill.paymentDueDate, 'MMM dd, yyyy')}</span>
@@ -553,7 +551,7 @@ export default function CreditCardBillsPage() {
                               </div>
                             </div>
                           </div>
-                          
+
                           <div className="text-right space-y-2">
                             {/* Amount display */}
                             <div className="space-y-1">
@@ -569,7 +567,7 @@ export default function CreditCardBillsPage() {
                                   </span>
                                 )}
                               </div>
-                              
+
                               <div className="text-sm text-muted-foreground">
                                 Total: {formatCurrency(bill.billAmount)}
                                 {bill.paidAmount > 0 && (
@@ -588,9 +586,9 @@ export default function CreditCardBillsPage() {
                                   View Details
                                 </Button>
                               </Link>
-                              
+
                               {remainingAmount > 0 && (
-                                <Button 
+                                <Button
                                   onClick={() => handleMarkAsPaid(bill.id)}
                                   size="sm"
                                   className="bg-green-600 hover:bg-green-700"

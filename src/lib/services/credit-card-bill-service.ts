@@ -16,6 +16,7 @@ import {
 } from '@/types/credit-card'
 import { getAccounts } from './account-service'
 import { getFirstTransactionDateForAccount } from './transaction-service'
+import { Transaction } from '@/types/transaction'
 
 /**
  * Database row interface for credit card bills
@@ -624,28 +625,28 @@ export async function generateBillForAccount(
       let totalPayments = 0
       const paymentTransactionIds: string[] = []
 
-      transactions.forEach((transaction: any) => {
+      transactions.forEach((transaction: Transaction) => {
         const amount = parseFloat(String(transaction.amount)) || 0
         
         if (transaction.type === 'withdrawal') {
           // Credit card spending - increases the debt
           totalSpending += amount
-          console.log(`  Spending: ${amount} (${transaction.description || 'N/A'})`)
+          console.log(`  Spending: ${amount} (${transaction.notes || 'N/A'})`)
         } else if (transaction.type === 'deposit') {
           // Credit card payment - reduces the debt
           totalPayments += amount
           paymentTransactionIds.push(transaction.id)
-          console.log(`  Payment: ${amount} (${transaction.description || 'N/A'})`)
+          console.log(`  Payment: ${amount} (${transaction.notes || 'N/A'})`)
         } else if (transaction.type === 'transfer') {
-          if (String(transaction.to_account_id) === accountId) {
+          if (String(transaction.toAccountId) === accountId) {
             // Transfer into this account is a credit/payment
             totalPayments += amount
             paymentTransactionIds.push(transaction.id)
-            console.log(`  Payment (Transfer In): ${amount} (${transaction.description || 'N/A'})`)
-          } else if (String(transaction.from_account_id) === accountId) {
+            console.log(`  Payment (Transfer In): ${amount} (${transaction.notes || 'N/A'})`)
+          } else if (String(transaction.fromAccountId) === accountId) {
             // Transfer out of this account is a debit/spending
             totalSpending += amount
-            console.log(`  Spending (Transfer Out): ${amount} (${transaction.description || 'N/A'})`)
+            console.log(`  Spending (Transfer Out): ${amount} (${transaction.notes || 'N/A'})`)
           }
         }
       })

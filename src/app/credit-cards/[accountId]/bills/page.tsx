@@ -161,7 +161,7 @@ export default function IndividualCreditCardBillsPage() {
         toast.info('All historical bills are up to date')
       }
     } catch (err) {
-      toast.error('Failed to generate historical bills')
+      toast.error(err instanceof Error ? err.message : 'Failed to generate historical bills')
     } finally {
       setIsGeneratingHistorical(false)
     }
@@ -180,7 +180,7 @@ export default function IndividualCreditCardBillsPage() {
       toast.success(`Recalculated ${recalculatedCount} bills successfully`)
       await loadAccountData()
     } catch (err) {
-      toast.error('Failed to recalculate bills')
+      toast.error(err instanceof Error ? err.message : 'Failed to recalculate bills')
     } finally {
       setIsRecalculating(false)
     }
@@ -206,7 +206,7 @@ export default function IndividualCreditCardBillsPage() {
       toast.success('Bill marked as paid successfully')
       await loadAccountData()
     } catch (err) {
-      toast.error('Failed to mark bill as paid')
+      toast.error(err instanceof Error ? err.message : 'Failed to mark bill as paid')
     }
   }
 

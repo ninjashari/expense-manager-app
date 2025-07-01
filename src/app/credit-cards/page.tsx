@@ -6,56 +6,25 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { format, isAfter, isBefore, addDays } from 'date-fns'
-import { CreditCard, Plus, AlertCircle, Clock, CheckCircle, Calendar, TrendingUp, FileText, Eye } from 'lucide-react'
+import { format } from 'date-fns'
+import { CreditCard, Plus, AlertCircle, TrendingUp, FileText, Eye } from 'lucide-react'
 import Link from 'next/link'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
-import { Separator } from '@/components/ui/separator'
 
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { useAuth } from '@/components/auth/auth-provider'
-import { 
-  getCreditCardSummaries, 
-  autoGenerateBills, 
-  markBillAsPaid,
-  generateComprehensiveHistoricalBills
+import {
+  getCreditCardSummaries,
+  autoGenerateBills,
 } from '@/lib/services/credit-card-service'
-import { 
-  CreditCardSummary, 
-  CreditCardBill, 
-  getBillStatusConfig
+import {
+  CreditCardSummary,
 } from '@/types/credit-card'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from 'sonner'
-
-/**
- * Credit card bill status badge component
- * @description Renders styled badge for bill status
- */
-function BillStatusBadge({ status }: { status: CreditCardBill['status'] }) {
-  const config = getBillStatusConfig(status)
-  
-  const getVariant = (color: string) => {
-    switch (color) {
-      case 'green': return 'default'
-      case 'blue': return 'secondary'
-      case 'orange': return 'secondary'
-      case 'red': return 'destructive'
-      default: return 'outline'
-    }
-  }
-
-  return (
-    <Badge variant={getVariant(config.color)} className="text-xs">
-      {config.label}
-    </Badge>
-  )
-}
 
 /**
  * Credit card overview card component
@@ -85,8 +54,8 @@ function CreditCardOverview({ summary }: { summary: CreditCardSummary }) {
             <span className="text-muted-foreground">Credit Usage</span>
             <span className="font-medium">{(typeof creditUsagePercentage === 'number' ? creditUsagePercentage.toFixed(1) : '0.0')}%</span>
           </div>
-          <Progress 
-            value={typeof creditUsagePercentage === 'number' ? creditUsagePercentage : 0} 
+          <Progress
+            value={typeof creditUsagePercentage === 'number' ? creditUsagePercentage : 0}
             className="h-2"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
@@ -156,7 +125,6 @@ export default function CreditCardsPage() {
   const [summaries, setSummaries] = useState<CreditCardSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isGeneratingHistorical, setIsGeneratingHistorical] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   /**
@@ -168,13 +136,13 @@ export default function CreditCardsPage() {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       // Auto-generate any missing bills first
       await autoGenerateBills(user.id)
-      
+
       // Then load all credit card summaries
       const creditCardSummaries = await getCreditCardSummaries(user.id)
-      
+
       setSummaries(creditCardSummaries)
     } catch (err) {
       console.error('Error loading credit card data:', err)
@@ -194,7 +162,7 @@ export default function CreditCardsPage() {
     try {
       setIsRefreshing(true)
       toast.info('Refreshing credit card data...')
-      
+
       // Call the recalculate balances API to force database updates
       const response = await fetch('/api/accounts/recalculate-balances', {
         method: 'POST',
@@ -207,10 +175,10 @@ export default function CreditCardsPage() {
 
       const result = await response.json()
       console.log('Balance recalculation result:', result)
-      
+
       // After forcing balance recalculation, reload the credit card data
       await loadCreditCardData()
-      
+
       toast.success('Credit card data refreshed successfully')
     } catch (error) {
       console.error('Error refreshing account balances:', error)
@@ -310,16 +278,6 @@ export default function CreditCardsPage() {
     )
   }
 
-  // Get all upcoming and overdue bills
-  const allBills = summaries.flatMap(s => s.recentBills)
-  const upcomingBills = allBills.filter(bill => 
-    bill.status === 'generated' || bill.status === 'partial'
-  ).sort((a, b) => a.paymentDueDate.getTime() - b.paymentDueDate.getTime())
-  
-  const overdueBills = allBills.filter(bill => 
-    bill.status === 'overdue'
-  ).sort((a, b) => a.paymentDueDate.getTime() - b.paymentDueDate.getTime())
-
   return (
     <ProtectedRoute>
       <div className="flex-1 space-y-6">
@@ -333,8 +291,8 @@ export default function CreditCardsPage() {
               </Button>
             </Link>
 
-            <Button 
-              onClick={refreshAccountBalances} 
+            <Button
+              onClick={refreshAccountBalances}
               variant="outline"
               disabled={isRefreshing}
             >
