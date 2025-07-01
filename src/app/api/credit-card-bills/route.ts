@@ -8,7 +8,9 @@ import { getSession } from '@/lib/auth-server'
 import { 
   getCreditCardBills, 
   createCreditCardBill,
-  autoGenerateBillsForUser 
+  autoGenerateBillsForUser,
+  generateComprehensiveHistoricalBills,
+  recalculateAllBillsForAccount
 } from '@/lib/services/credit-card-bill-service'
 
 /**
@@ -30,6 +32,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const accountId = searchParams.get('accountId')
     const autoGenerate = searchParams.get('autoGenerate') === 'true'
+    const generateHistorical = searchParams.get('generateHistorical') === 'true'
+    const recalculateAll = searchParams.get('recalculateAll') === 'true'
+
+    // Generate comprehensive historical bills if requested
+    if (generateHistorical) {
+      const generatedBills = await generateComprehensiveHistoricalBills(session.user.id)
+      return NextResponse.json({ bills: generatedBills }, { status: 200 })
+    }
+
+    // Recalculate all bills for an account if requested
+    if (recalculateAll && accountId) {
+      const recalculatedCount = await recalculateAllBillsForAccount(accountId, session.user.id)
+      return NextResponse.json({ 
+        message: `Successfully recalculated ${recalculatedCount} bills`,
+        recalculatedCount 
+      }, { status: 200 })
+    }
 
     // Auto-generate bills if requested
     if (autoGenerate) {

@@ -199,8 +199,10 @@ export async function getCreditCardSummaries(userId: string): Promise<CreditCard
       const availableCredit = creditLimit + currentBalance // For credit cards, negative balance means used credit
       const creditUsagePercentage = creditInfo.creditUsagePercentage
       
-      // Get bills for this account
-      const accountBills = allBills.filter(bill => bill.accountId === account.id)
+      // Get bills for this account and attach account info
+      const accountBills = allBills
+        .filter(bill => bill.accountId === account.id)
+        .map(bill => ({ ...bill, account })) // Attach account information to each bill
       const recentBills = accountBills.slice(0, 12) // Last 12 bills
       
       // Find current unpaid bill
@@ -275,4 +277,35 @@ export async function deleteCreditCardBill(billId: string, userId: string): Prom
   
   const data = await response.json()
   return data.success
+}
+
+/**
+ * Generate comprehensive historical bills for all credit card accounts
+ * @description Automatically generates all missing historical bills via API
+ * @param userId - User ID for authorization
+ * @returns Promise resolving to array of generated bills
+ */
+export async function generateComprehensiveHistoricalBills(userId: string): Promise<CreditCardBill[]> {
+  const response = await fetch('/api/credit-card-bills?generateHistorical=true')
+  if (!response.ok) {
+    throw new Error('Failed to generate comprehensive historical bills')
+  }
+  const data = await response.json()
+  return data.bills.map((bill: CreditCardBillApiResponse) => transformApiResponseToBill(bill))
+}
+
+/**
+ * Recalculate all bills for an account
+ * @description Recalculates all bill amounts for an account to ensure data consistency via API
+ * @param accountId - Account ID
+ * @param userId - User ID for authorization
+ * @returns Promise resolving to number of bills recalculated
+ */
+export async function recalculateAccountBills(accountId: string, userId: string): Promise<number> {
+  const response = await fetch(`/api/credit-card-bills?recalculateAll=true&accountId=${accountId}`)
+  if (!response.ok) {
+    throw new Error('Failed to recalculate account bills')
+  }
+  const data = await response.json()
+  return data.recalculatedCount
 } 

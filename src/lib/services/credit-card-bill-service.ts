@@ -5,6 +5,7 @@
  */
 
 import { query, queryOne, transaction } from '@/lib/database'
+import { PoolClient } from 'pg'
 import { 
   CreditCardBill, 
   CreditCardBillStatus,
@@ -14,6 +15,7 @@ import {
   determineBillStatus 
 } from '@/types/credit-card'
 import { getAccounts } from './account-service'
+import { getFirstTransactionDateForAccount } from './transaction-service'
 
 /**
  * Database row interface for credit card bills
@@ -320,7 +322,23 @@ export async function recordBillPayment(
         ]
       )
 
-      return updateResult.rows.length > 0 ? transformRowToBill(updateResult.rows[0]) : null
+      if (updateResult.rows.length === 0) {
+        return null
+      }
+
+      const updatedBill = updateResult.rows[0]
+
+      // Recalculate all subsequent bills for this account
+      console.log(`Payment recorded for bill ${paymentInfo.billId}, recalculating subsequent bills...`)
+      await recalculateSubsequentBills(
+        currentBill.account_id,
+        userId,
+        new Date(currentBill.bill_period_end),
+        client
+      )
+      console.log(`✓ Payment processing and bill recalculation completed`)
+
+      return transformRowToBill(updatedBill)
     })
   } catch (error) {
     console.error('Error recording bill payment:', error)
@@ -329,19 +347,205 @@ export async function recordBillPayment(
 }
 
 /**
- * Generate bill for credit card account
- * @description Generates a new bill for a credit card account based on transactions
+ * Recalculate all subsequent bills for an account
+ * @description Recalculates bill amounts for all bills after a given date when a payment is made
+ * @param accountId - Account ID
+ * @param userId - User ID for authorization
+ * @param fromDate - Date after which to recalculate bills
+ * @param client - Database client (for transaction)
+ */
+async function recalculateSubsequentBills(
+  accountId: string,
+  userId: string,
+  fromDate: Date,
+  client: PoolClient
+): Promise<void> {
+  try {
+    // Get all bills after the given date for this account, ordered by bill period
+    const subsequentBillsResult = await client.query(
+      `
+      SELECT * FROM credit_card_bills 
+      WHERE account_id = $1 AND user_id = $2 
+      AND bill_period_start > $3
+      ORDER BY bill_period_start ASC
+      `,
+      [accountId, userId, fromDate.toISOString().split('T')[0]]
+    )
+
+    const subsequentBills = subsequentBillsResult.rows
+
+    if (subsequentBills.length === 0) {
+      console.log('No subsequent bills to recalculate')
+      return
+    }
+
+    console.log(`Recalculating ${subsequentBills.length} subsequent bills for account`)
+
+    // Recalculate each bill in chronological order
+    for (const bill of subsequentBills) {
+      const billPeriodStart = new Date(bill.bill_period_start)
+      
+      // Get the correct previous balance for this bill
+      const previousBalance = await getPreviousBillBalance(
+        accountId,
+        userId,
+        billPeriodStart,
+        client
+      )
+
+      // Recalculate bill amount: previous balance + spending - payments in period
+      const totalSpending = parseFloat(String(bill.total_spending)) || 0
+      const totalPayments = parseFloat(String(bill.total_payments)) || 0
+      const newBillAmount = Math.max(0, previousBalance + totalSpending - totalPayments)
+      
+      // Update minimum payment based on new bill amount
+      const newMinimumPayment = newBillAmount > 0 ? calculateMinimumPayment(newBillAmount) : 0
+      
+      // Recalculate status based on new amounts
+      const paidAmount = parseFloat(String(bill.paid_amount)) || 0
+      const newStatus = determineBillStatus(
+        newBillAmount,
+        paidAmount,
+        new Date(bill.payment_due_date),
+        bill.paid_date ? new Date(bill.paid_date) : undefined
+      )
+
+      // Update the bill with recalculated amounts
+      await client.query(
+        `
+        UPDATE credit_card_bills 
+        SET 
+          previous_balance = $1,
+          bill_amount = $2,
+          minimum_payment = $3,
+          status = $4,
+          updated_at = NOW()
+        WHERE id = $5 AND user_id = $6
+        `,
+        [
+          previousBalance,
+          newBillAmount,
+          newMinimumPayment,
+          newStatus,
+          bill.id,
+          userId
+        ]
+      )
+
+      console.log(`  Updated bill ${bill.id}: Previous Balance: ${previousBalance}, Bill Amount: ${newBillAmount}`)
+    }
+
+    console.log('✓ Subsequent bills recalculated successfully')
+  } catch (error) {
+    console.error('Error recalculating subsequent bills:', error)
+    throw new Error('Failed to recalculate subsequent bills')
+  }
+}
+
+/**
+ * Calculate correct bill period dates
+ * @description Calculates the bill period start and end dates based on bill generation date
+ * @param billGenerationDay - Day of month for bill generation (1-31)
+ * @param targetYear - Target year for the bill period
+ * @param targetMonth - Target month for the bill period (0-11)
+ * @returns Bill period start and end dates
+ */
+function calculateBillPeriod(billGenerationDay: number, targetYear: number, targetMonth: number): {
+  billPeriodStart: Date
+  billPeriodEnd: Date
+  billGenerationDate: Date
+} {
+  // Bill period ENDS on the day before bill generation date
+  const billGenerationDate = new Date(targetYear, targetMonth, billGenerationDay)
+  
+  // Bill period end is one day before bill generation date
+  const billPeriodEnd = new Date(billGenerationDate)
+  billPeriodEnd.setDate(billPeriodEnd.getDate() - 1)
+  
+  // Bill period start is one day after the previous month's bill period end
+  // This is typically the previous month's bill generation date
+  const billPeriodStart = new Date(targetYear, targetMonth - 1, billGenerationDay)
+  
+  return {
+    billPeriodStart,
+    billPeriodEnd,
+    billGenerationDate
+  }
+}
+
+/**
+ * Get previous bill balance for calculation
+ * @description Gets the outstanding balance from the most recent previous bill
+ * @param accountId - Account ID
+ * @param userId - User ID
+ * @param currentBillPeriodStart - Start date of current bill period
+ * @param client - Database client
+ * @returns Previous outstanding balance
+ */
+async function getPreviousBillBalance(
+  accountId: string, 
+  userId: string, 
+  currentBillPeriodStart: Date, 
+  client: PoolClient
+): Promise<number> {
+  // Get the most recent bill before this period
+  const previousBillResult = await client.query(
+    `
+    SELECT * FROM credit_card_bills 
+    WHERE account_id = $1 AND user_id = $2 
+    AND bill_period_end < $3
+    ORDER BY bill_period_end DESC 
+    LIMIT 1
+    `,
+    [accountId, userId, currentBillPeriodStart.toISOString().split('T')[0]]
+  )
+
+  if (previousBillResult.rows.length > 0) {
+    const previousBill = previousBillResult.rows[0]
+    // Outstanding balance = bill amount - paid amount
+    const outstandingBalance = parseFloat(String(previousBill.bill_amount)) - parseFloat(String(previousBill.paid_amount))
+    return Math.max(0, outstandingBalance)
+  }
+
+  // If no previous bill exists, get the account balance at the start of this period
+  // For the very first bill, we need to determine what the balance was at account opening
+  const accountResult = await client.query(
+    'SELECT current_balance, account_opening_date FROM accounts WHERE id = $1 AND user_id = $2',
+    [accountId, userId]
+  )
+
+  if (accountResult.rows.length > 0) {
+    const account = accountResult.rows[0]
+    const accountOpeningDate = new Date(account.account_opening_date)
+    
+    // If this is the first bill period starting from account opening, 
+    // the previous balance should be 0 (fresh account)
+    if (currentBillPeriodStart <= accountOpeningDate) {
+      return 0
+    }
+    
+    // For credit cards, negative balance means money is owed
+    // We need the absolute value as the starting debt
+    return Math.max(0, Math.abs(parseFloat(String(account.current_balance))))
+  }
+
+  return 0
+}
+
+/**
+ * Generate bill for credit card account with robust logic
+ * @description Generates a new bill for a credit card account based on correct period calculations
  * @param accountId - Credit card account ID
  * @param userId - User ID for authorization
- * @param billPeriodStart - Start date of billing period
- * @param billPeriodEnd - End date of billing period
+ * @param targetYear - Target year for bill generation
+ * @param targetMonth - Target month for bill generation (0-11)
  * @returns Promise resolving to generated credit card bill
  */
 export async function generateBillForAccount(
   accountId: string,
   userId: string,
-  billPeriodStart: Date,
-  billPeriodEnd: Date
+  targetYear: number,
+  targetMonth: number
 ): Promise<CreditCardBill> {
   try {
     return await transaction(async (client) => {
@@ -361,77 +565,111 @@ export async function generateBillForAccount(
         paymentDueDate: account.payment_due_date
       }
 
-      // Get previous bill to determine previous balance
-      const previousBillResult = await client.query(
-        `
-        SELECT * FROM credit_card_bills 
-        WHERE account_id = $1 AND user_id = $2 
-        ORDER BY bill_period_end DESC 
-        LIMIT 1
-        `,
-        [accountId, userId]
+      // Calculate correct bill period
+      const { billPeriodStart, billPeriodEnd, billGenerationDate } = calculateBillPeriod(
+        creditCardInfo.billGenerationDate,
+        targetYear,
+        targetMonth
       )
 
-      // For credit cards, the previous balance should be the unpaid amount from the last bill
-      // If this is the first bill, we should start with the current outstanding balance
-      const previousBalance = previousBillResult.rows.length > 0 
-        ? Math.max(0, parseFloat(String(previousBillResult.rows[0].bill_amount)) - parseFloat(String(previousBillResult.rows[0].paid_amount)))
-        : Math.max(0, Math.abs(parseFloat(String(account.current_balance)))) // Use current balance as starting point
-        
+      console.log(`Generating bill for account ${account.name}:`)
+      console.log(`  Period: ${billPeriodStart.toISOString().split('T')[0]} to ${billPeriodEnd.toISOString().split('T')[0]}`)
+      console.log(`  Generation Date: ${billGenerationDate.toISOString().split('T')[0]}`)
 
+      // Check if bill already exists for this period
+      const existingBillResult = await client.query(
+        `
+        SELECT id FROM credit_card_bills 
+        WHERE account_id = $1 AND user_id = $2 
+        AND bill_period_start = $3 AND bill_period_end = $4
+        `,
+        [
+          accountId, 
+          userId, 
+          billPeriodStart.toISOString().split('T')[0], 
+          billPeriodEnd.toISOString().split('T')[0]
+        ]
+      )
 
-      // Get transactions for the billing period
+      if (existingBillResult.rows.length > 0) {
+        throw new Error(`Bill already exists for period ${billPeriodStart.toISOString().split('T')[0]} to ${billPeriodEnd.toISOString().split('T')[0]}`)
+      }
+
+      // Get previous bill balance
+      const previousBalance = await getPreviousBillBalance(accountId, userId, billPeriodStart, client)
+
+      // Get transactions for the billing period (inclusive of both start and end dates)
+      // This includes withdrawals, deposits, and transfers related to the account.
       const transactionsResult = await client.query(
         `
         SELECT * FROM transactions 
-        WHERE account_id = $1 AND user_id = $2 
-        AND date >= $3 AND date <= $4
+        WHERE user_id = $1
+        AND date >= $2 AND date <= $3
+        AND (account_id = $4 OR from_account_id = $4 OR to_account_id = $4)
         ORDER BY date ASC
         `,
-        [accountId, userId, billPeriodStart.toISOString().split('T')[0], billPeriodEnd.toISOString().split('T')[0]]
+        [
+          userId,
+          billPeriodStart.toISOString().split('T')[0],
+          billPeriodEnd.toISOString().split('T')[0],
+          accountId,
+        ]
       )
 
       const transactions = transactionsResult.rows
       const transactionIds = transactions.map((t: { id: string }) => t.id)
 
-      // Calculate spending and payments
+      // Calculate spending and payments for this period
       let totalSpending = 0
       let totalPayments = 0
       const paymentTransactionIds: string[] = []
 
-      transactions.forEach((transaction: { amount: number; type: string; id: string }) => {
-        // For credit cards:
-        // - Withdrawals (spending) increase the debt (positive amounts in transactions, but increase bill)
-        // - Deposits (payments) reduce the debt (positive amounts that reduce bill)
+      transactions.forEach((transaction: any) => {
         const amount = parseFloat(String(transaction.amount)) || 0
         
         if (transaction.type === 'withdrawal') {
-          // Credit card spending - increases the amount owed
+          // Credit card spending - increases the debt
           totalSpending += amount
+          console.log(`  Spending: ${amount} (${transaction.description || 'N/A'})`)
         } else if (transaction.type === 'deposit') {
-          // Credit card payment - reduces the amount owed
+          // Credit card payment - reduces the debt
           totalPayments += amount
           paymentTransactionIds.push(transaction.id)
+          console.log(`  Payment: ${amount} (${transaction.description || 'N/A'})`)
+        } else if (transaction.type === 'transfer') {
+          if (String(transaction.to_account_id) === accountId) {
+            // Transfer into this account is a credit/payment
+            totalPayments += amount
+            paymentTransactionIds.push(transaction.id)
+            console.log(`  Payment (Transfer In): ${amount} (${transaction.description || 'N/A'})`)
+          } else if (String(transaction.from_account_id) === accountId) {
+            // Transfer out of this account is a debit/spending
+            totalSpending += amount
+            console.log(`  Spending (Transfer Out): ${amount} (${transaction.description || 'N/A'})`)
+          }
         }
       })
 
-      // Calculate bill amount
+      // Robust bill amount calculation:
+      // Bill Amount = Previous Outstanding Balance + New Spending - Payments Made in Period
       const billAmount = Math.max(0, previousBalance + totalSpending - totalPayments)
       const minimumPayment = billAmount > 0 ? calculateMinimumPayment(billAmount) : 0
-      
 
+      console.log(`  Previous Balance: ${previousBalance}`)
+      console.log(`  Total Spending: ${totalSpending}`)
+      console.log(`  Total Payments: ${totalPayments}`)
+      console.log(`  Final Bill Amount: ${billAmount}`)
 
-      // Calculate bill generation and due dates
-      const billGenerationDate = new Date(billPeriodEnd)
-      billGenerationDate.setDate(creditCardInfo.billGenerationDate)
-      
+      // Calculate payment due date (typically 20-25 days after bill generation)
       const paymentDueDate = new Date(billGenerationDate)
       paymentDueDate.setDate(creditCardInfo.paymentDueDate)
+      
+      // If payment due date is before or same as bill generation date, move to next month
       if (paymentDueDate <= billGenerationDate) {
         paymentDueDate.setMonth(paymentDueDate.getMonth() + 1)
       }
 
-      // Create the bill
+      // Create the bill with robust data
       const billResult = await client.query(
         `
         INSERT INTO credit_card_bills (
@@ -457,18 +695,21 @@ export async function generateBillForAccount(
           billAmount,
           minimumPayment,
           'generated',
-          0, // paid_amount
+          0, // paid_amount - starts at 0
           transactionIds,
           paymentTransactionIds,
           true // is_auto_generated
         ]
       )
 
-      return transformRowToBill(billResult.rows[0])
+      const generatedBill = transformRowToBill(billResult.rows[0])
+      console.log(`✓ Bill generated successfully with ID: ${generatedBill.id}`)
+      
+      return generatedBill
     })
   } catch (error) {
     console.error('Error generating bill for account:', error)
-    throw new Error('Failed to generate bill for account')
+    throw new Error(`Failed to generate bill for account: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 
@@ -491,54 +732,44 @@ export async function autoGenerateBillsForUser(userId: string): Promise<CreditCa
 
     for (const account of creditCardAccounts) {
       const creditInfo = account.creditCardInfo!
+
+      // Determine if we need to generate a bill for the current month
+      const currentYear = today.getFullYear()
+      const currentMonth = today.getMonth()
+      const billGenerationDate = new Date(currentYear, currentMonth, creditInfo.billGenerationDate)
       
-      // Check if we need to generate a bill for this account
-      const lastBill = await queryOne<CreditCardBillRow>(
-        `
-        SELECT * FROM credit_card_bills 
-        WHERE account_id = $1 AND user_id = $2 
-        ORDER BY bill_period_end DESC 
-        LIMIT 1
-        `,
-        [account.id, userId]
-      )
-
-      let shouldGenerate = false
-      let billPeriodStart: Date
-      let billPeriodEnd: Date
-
-      if (!lastBill) {
-        // No previous bill, generate first bill
-        shouldGenerate = true
-        billPeriodStart = new Date(account.accountOpeningDate)
-        billPeriodEnd = new Date(today.getFullYear(), today.getMonth(), creditInfo.billGenerationDate)
+      // Only generate if the bill generation date has passed this month
+      if (billGenerationDate <= today) {
+        // Check if bill already exists for this period
+        const { billPeriodStart, billPeriodEnd } = calculateBillPeriod(
+          creditInfo.billGenerationDate,
+          currentYear,
+          currentMonth
+        )
         
-        // If bill generation date hasn't passed this month, use last month
-        if (billPeriodEnd > today) {
-          billPeriodEnd.setMonth(billPeriodEnd.getMonth() - 1)
-        }
-      } else {
-        // Check if we need to generate next bill
-        const lastBillEnd = new Date(lastBill.bill_period_end)
-        const nextBillGeneration = new Date(lastBillEnd)
-        nextBillGeneration.setMonth(nextBillGeneration.getMonth() + 1)
-        nextBillGeneration.setDate(creditInfo.billGenerationDate)
-
-        if (nextBillGeneration <= today) {
-          shouldGenerate = true
-          billPeriodStart = new Date(lastBillEnd)
-          billPeriodStart.setDate(billPeriodStart.getDate() + 1)
-          billPeriodEnd = new Date(nextBillGeneration)
-        }
-      }
-
-      if (shouldGenerate) {
-        try {
-          const bill = await generateBillForAccount(account.id, userId, billPeriodStart!, billPeriodEnd!)
-          generatedBills.push(bill)
-        } catch (error) {
-          console.error(`Error generating bill for account ${account.id}:`, error)
-          // Continue with other accounts
+        const existingBillResult = await queryOne<CreditCardBillRow>(
+          `
+          SELECT id FROM credit_card_bills 
+          WHERE account_id = $1 AND user_id = $2 
+          AND bill_period_start = $3 AND bill_period_end = $4
+          `,
+          [
+            account.id, 
+            userId, 
+            billPeriodStart.toISOString().split('T')[0], 
+            billPeriodEnd.toISOString().split('T')[0]
+          ]
+        )
+        
+        if (!existingBillResult) {
+          try {
+            console.log(`Auto-generating bill for ${account.name} for ${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`)
+            const bill = await generateBillForAccount(account.id, userId, currentYear, currentMonth)
+            generatedBills.push(bill)
+          } catch (error) {
+            console.error(`Error auto-generating bill for account ${account.id}:`, error)
+            // Continue with other accounts
+          }
         }
       }
     }
@@ -547,5 +778,336 @@ export async function autoGenerateBillsForUser(userId: string): Promise<CreditCa
   } catch (error) {
     console.error('Error auto-generating bills:', error)
     throw new Error('Failed to auto-generate bills')
+  }
+}
+
+/**
+ * Generate comprehensive historical bills for all credit card accounts
+ * @description Generates all missing bills from account opening date to current date with robust logic
+ * @param userId - User ID for authorization
+ * @returns Promise resolving to array of all generated bills
+ */
+export async function generateComprehensiveHistoricalBills(userId: string): Promise<CreditCardBill[]> {
+  try {
+    // Get all credit card accounts
+    const accounts = await getAccounts(userId)
+    const creditCardAccounts = accounts.filter(account => 
+      account.type === 'credit_card' && account.creditCardInfo
+    )
+
+    const generatedBills: CreditCardBill[] = []
+    const today = new Date()
+
+    console.log(`Starting comprehensive historical bill generation for ${creditCardAccounts.length} credit card accounts`)
+
+    for (const account of creditCardAccounts) {
+      const creditInfo = account.creditCardInfo!
+      const accountOpeningDate = new Date(account.accountOpeningDate)
+      
+      console.log(`\nProcessing account: ${account.name}`)
+      console.log(`  Opening Date: ${accountOpeningDate.toISOString().split('T')[0]}`)
+      console.log(`  Bill Generation Day: ${creditInfo.billGenerationDate}`)
+      
+      // Get first transaction date for this account
+      const firstTransactionDate = await getFirstTransactionDateForAccount(account.id, userId)
+      if (firstTransactionDate) {
+        console.log(`  First Transaction Date: ${firstTransactionDate.toISOString().split('T')[0]}`)
+      } else {
+        console.log(`  No transactions found for this account`)
+      }
+      
+      // Get all existing bills for this account to avoid duplicates
+      const existingBills = await query<CreditCardBillRow>(
+        `
+        SELECT bill_period_start, bill_period_end FROM credit_card_bills 
+        WHERE account_id = $1 AND user_id = $2 
+        ORDER BY bill_period_start ASC
+        `,
+        [account.id, userId]
+      )
+
+      // Create a set of existing bill periods for quick lookup
+      const existingPeriods = new Set(
+        existingBills.map(bill => {
+          const start = new Date(bill.bill_period_start)
+          const end = new Date(bill.bill_period_end)
+          return `${start.getFullYear()}-${start.getMonth()}-${end.getFullYear()}-${end.getMonth()}`
+        })
+      )
+
+      console.log(`  Found ${existingBills.length} existing bills`)
+
+      // Determine the first bill generation month
+      // Start from the account opening date to ensure first transaction is included
+      let currentYear = accountOpeningDate.getFullYear()
+      let currentMonth = accountOpeningDate.getMonth()
+      
+      // Always start from the account opening month to include first transactions
+      // This ensures that any transaction on the account opening date is included in the first bill
+
+      let billsGeneratedForAccount = 0
+
+      // Generate bills up to current month
+      while (currentYear < today.getFullYear() || 
+             (currentYear === today.getFullYear() && currentMonth <= today.getMonth())) {
+        
+        // Calculate what the bill period would be for this year/month
+        const { billPeriodStart, billPeriodEnd } = calculateBillPeriod(
+          creditInfo.billGenerationDate,
+          currentYear,
+          currentMonth
+        )
+
+        // Check if this bill period includes the account opening date or starts after it
+        // and if the bill generation date has passed for current month
+        const billGenerationDate = new Date(currentYear, currentMonth, creditInfo.billGenerationDate)
+        const shouldGenerateBill = (billPeriodStart <= accountOpeningDate && billPeriodEnd >= accountOpeningDate) || 
+                                  (billPeriodStart > accountOpeningDate) &&
+                                  (billGenerationDate <= today || currentYear < today.getFullYear() || currentMonth < today.getMonth())
+
+        if (shouldGenerateBill) {
+          // Create period key for duplicate check
+          const periodKey = `${billPeriodStart.getFullYear()}-${billPeriodStart.getMonth()}-${billPeriodEnd.getFullYear()}-${billPeriodEnd.getMonth()}`
+          
+          // Only generate if this period doesn't already exist
+          if (!existingPeriods.has(periodKey)) {
+            try {
+              console.log(`  Generating bill for ${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`)
+              
+              const bill = await generateBillForAccount(account.id, userId, currentYear, currentMonth)
+              generatedBills.push(bill)
+              billsGeneratedForAccount++
+              
+              // Add to existing periods to avoid regenerating in the same run
+              existingPeriods.add(periodKey)
+              
+            } catch (error) {
+              console.error(`  Error generating bill for ${account.name} ${currentYear}-${currentMonth + 1}:`, error)
+              // Continue with next period instead of failing completely
+            }
+          } else {
+            console.log(`  Bill already exists for ${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`)
+          }
+        }
+
+        // Move to next month
+        currentMonth++
+        if (currentMonth > 11) {
+          currentMonth = 0
+          currentYear++
+        }
+      }
+
+      console.log(`  Generated ${billsGeneratedForAccount} new bills for ${account.name}`)
+    }
+
+    console.log(`\n✓ Comprehensive historical bill generation completed`)
+    console.log(`  Total bills generated: ${generatedBills.length}`)
+    console.log(`  Accounts processed: ${creditCardAccounts.length}`)
+    
+    return generatedBills
+    
+  } catch (error) {
+    console.error('Error generating comprehensive historical bills:', error)
+    throw new Error(`Failed to generate comprehensive historical bills: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
+/**
+ * Generate missing bills for a specific account with robust logic
+ * @description Generates all missing bills for a specific credit card account using proper periods
+ * @param accountId - Credit card account ID
+ * @param userId - User ID for authorization
+ * @returns Promise resolving to array of generated bills
+ */
+export async function generateMissingBillsForAccount(accountId: string, userId: string): Promise<CreditCardBill[]> {
+  try {
+    // Get account information
+    const accounts = await getAccounts(userId)
+    const account = accounts.find(acc => acc.id === accountId && acc.type === 'credit_card')
+    
+    if (!account || !account.creditCardInfo) {
+      throw new Error('Credit card account not found')
+    }
+
+    const creditInfo = account.creditCardInfo
+    const accountOpeningDate = new Date(account.accountOpeningDate)
+    const today = new Date()
+    const generatedBills: CreditCardBill[] = []
+
+    console.log(`Generating missing bills for account: ${account.name}`)
+    console.log(`  Opening Date: ${accountOpeningDate.toISOString().split('T')[0]}`)
+    
+    // Get first transaction date for this account
+    const firstTransactionDate = await getFirstTransactionDateForAccount(accountId, userId)
+    if (firstTransactionDate) {
+      console.log(`  First Transaction Date: ${firstTransactionDate.toISOString().split('T')[0]}`)
+    } else {
+      console.log(`  No transactions found for this account`)
+    }
+
+    // Get existing bills to identify gaps
+    const existingBills = await query<CreditCardBillRow>(
+      `
+      SELECT bill_period_start, bill_period_end FROM credit_card_bills 
+      WHERE account_id = $1 AND user_id = $2 
+      ORDER BY bill_period_start ASC
+      `,
+      [accountId, userId]
+    )
+
+    const existingPeriods = new Set(
+      existingBills.map(bill => {
+        const start = new Date(bill.bill_period_start)
+        const end = new Date(bill.bill_period_end)
+        return `${start.getFullYear()}-${start.getMonth()}-${end.getFullYear()}-${end.getMonth()}`
+      })
+    )
+
+    // Generate all missing bills from opening to current date
+    let currentYear = accountOpeningDate.getFullYear()
+    let currentMonth = accountOpeningDate.getMonth()
+    
+    // Always start from the account opening month to include first transactions
+    // This ensures that any transaction on the account opening date is included in the first bill
+
+    while (currentYear < today.getFullYear() || 
+           (currentYear === today.getFullYear() && currentMonth <= today.getMonth())) {
+      
+      // Calculate bill period for this year/month
+      const { billPeriodStart, billPeriodEnd } = calculateBillPeriod(
+        creditInfo.billGenerationDate,
+        currentYear,
+        currentMonth
+      )
+
+      // Check if this bill period includes the account opening date or starts after it
+      const billGenerationDate = new Date(currentYear, currentMonth, creditInfo.billGenerationDate)
+      const shouldGenerateBill = (billPeriodStart <= accountOpeningDate && billPeriodEnd >= accountOpeningDate) || 
+                                (billPeriodStart > accountOpeningDate) &&
+                                (billGenerationDate <= today || currentYear < today.getFullYear() || currentMonth < today.getMonth())
+
+      if (shouldGenerateBill) {
+        const periodKey = `${billPeriodStart.getFullYear()}-${billPeriodStart.getMonth()}-${billPeriodEnd.getFullYear()}-${billPeriodEnd.getMonth()}`
+        
+        if (!existingPeriods.has(periodKey)) {
+          try {
+            const bill = await generateBillForAccount(accountId, userId, currentYear, currentMonth)
+            generatedBills.push(bill)
+          } catch (error) {
+            console.error(`Error generating missing bill for ${currentYear}-${currentMonth + 1}:`, error)
+          }
+        }
+      }
+
+      // Move to next month
+      currentMonth++
+      if (currentMonth > 11) {
+        currentMonth = 0
+        currentYear++
+      }
+    }
+
+    console.log(`Generated ${generatedBills.length} missing bills for ${account.name}`)
+    return generatedBills
+
+  } catch (error) {
+    console.error('Error generating missing bills for account:', error)
+    throw new Error(`Failed to generate missing bills for account: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
+/**
+ * Recalculate all bills for an account
+ * @description Recalculates all bill amounts for an account to ensure data consistency
+ * @param accountId - Account ID
+ * @param userId - User ID for authorization
+ * @returns Promise resolving to number of bills recalculated
+ */
+export async function recalculateAllBillsForAccount(
+  accountId: string,
+  userId: string
+): Promise<number> {
+  try {
+    return await transaction(async (client) => {
+      // Get all bills for this account, ordered by bill period
+      const allBillsResult = await client.query(
+        `
+        SELECT * FROM credit_card_bills 
+        WHERE account_id = $1 AND user_id = $2 
+        ORDER BY bill_period_start ASC
+        `,
+        [accountId, userId]
+      )
+
+      const allBills = allBillsResult.rows
+
+      if (allBills.length === 0) {
+        console.log('No bills found for account')
+        return 0
+      }
+
+      console.log(`Recalculating all ${allBills.length} bills for account`)
+
+      // Recalculate each bill in chronological order
+      for (const bill of allBills) {
+        const billPeriodStart = new Date(bill.bill_period_start)
+        
+        // Get the correct previous balance for this bill
+        const previousBalance = await getPreviousBillBalance(
+          accountId,
+          userId,
+          billPeriodStart,
+          client
+        )
+
+        // Recalculate bill amount: previous balance + spending - payments in period
+        const totalSpending = parseFloat(String(bill.total_spending)) || 0
+        const totalPayments = parseFloat(String(bill.total_payments)) || 0
+        const newBillAmount = Math.max(0, previousBalance + totalSpending - totalPayments)
+        
+        // Update minimum payment based on new bill amount
+        const newMinimumPayment = newBillAmount > 0 ? calculateMinimumPayment(newBillAmount) : 0
+        
+        // Recalculate status based on new amounts
+        const paidAmount = parseFloat(String(bill.paid_amount)) || 0
+        const newStatus = determineBillStatus(
+          newBillAmount,
+          paidAmount,
+          new Date(bill.payment_due_date),
+          bill.paid_date ? new Date(bill.paid_date) : undefined
+        )
+
+        // Update the bill with recalculated amounts
+        await client.query(
+          `
+          UPDATE credit_card_bills 
+          SET 
+            previous_balance = $1,
+            bill_amount = $2,
+            minimum_payment = $3,
+            status = $4,
+            updated_at = NOW()
+          WHERE id = $5 AND user_id = $6
+          `,
+          [
+            previousBalance,
+            newBillAmount,
+            newMinimumPayment,
+            newStatus,
+            bill.id,
+            userId
+          ]
+        )
+
+        console.log(`  Updated bill ${bill.id}: Previous Balance: ${previousBalance}, Bill Amount: ${newBillAmount}`)
+      }
+
+      console.log('✓ All bills recalculated successfully')
+      return allBills.length
+    })
+  } catch (error) {
+    console.error('Error recalculating all bills for account:', error)
+    throw new Error('Failed to recalculate all bills for account')
   }
 } 

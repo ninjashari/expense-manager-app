@@ -445,6 +445,28 @@ export async function updateTransaction(transactionId: string, transactionData: 
 }
 
 /**
+ * Get first transaction date for an account
+ * @description Gets the date of the first transaction for a specific account
+ * @param accountId - Account ID
+ * @param userId - User ID for authorization
+ * @returns Promise resolving to the first transaction date or null if no transactions
+ */
+export async function getFirstTransactionDateForAccount(accountId: string, userId: string): Promise<Date | null> {
+  try {
+    const row = await queryOne<{ date: string }>(`
+      SELECT MIN(date) as date
+      FROM transactions 
+      WHERE account_id = $1 AND user_id = $2
+    `, [accountId, userId])
+
+    return row ? new Date(row.date) : null
+  } catch (error) {
+    console.error('Error fetching first transaction date for account:', error)
+    throw new Error(`Failed to fetch first transaction date: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
+/**
  * Delete transaction
  * @description Deletes a transaction
  * @param transactionId - ID of transaction to delete

@@ -7,7 +7,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { format, isAfter, isBefore, addDays } from 'date-fns'
-import { CreditCard, Plus, AlertCircle, Clock, CheckCircle, Calendar, TrendingUp } from 'lucide-react'
+import { CreditCard, Plus, AlertCircle, Clock, CheckCircle, Calendar, TrendingUp, FileText, Eye } from 'lucide-react'
+import Link from 'next/link'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,7 +22,8 @@ import { useAuth } from '@/components/auth/auth-provider'
 import { 
   getCreditCardSummaries, 
   autoGenerateBills, 
-  markBillAsPaid 
+  markBillAsPaid,
+  generateComprehensiveHistoricalBills
 } from '@/lib/services/credit-card-service'
 import { 
   CreditCardSummary, 
@@ -29,6 +31,7 @@ import {
   getBillStatusConfig
 } from '@/types/credit-card'
 import { formatCurrency } from '@/lib/currency'
+import { toast } from 'sonner'
 
 /**
  * Credit card bill status badge component
@@ -121,88 +124,24 @@ function CreditCardOverview({ summary }: { summary: CreditCardSummary }) {
             </span>
           </div>
         </div>
-      </CardContent>
-    </Card>
-  )
-}
 
-/**
- * Bill item component
- * @description Displays individual credit card bill information
- */
-function BillItem({ bill, onMarkAsPaid }: { 
-  bill: CreditCardBill
-  onMarkAsPaid: (billId: string) => void 
-}) {
-  const isOverdue = isAfter(new Date(), bill.paymentDueDate) && bill.status !== 'paid'
-  const isDueSoon = isBefore(new Date(), bill.paymentDueDate) && 
-                   isAfter(addDays(new Date(), 7), bill.paymentDueDate) && 
-                   bill.status !== 'paid'
-
-  return (
-    <Card className={isOverdue ? 'border-red-200' : isDueSoon ? 'border-orange-200' : ''}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2">
-              <h4 className="font-medium">
-                Bill for {format(bill.billPeriodStart, 'MMM dd')} - {format(bill.billPeriodEnd, 'MMM dd, yyyy')}
-              </h4>
-              <BillStatusBadge status={bill.status} />
-              {isOverdue && <AlertCircle className="h-4 w-4 text-red-500" />}
-              {isDueSoon && <Clock className="h-4 w-4 text-orange-500" />}
-            </div>
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-              <span>Generated: {format(bill.billGenerationDate, 'MMM dd, yyyy')}</span>
-              <span>Due: {format(bill.paymentDueDate, 'MMM dd, yyyy')}</span>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-lg font-semibold">
-              {formatCurrency(bill.billAmount)}
-            </div>
-            {bill.paidAmount > 0 && (
-              <div className="text-sm text-green-600">
-                Paid: {formatCurrency(bill.paidAmount)}
-              </div>
-            )}
-            <div className="text-xs text-muted-foreground">
-              Min: {formatCurrency(bill.minimumPayment)}
-            </div>
+        {/* Bill Management Actions */}
+        <div className="pt-4 border-t">
+          <div className="flex space-x-2">
+            <Link href={`/credit-cards/${account.id}/bills`} className="flex-1">
+              <Button variant="outline" size="sm" className="w-full">
+                <FileText className="h-4 w-4 mr-2" />
+                Manage Bills
+              </Button>
+            </Link>
+            <Link href="/credit-cards/bills" className="flex-1">
+              <Button variant="outline" size="sm" className="w-full">
+                <Eye className="h-4 w-4 mr-2" />
+                View All Bills
+              </Button>
+            </Link>
           </div>
         </div>
-
-        {/* Bill Details */}
-        <div className="mt-3 pt-3 border-t">
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div>
-              <div className="text-muted-foreground">Previous Balance</div>
-              <div className="font-medium">{formatCurrency(bill.previousBalance)}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Spending</div>
-              <div className="font-medium text-red-600">+{formatCurrency(bill.totalSpending)}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Payments</div>
-              <div className="font-medium text-green-600">-{formatCurrency(bill.totalPayments)}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        {bill.status !== 'paid' && (
-          <div className="mt-4 flex gap-2">
-            <Button 
-              size="sm" 
-              onClick={() => onMarkAsPaid(bill.id)}
-              className="flex-1"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Mark as Paid
-            </Button>
-          </div>
-        )}
       </CardContent>
     </Card>
   )
@@ -217,6 +156,8 @@ export default function CreditCardsPage() {
   const [summaries, setSummaries] = useState<CreditCardSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isGeneratingHistorical, setIsGeneratingHistorical] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   /**
    * Load credit card data
@@ -244,56 +185,46 @@ export default function CreditCardsPage() {
   }, [user?.id])
 
   /**
-   * Handle marking bill as paid
+   * Force refresh account balances and credit usage
+   * @description Calls the API to recalculate all account balances and credit usage percentages
    */
-  const handleMarkAsPaid = async (billId: string) => {
+  const refreshAccountBalances = useCallback(async () => {
     if (!user?.id) return
 
     try {
-      // For now, mark as fully paid on current date
-      // In a real application, this would open a payment form
-      const allBills = summaries.flatMap(s => s.recentBills)
+      setIsRefreshing(true)
+      toast.info('Refreshing credit card data...')
       
-      const bill = allBills.find(b => b.id === billId)
-      
-      if (!bill) {
-        console.error('Bill not found with ID:', billId)
-        setError(`Bill not found with ID: ${billId}`)
-        return
+      // Call the recalculate balances API to force database updates
+      const response = await fetch('/api/accounts/recalculate-balances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to recalculate account balances')
       }
+
+      const result = await response.json()
+      console.log('Balance recalculation result:', result)
       
-      const remainingAmount = bill.billAmount - bill.paidAmount
-      
-      // Handle different bill scenarios
-      if (bill.status === 'paid') {
-        console.error('Bill is already marked as paid')
-        setError('Bill is already marked as paid')
-        return
-      }
-      
-      // For bills with remaining amount, pay the full amount
-      // For $0 bills, record a $0 payment to mark as paid
-      const paymentAmount = Math.max(0, remainingAmount)
-      
-      await markBillAsPaid({
-        billId,
-        paymentAmount,
-        paymentDate: new Date(),
-        notes: 'Marked as paid from credit cards page'
-      }, user.id)
-      
-      // Reload data to reflect changes
+      // After forcing balance recalculation, reload the credit card data
       await loadCreditCardData()
       
-    } catch (err) {
-      console.error('Error marking bill as paid:', err)
-      setError(err instanceof Error ? err.message : 'Failed to mark bill as paid')
+      toast.success('Credit card data refreshed successfully')
+    } catch (error) {
+      console.error('Error refreshing account balances:', error)
+      toast.error('Failed to refresh credit card data')
+      setError(error instanceof Error ? error.message : 'Failed to refresh credit card data')
+    } finally {
+      setIsRefreshing(false)
     }
-  }
+  }, [user?.id, loadCreditCardData])
+
 
   useEffect(() => {
     loadCreditCardData()
-  }, [user?.id, loadCreditCardData])
+  }, [loadCreditCardData])
 
   if (isLoading) {
     return (
@@ -394,10 +325,23 @@ export default function CreditCardsPage() {
       <div className="flex-1 space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Credit Cards</h2>
-          <Button onClick={loadCreditCardData} variant="outline">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex space-x-2">
+            <Link href="/credit-cards/bills">
+              <Button variant="outline">
+                <FileText className="h-4 w-4 mr-2" />
+                Manage All Bills
+              </Button>
+            </Link>
+
+            <Button 
+              onClick={refreshAccountBalances} 
+              variant="outline"
+              disabled={isRefreshing}
+            >
+              <TrendingUp className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
+            </Button>
+          </div>
         </div>
 
         {/* Credit Card Overview */}
@@ -407,96 +351,6 @@ export default function CreditCardsPage() {
           ))}
         </div>
 
-        {/* Bills Management */}
-        <Tabs defaultValue="upcoming" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="upcoming" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Upcoming Bills ({upcomingBills.length})
-            </TabsTrigger>
-            <TabsTrigger value="overdue" className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              Overdue Bills ({overdueBills.length})
-            </TabsTrigger>
-            <TabsTrigger value="all" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              All Bills
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="upcoming" className="space-y-4">
-            {upcomingBills.length === 0 ? (
-              <Card>
-                <CardContent className="flex items-center justify-center h-32">
-                  <div className="text-center">
-                    <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                    <p className="text-muted-foreground">No upcoming bills</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              upcomingBills.map((bill) => (
-                <BillItem
-                  key={bill.id}
-                  bill={bill}
-                  onMarkAsPaid={handleMarkAsPaid}
-                />
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="overdue" className="space-y-4">
-            {overdueBills.length === 0 ? (
-              <Card>
-                <CardContent className="flex items-center justify-center h-32">
-                  <div className="text-center">
-                    <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                    <p className="text-muted-foreground">No overdue bills</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              overdueBills.map((bill) => (
-                <BillItem
-                  key={bill.id}
-                  bill={bill}
-                  onMarkAsPaid={handleMarkAsPaid}
-                />
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="all" className="space-y-6">
-            {summaries.map((summary) => (
-              <div key={summary.account.id} className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">{summary.account.name}</h3>
-                  <Badge variant="outline">
-                    {summary.recentBills.length} bills
-                  </Badge>
-                </div>
-                <div className="space-y-3">
-                  {summary.recentBills.length === 0 ? (
-                    <Card>
-                      <CardContent className="flex items-center justify-center h-20">
-                        <p className="text-muted-foreground">No bills generated yet</p>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    summary.recentBills.map((bill) => (
-                      <BillItem
-                        key={bill.id}
-                        bill={bill}
-                        onMarkAsPaid={handleMarkAsPaid}
-                      />
-                    ))
-                  )}
-                </div>
-                {summary !== summaries[summaries.length - 1] && <Separator />}
-              </div>
-            ))}
-          </TabsContent>
-        </Tabs>
       </div>
     </ProtectedRoute>
   )
