@@ -280,11 +280,11 @@ export async function recordBillPayment(
       }
 
       const currentBill = billResult.rows[0]
-      const newPaidAmount = currentBill.paid_amount + paymentInfo.paymentAmount
+      const newPaidAmount = parseFloat(String(currentBill.paid_amount)) + parseFloat(String(paymentInfo.paymentAmount))
       
       // Determine new status
       const newStatus = determineBillStatus(
-        currentBill.bill_amount,
+        parseFloat(String(currentBill.bill_amount)),
         newPaidAmount,
         new Date(currentBill.payment_due_date),
         paymentInfo.paymentDate
@@ -375,8 +375,8 @@ export async function generateBillForAccount(
       // For credit cards, the previous balance should be the unpaid amount from the last bill
       // If this is the first bill, we should start with the current outstanding balance
       const previousBalance = previousBillResult.rows.length > 0 
-        ? Math.max(0, previousBillResult.rows[0].bill_amount - previousBillResult.rows[0].paid_amount)
-        : Math.max(0, Math.abs(account.current_balance)) // Use current balance as starting point
+        ? Math.max(0, parseFloat(String(previousBillResult.rows[0].bill_amount)) - parseFloat(String(previousBillResult.rows[0].paid_amount)))
+        : Math.max(0, Math.abs(parseFloat(String(account.current_balance)))) // Use current balance as starting point
         
 
 
@@ -403,12 +403,14 @@ export async function generateBillForAccount(
         // For credit cards:
         // - Withdrawals (spending) increase the debt (positive amounts in transactions, but increase bill)
         // - Deposits (payments) reduce the debt (positive amounts that reduce bill)
+        const amount = parseFloat(String(transaction.amount)) || 0
+        
         if (transaction.type === 'withdrawal') {
           // Credit card spending - increases the amount owed
-          totalSpending += transaction.amount
+          totalSpending += amount
         } else if (transaction.type === 'deposit') {
           // Credit card payment - reduces the amount owed
-          totalPayments += transaction.amount
+          totalPayments += amount
           paymentTransactionIds.push(transaction.id)
         }
       })

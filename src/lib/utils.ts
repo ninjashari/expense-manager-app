@@ -24,28 +24,26 @@ export function formatDateForDatabase(date: Date | string): string {
       return date
     }
     
-    // If it's an ISO string, parse it carefully to avoid timezone issues
+    // If it's an ISO string, extract date part to avoid timezone conversion
     if (date.includes('T') || date.includes('Z')) {
-      // Extract date part from ISO string to avoid timezone conversion
+      // Extract date part from ISO string to avoid timezone issues
       const datePart = date.split('T')[0]
       if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
         return datePart
       }
     }
     
-    // Fallback to Date parsing with timezone correction
+    // For other string formats, parse carefully
     const dateObj = new Date(date)
     if (isNaN(dateObj.getTime())) {
       throw new Error('Invalid date string provided to formatDateForDatabase')
     }
     
-    // Get the timezone offset and adjust for local date
-    const timezoneOffset = dateObj.getTimezoneOffset()
-    const localDate = new Date(dateObj.getTime() - (timezoneOffset * 60 * 1000))
-    
-    const year = localDate.getUTCFullYear()
-    const month = String(localDate.getUTCMonth() + 1).padStart(2, '0')
-    const day = String(localDate.getUTCDate()).padStart(2, '0')
+    // Use the date components directly without timezone adjustment
+    // This avoids the timezone offset issue that was causing date reduction
+    const year = dateObj.getFullYear()
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+    const day = String(dateObj.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
   }
   
@@ -54,6 +52,7 @@ export function formatDateForDatabase(date: Date | string): string {
     throw new Error('Invalid date provided to formatDateForDatabase')
   }
   
+  // For Date objects, use local date components directly
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
