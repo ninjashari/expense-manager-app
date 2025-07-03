@@ -7,20 +7,18 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Calendar, Filter, X, ChevronDown, Search } from 'lucide-react'
+import { Calendar, X, ChevronDown, Search } from 'lucide-react'
 import { format } from 'date-fns'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar'
-import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 
 import { Account, ACCOUNT_TYPE_OPTIONS, AccountType } from '@/types/account'
@@ -336,99 +334,122 @@ export function ReportFilters({
   onFiltersChange,
   showAdvanced = false
 }: ReportFiltersProps) {
+  const [localFilters, setLocalFilters] = useState(filters)
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(showAdvanced)
 
-  // Update a specific filter
+  // Update local filters when external filters change
+  useEffect(() => {
+    setLocalFilters(filters)
+  }, [filters])
+
   const updateFilter = <K extends keyof ReportFilters>(
     key: K,
     value: ReportFilters[K]
   ) => {
-    onFiltersChange({
-      ...filters,
-      [key]: value
-    })
+    const newFilters = { ...localFilters, [key]: value }
+
+    if (key === 'dateRangePreset') {
+      const preset = value as DateRangePreset
+      if (preset !== 'custom') {
+        newFilters.startDate = undefined
+        newFilters.endDate = undefined
+      }
+    }
+
+    setLocalFilters(newFilters)
+    onFiltersChange(newFilters)
   }
 
-  // Reset all filters to defaults
   const resetFilters = () => {
-    onFiltersChange(DEFAULT_REPORT_FILTERS)
+    const defaultFilters = { ...DEFAULT_REPORT_FILTERS }
+    setLocalFilters(defaultFilters)
+    onFiltersChange(defaultFilters)
   }
-
-  // Count active filters
+  
   const activeFilterCount = [
-    filters.accountIds.length > 0,
-    filters.categoryIds.length > 0,
-    filters.payeeIds.length > 0,
-    filters.transactionTypes.length !== 3, // Default includes all 3 types
-    filters.transactionStatuses.length !== 1, // Default includes only completed
-    filters.accountTypes.length > 0,
-    filters.minAmount !== undefined,
-    filters.maxAmount !== undefined,
-    filters.searchTerm && filters.searchTerm.length > 0,
-    filters.dateRange !== 'this_month'
+    localFilters.accountIds.length > 0,
+    localFilters.categoryIds.length > 0,
+    localFilters.payeeIds.length > 0,
+    localFilters.transactionTypes.length > 0,
+    localFilters.transactionStatuses.length > 0,
+    localFilters.minAmount !== undefined,
+    localFilters.maxAmount !== undefined,
+    localFilters.searchTerm && localFilters.searchTerm.length > 0,
+    localFilters.dateRangePreset !== 'this_financial_year'
   ].filter(Boolean).length
 
   return (
-    <Card>
+    <Card className="bg-background/50 backdrop-blur-lg border-dashed">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Report Filters
-              {activeFilterCount > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {activeFilterCount} active
-                </Badge>
-              )}
-            </CardTitle>
-            <CardDescription>
-              Customize your report by applying filters and date ranges
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-            >
-              {isAdvancedOpen ? 'Basic' : 'Advanced'}
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-foreground">Report Filters</h3>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="advanced-filters" className="text-sm font-normal">
+                Advanced
+              </Label>
+              <Switch
+                id="advanced-filters"
+                checked={isAdvancedOpen}
+                onCheckedChange={setIsAdvancedOpen}
+              />
+            </div>
+            <Button variant="ghost" size="sm" onClick={resetFilters} className="text-sm">
+              <X className="mr-2 h-4 w-4" />
+              Reset
             </Button>
-            {activeFilterCount > 0 && (
-              <Button variant="outline" size="sm" onClick={resetFilters}>
-                <X className="mr-1 h-3 w-3" />
-                Reset
-              </Button>
-            )}
           </div>
         </div>
+        {activeFilterCount > 0 && (
+          <CardDescription>
+            {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} applied
+          </CardDescription>
+        )}
       </CardHeader>
+      
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Date Range */}
+          <div className="space-y-2">
+            <Label>Date Range</Label>
+            <DateRangePicker
+              dateRange={localFilters.dateRangePreset}
+              startDate={localFilters.startDate}
+              endDate={localFilters.endDate}
+              onDateRangeChange={(preset, start, end) => {
+                const newFilters: ReportFilters = {
+                  ...localFilters,
+                  dateRangePreset: preset,
+                  startDate: start,
+                  endDate: end,
+                }
+                setLocalFilters(newFilters)
+                onFiltersChange(newFilters)
+              }}
+            />
+          </div>
 
-      <CardContent className="space-y-6">
-        {/* Date Range Selection */}
-        <DateRangePicker
-          dateRange={filters.dateRange}
-          startDate={filters.startDate}
-          endDate={filters.endDate}
-          onDateRangeChange={(preset, startDate, endDate) => {
-            // Update all date-related filters in a single call
-            onFiltersChange({
-              ...filters,
-              dateRange: preset,
-              startDate: startDate,
-              endDate: endDate
-            })
-          }}
-        />
+          {/* Transaction Type */}
+          <div className="space-y-2">
+            <Label>Transaction Types</Label>
+            <MultiSelect
+              items={TRANSACTION_TYPE_OPTIONS}
+              selectedIds={localFilters.transactionTypes}
+              onSelectionChange={(types) => updateFilter('transactionTypes', types as TransactionType[])}
+              getItemId={(option) => option.value}
+              getItemLabel={(option) => option.label}
+              placeholder="All types"
+              searchPlaceholder="Search types..."
+              emptyMessage="No transaction types found"
+            />
+          </div>
 
-        {/* Basic Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Accounts */}
-          <div>
+          <div className="space-y-2">
             <Label>Accounts</Label>
             <MultiSelect
               items={accounts}
-              selectedIds={filters.accountIds}
+              selectedIds={localFilters.accountIds}
               onSelectionChange={(ids) => updateFilter('accountIds', ids)}
               getItemId={(account) => account.id}
               getItemLabel={(account) => account.name}
@@ -439,172 +460,112 @@ export function ReportFilters({
             />
           </div>
 
-          {/* Transaction Types */}
-          <div>
-            <Label>Transaction Types</Label>
+          {/* Categories */}
+          <div className="space-y-2">
+            <Label>Categories</Label>
             <MultiSelect
-              items={TRANSACTION_TYPE_OPTIONS}
-              selectedIds={filters.transactionTypes}
-              onSelectionChange={(types) => updateFilter('transactionTypes', types as TransactionType[])}
-              getItemId={(option) => option.value}
-              getItemLabel={(option) => option.label}
-              placeholder="All types"
-              searchPlaceholder="Search types..."
-              emptyMessage="No transaction types found"
+              items={categories}
+              selectedIds={localFilters.categoryIds}
+              onSelectionChange={(ids) => updateFilter('categoryIds', ids)}
+              getItemId={(category) => category.id}
+              getItemLabel={(category) => category.displayName}
+              placeholder="All categories"
+              searchPlaceholder="Search categories..."
+              emptyMessage="No categories found"
             />
           </div>
-        </div>
 
-        {/* Advanced Filters */}
-        {isAdvancedOpen && (
-          <>
-            <Separator />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Categories */}
+          {/* Payees */}
+          <div className="space-y-2">
+            <Label>Payees</Label>
+            <MultiSelect
+              items={payees}
+              selectedIds={localFilters.payeeIds}
+              onSelectionChange={(ids) => updateFilter('payeeIds', ids)}
+              getItemId={(payee) => payee.id}
+              getItemLabel={(payee) => payee.displayName}
+              getItemDescription={(payee) => payee.category || ''}
+              placeholder="All payees"
+              searchPlaceholder="Search payees..."
+              emptyMessage="No payees found"
+            />
+          </div>
+
+          {/* Transaction Status */}
+          <div className="space-y-2">
+            <Label>Transaction Status</Label>
+            <MultiSelect
+              items={TRANSACTION_STATUS_OPTIONS}
+              selectedIds={localFilters.transactionStatuses}
+              onSelectionChange={(statuses) => updateFilter('transactionStatuses', statuses as TransactionStatus[])}
+              getItemId={(option) => option.value}
+              getItemLabel={(option) => option.label}
+              placeholder="All statuses"
+              searchPlaceholder="Search statuses..."
+              emptyMessage="No statuses found"
+            />
+          </div>
+
+          {/* Account Types */}
+          <div className="space-y-2">
+            <Label>Account Types</Label>
+            <MultiSelect
+              items={ACCOUNT_TYPE_OPTIONS}
+              selectedIds={localFilters.accountTypes}
+              onSelectionChange={(types) => updateFilter('accountTypes', types as AccountType[])}
+              getItemId={(option) => option.value}
+              getItemLabel={(option) => option.label}
+              placeholder="All account types"
+              searchPlaceholder="Search account types..."
+              emptyMessage="No account types found"
+            />
+          </div>
+
+          {/* Amount Range */}
+          <div className="space-y-2">
+            <Label>Amount Range</Label>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Categories</Label>
-                <MultiSelect
-                  items={categories}
-                  selectedIds={filters.categoryIds}
-                  onSelectionChange={(ids) => updateFilter('categoryIds', ids)}
-                  getItemId={(category) => category.id}
-                  getItemLabel={(category) => category.displayName}
-                  placeholder="All categories"
-                  searchPlaceholder="Search categories..."
-                  emptyMessage="No categories found"
-                />
-              </div>
-
-              {/* Payees */}
-              <div>
-                <Label>Payees</Label>
-                <MultiSelect
-                  items={payees}
-                  selectedIds={filters.payeeIds}
-                  onSelectionChange={(ids) => updateFilter('payeeIds', ids)}
-                  getItemId={(payee) => payee.id}
-                  getItemLabel={(payee) => payee.displayName}
-                  getItemDescription={(payee) => payee.category || ''}
-                  placeholder="All payees"
-                  searchPlaceholder="Search payees..."
-                  emptyMessage="No payees found"
-                />
-              </div>
-
-              {/* Transaction Status */}
-              <div>
-                <Label>Transaction Status</Label>
-                <MultiSelect
-                  items={TRANSACTION_STATUS_OPTIONS}
-                  selectedIds={filters.transactionStatuses}
-                  onSelectionChange={(statuses) => updateFilter('transactionStatuses', statuses as TransactionStatus[])}
-                  getItemId={(option) => option.value}
-                  getItemLabel={(option) => option.label}
-                  placeholder="All statuses"
-                  searchPlaceholder="Search statuses..."
-                  emptyMessage="No statuses found"
-                />
-              </div>
-
-              {/* Account Types */}
-              <div>
-                <Label>Account Types</Label>
-                <MultiSelect
-                  items={ACCOUNT_TYPE_OPTIONS}
-                  selectedIds={filters.accountTypes}
-                  onSelectionChange={(types) => updateFilter('accountTypes', types as AccountType[])}
-                  getItemId={(option) => option.value}
-                  getItemLabel={(option) => option.label}
-                  placeholder="All account types"
-                  searchPlaceholder="Search account types..."
-                  emptyMessage="No account types found"
-                />
-              </div>
-            </div>
-
-            {/* Amount Range */}
-            <div>
-              <Label>Amount Range</Label>
-              <div className="grid grid-cols-2 gap-3 mt-1">
-                <div>
-                  <Input
-                    type="number"
-                    placeholder="Min amount"
-                    value={filters.minAmount || ''}
-                    onChange={(e) => updateFilter('minAmount', e.target.value ? Number(e.target.value) : undefined)}
-                  />
-                </div>
-                <div>
-                  <Input
-                    type="number"
-                    placeholder="Max amount"
-                    value={filters.maxAmount || ''}
-                    onChange={(e) => updateFilter('maxAmount', e.target.value ? Number(e.target.value) : undefined)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Search */}
-            <div>
-              <Label>Search</Label>
-              <div className="space-y-3">
                 <Input
-                  placeholder="Search transactions..."
-                  value={filters.searchTerm || ''}
-                  onChange={(e) => updateFilter('searchTerm', e.target.value)}
+                  type="number"
+                  placeholder="Min amount"
+                  value={localFilters.minAmount || ''}
+                  onChange={(e) => updateFilter('minAmount', e.target.value ? Number(e.target.value) : undefined)}
                 />
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="include-notes"
-                    checked={filters.includeNotes}
-                    onCheckedChange={(checked) => updateFilter('includeNotes', checked)}
-                  />
-                  <Label htmlFor="include-notes" className="text-sm font-normal">
-                    Include notes in search
-                  </Label>
-                </div>
+              </div>
+              <div>
+                <Input
+                  type="number"
+                  placeholder="Max amount"
+                  value={localFilters.maxAmount || ''}
+                  onChange={(e) => updateFilter('maxAmount', e.target.value ? Number(e.target.value) : undefined)}
+                />
               </div>
             </div>
-          </>
-        )}
+          </div>
 
-        {/* Filter Summary */}
-        {activeFilterCount > 0 && (
-          <>
-            <Separator />
-            <div>
-              <Label className="text-sm text-muted-foreground">Active Filters Summary</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {filters.accountIds.length > 0 && (
-                  <Badge variant="outline">
-                    {filters.accountIds.length} Account{filters.accountIds.length !== 1 ? 's' : ''}
-                  </Badge>
-                )}
-                {filters.categoryIds.length > 0 && (
-                  <Badge variant="outline">
-                    {filters.categoryIds.length} Categor{filters.categoryIds.length !== 1 ? 'ies' : 'y'}
-                  </Badge>
-                )}
-                {filters.payeeIds.length > 0 && (
-                  <Badge variant="outline">
-                    {filters.payeeIds.length} Payee{filters.payeeIds.length !== 1 ? 's' : ''}
-                  </Badge>
-                )}
-                {filters.minAmount !== undefined && (
-                  <Badge variant="outline">Min: ₹{filters.minAmount}</Badge>
-                )}
-                {filters.maxAmount !== undefined && (
-                  <Badge variant="outline">Max: ₹{filters.maxAmount}</Badge>
-                )}
-                {filters.searchTerm && (
-                  <Badge variant="outline">Search: &quot;{filters.searchTerm}&quot;</Badge>
-                )}
+          {/* Search */}
+          <div className="space-y-2">
+            <Label>Search</Label>
+            <div className="space-y-3">
+              <Input
+                placeholder="Search transactions..."
+                value={localFilters.searchTerm || ''}
+                onChange={(e) => updateFilter('searchTerm', e.target.value)}
+              />
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="include-notes"
+                  checked={localFilters.includeNotes}
+                  onCheckedChange={(checked) => updateFilter('includeNotes', checked)}
+                />
+                <Label htmlFor="include-notes" className="text-sm font-normal">
+                  Include notes in search
+                </Label>
               </div>
             </div>
-          </>
-        )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   )

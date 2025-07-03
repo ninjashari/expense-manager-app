@@ -56,7 +56,7 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
       type: 'category_breakdown',
       filters: {
         ...DEFAULT_REPORT_FILTERS,
-        dateRange: 'this_month',
+        dateRangePreset: 'this_month',
         transactionTypes: ['withdrawal'],
         transactionStatuses: ['completed']
       },
@@ -80,7 +80,7 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
       type: 'monthly_trends',
       filters: {
         ...DEFAULT_REPORT_FILTERS,
-        dateRange: 'this_quarter',
+        dateRangePreset: 'this_quarter',
         transactionTypes: ['deposit', 'withdrawal'],
         transactionStatuses: ['completed']
       },
@@ -104,7 +104,7 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
       type: 'account_performance',
       filters: {
         ...DEFAULT_REPORT_FILTERS,
-        dateRange: 'last_30_days',
+        dateRangePreset: 'last_30_days',
         transactionTypes: ['deposit', 'withdrawal', 'transfer'],
         transactionStatuses: ['completed']
       },
@@ -128,7 +128,7 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
       type: 'payee_analysis',
       filters: {
         ...DEFAULT_REPORT_FILTERS,
-        dateRange: 'last_30_days',
+        dateRangePreset: 'last_30_days',
         transactionTypes: ['withdrawal'],
         transactionStatuses: ['completed']
       },
@@ -152,7 +152,7 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
       type: 'income_vs_expenses',
       filters: {
         ...DEFAULT_REPORT_FILTERS,
-        dateRange: 'this_financial_year',
+        dateRangePreset: 'this_financial_year',
         transactionTypes: ['deposit', 'withdrawal'],
         transactionStatuses: ['completed']
       },
@@ -176,7 +176,7 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
       type: 'yearly_trends',
       filters: {
         ...DEFAULT_REPORT_FILTERS,
-        dateRange: 'this_year',
+        dateRangePreset: 'this_year',
         transactionTypes: ['deposit', 'withdrawal'],
         transactionStatuses: ['completed']
       },
@@ -200,7 +200,7 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
       type: 'custom_analysis',
       filters: {
         ...DEFAULT_REPORT_FILTERS,
-        dateRange: 'this_month',
+        dateRangePreset: 'this_month',
         accountTypes: ['credit_card'],
         transactionTypes: ['withdrawal'],
         transactionStatuses: ['completed']
@@ -225,7 +225,7 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
       type: 'income_vs_expenses',
       filters: {
         ...DEFAULT_REPORT_FILTERS,
-        dateRange: 'last_30_days',
+        dateRangePreset: 'last_30_days',
         transactionTypes: ['deposit', 'withdrawal'],
         transactionStatuses: ['completed']
       },

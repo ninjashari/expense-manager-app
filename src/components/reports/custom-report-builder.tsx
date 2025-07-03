@@ -7,7 +7,7 @@
 "use client"
 
 import React, { useState, useCallback, useEffect } from 'react'
-import { Download, Settings, Filter, FileText, Group } from 'lucide-react'
+import { Download, Settings, FileText, Group } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
@@ -37,7 +37,6 @@ import {
 } from '@/types/report'
 
 import { ReportFilters as ReportFiltersComponent } from './report-filters'
-import { filterTransactions } from '@/lib/services/report-service'
 
 /**
  * Props interface for the CustomReportBuilder component
@@ -388,7 +387,6 @@ export function CustomReportBuilder({
   categories,
   payees
 }: CustomReportBuilderProps) {
-  // State management
   const [reportName, setReportName] = useState('Custom Transaction Report')
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -396,25 +394,20 @@ export function CustomReportBuilder({
   const [groupBy, setGroupBy] = useState<GroupByOption>('none')
   const [isLoading, setIsLoading] = useState(false)
 
-  // Generate filtered transaction data
   const generateReport = useCallback(async () => {
     setIsLoading(true)
     try {
-      // Fetch all transactions for the user via API
-      const response = await fetch('/api/transactions')
+      const response = await fetch(`/api/transactions?filters=${JSON.stringify(filters)}`)
       if (!response.ok) {
         throw new Error('Failed to fetch transactions')
       }
       const data = await response.json()
       const allTransactions = data.transactions
       
-      // Apply filters
-      const filtered = filterTransactions(allTransactions, filters)
-      
       setTransactions(allTransactions)
-      setFilteredTransactions(filtered)
+      setFilteredTransactions(allTransactions)
       
-      toast.success(`Found ${filtered.length} transactions matching your criteria`)
+      toast.success(`Found ${allTransactions.length} transactions matching your criteria`)
     } catch (error) {
       console.error('Error generating report:', error)
       toast.error('Failed to load transactions. Please try again.')
@@ -423,40 +416,26 @@ export function CustomReportBuilder({
     }
   }, [filters])
 
-  // Handle filter changes
   const handleFiltersChange = (newFilters: ReportFilters) => {
     setFilters(newFilters)
   }
 
-  // Auto-regenerate report when filters change
-  useEffect(() => {
-    // Only regenerate if we have transactions data already (not on initial load)
-    if (transactions.length > 0) {
-      const filtered = filterTransactions(transactions, filters)
-      setFilteredTransactions(filtered)
-    }
-  }, [filters, transactions])
-
-  // Generate initial report on component mount
   useEffect(() => {
     generateReport()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [generateReport])
 
-
-
-  // Group transactions if needed
   const groupedData = groupTransactions(filteredTransactions, groupBy)
 
   // Calculate summary statistics
   const summary = {
-    totalTransactions: filteredTransactions.length,
-    totalIncome: filteredTransactions
+    totalTransactions: transactions.length,
+    totalIncome: transactions
       .filter(t => t.type === 'deposit')
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
-    totalExpenses: filteredTransactions
+    totalExpenses: transactions
       .filter(t => t.type === 'withdrawal')
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
-    totalTransfers: filteredTransactions
+    totalTransfers: transactions
       .filter(t => t.type === 'transfer')
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
   }
@@ -478,7 +457,7 @@ export function CustomReportBuilder({
             </div>
             <div className="flex items-center gap-2">
               <Button
-                onClick={generateReport}
+                onClick={() => exportToExcel(transactions, 'transaction_report', groupBy)}
                 disabled={isLoading}
                 variant="default"
               >
@@ -489,8 +468,8 @@ export function CustomReportBuilder({
                   </>
                 ) : (
                   <>
-                    <Filter className="mr-2 h-4 w-4" />
-                    Generate Report
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Excel
                   </>
                 )}
               </Button>
@@ -541,7 +520,7 @@ export function CustomReportBuilder({
       />
 
       {/* Results */}
-      {filteredTransactions.length > 0 && (
+      {transactions.length > 0 && (
         <>
           {/* Summary */}
           <Card>
@@ -549,12 +528,11 @@ export function CustomReportBuilder({
               <div className="flex items-center justify-between">
                 <CardTitle>Report Summary</CardTitle>
                 <Button
-                  onClick={() => exportToExcel(filteredTransactions, reportName, groupBy)}
+                  onClick={() => exportToExcel(transactions, reportName, groupBy)}
                   variant="outline"
                   size="sm"
                 >
-                                      <Download className="mr-2 h-4 w-4" />
-                    Export Excel
+                  Export Excel
                 </Button>
               </div>
             </CardHeader>
@@ -592,8 +570,8 @@ export function CustomReportBuilder({
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 {groupBy === 'none' 
-                  ? `Transaction Details (${filteredTransactions.length} records)`
-                  : `Grouped Transaction Details (${groupedData.length} groups, ${filteredTransactions.length} records)`
+                  ? `Transaction Details (${transactions.length} records)`
+                  : `Grouped Transaction Details (${groupedData.length} groups, ${transactions.length} records)`
                 }
               </CardTitle>
             </CardHeader>
@@ -616,7 +594,7 @@ export function CustomReportBuilder({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredTransactions.slice(0, 100).map((transaction) => (
+                        {transactions.slice(0, 100).map((transaction) => (
                           <TableRow key={transaction.id}>
                             <TableCell>
                               {format(new Date(transaction.date), 'MMM dd, yyyy')}
@@ -669,9 +647,9 @@ export function CustomReportBuilder({
                         ))}
                       </TableBody>
                     </Table>
-                    {filteredTransactions.length > 100 && (
+                    {transactions.length > 100 && (
                       <div className="text-center text-sm text-muted-foreground py-4">
-                        Showing first 100 transactions. Export CSV to get all {filteredTransactions.length} records.
+                        Showing first 100 transactions. Export CSV to get all {transactions.length} records.
                       </div>
                     )}
                   </>
@@ -776,20 +754,20 @@ export function CustomReportBuilder({
       )}
 
       {/* Empty State */}
-      {!isLoading && filteredTransactions.length === 0 && transactions.length === 0 && (
+      {!isLoading && transactions.length === 0 && (
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
               <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">No Data Yet</h3>
-              <p>Click &quot;Generate Report&quot; to load and filter your transactions.</p>
+              <p>Click &quot;Export Excel&quot; to load and filter your transactions.</p>
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* No Results */}
-      {!isLoading && filteredTransactions.length === 0 && transactions.length > 0 && (
+      {!isLoading && transactions.length === 0 && transactions.length > 0 && (
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">

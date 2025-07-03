@@ -30,10 +30,10 @@ import {
 export function filterTransactions(transactions: Transaction[], filters: ReportFilters): Transaction[] {
   return transactions.filter(transaction => {
     // Date filtering
-    const dateRange = getDateRangeFromPreset(filters.dateRange)
+    const dateRange = getDateRangeFromPreset(filters.dateRangePreset)
     const transactionDate = new Date(transaction.date)
     
-    if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
+    if (filters.dateRangePreset === 'custom' && filters.startDate && filters.endDate) {
       if (transactionDate < filters.startDate || transactionDate > filters.endDate) {
         return false
       }
@@ -145,11 +145,11 @@ export function generateTransactionSummary(transactions: Transaction[], filters:
   const avgTransactionAmount = transactionCount > 0 ? (totalIncome + totalExpenses) / transactionCount : 0
 
   // Get date range for context
-  const dateRange = getDateRangeFromPreset(filters.dateRange)
+  const dateRange = getDateRangeFromPreset(filters.dateRangePreset)
   let start = new Date()
   let end = new Date()
 
-  if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
+  if (filters.dateRangePreset === 'custom' && filters.startDate && filters.endDate) {
     start = filters.startDate
     end = filters.endDate
   } else if (dateRange) {

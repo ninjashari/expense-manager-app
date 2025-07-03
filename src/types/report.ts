@@ -36,7 +36,7 @@ export type DateRangePreset =
  */
 export interface ReportFilters {
   // Date filtering
-  dateRange: DateRangePreset
+  dateRangePreset: DateRangePreset
   startDate?: Date
   endDate?: Date
   
@@ -393,7 +393,7 @@ export function getDateRangeFromPreset(preset: DateRangePreset): { start: Date; 
  * @description Default configuration for report filters
  */
 export const DEFAULT_REPORT_FILTERS: ReportFilters = {
-  dateRange: 'this_financial_year',
+  dateRangePreset: 'this_financial_year',
   accountIds: [],
   categoryIds: [],
   payeeIds: [],

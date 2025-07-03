@@ -9,6 +9,10 @@ import { query, queryOne } from '@/lib/database'
 import { Transaction, TransactionFormData, isTransferFormData } from '@/types/transaction'
 import { AccountType, Currency } from '@/types/account'
 import { formatDateForDatabase, parseDateFromDatabase } from '@/lib/utils'
+import {
+  ReportFilters,
+  getDateRangeFromPreset,
+} from '@/types/report'
 
 /**
  * Database row interface for transactions table
@@ -265,12 +269,80 @@ export async function createTransaction(transactionData: TransactionFormData, us
  * @description Retrieves transactions with joined account, payee, and category data
  * @param userId - User ID to filter transactions
  * @param limit - Optional limit for number of transactions
- * @param offset - Optional offset for pagination
- * @returns Promise resolving to array of transactions with related data
+ * @param offset - Optional query offset for pagination
+ * @param filters - Optional filters for filtering transactions
+ * @returns Promise resolving to an array of transactions
  */
-export async function getTransactions(userId: string, limit?: number, offset?: number): Promise<Transaction[]> {
+export async function getTransactions(
+  userId: string,
+  limit?: number,
+  offset?: number,
+  filters?: ReportFilters
+): Promise<Transaction[]> {
   try {
-    let sql = `
+    const whereClauses: string[] = ['t.user_id = $1']
+    const queryParams: (string | number | string[])[] = [userId]
+    let paramIndex = 2
+
+    if (filters) {
+      if (filters.accountIds && filters.accountIds.length > 0) {
+        whereClauses.push(`(t.account_id = ANY($${paramIndex}) OR t.from_account_id = ANY($${paramIndex}) OR t.to_account_id = ANY($${paramIndex}))`)
+        queryParams.push(filters.accountIds)
+        paramIndex++
+      }
+      if (filters.categoryIds && filters.categoryIds.length > 0) {
+        whereClauses.push(`t.category_id = ANY($${paramIndex})`)
+        queryParams.push(filters.categoryIds)
+        paramIndex++
+      }
+      if (filters.payeeIds && filters.payeeIds.length > 0) {
+        whereClauses.push(`t.payee_id = ANY($${paramIndex})`)
+        queryParams.push(filters.payeeIds)
+        paramIndex++
+      }
+      if (filters.transactionTypes && filters.transactionTypes.length > 0) {
+        whereClauses.push(`t.type = ANY($${paramIndex})`)
+        queryParams.push(filters.transactionTypes)
+        paramIndex++
+      }
+      if (filters.transactionStatuses && filters.transactionStatuses.length > 0) {
+        whereClauses.push(`t.status = ANY($${paramIndex})`)
+        queryParams.push(filters.transactionStatuses)
+        paramIndex++
+      }
+      if (filters.minAmount !== undefined) {
+        whereClauses.push(`t.amount >= $${paramIndex}`)
+        queryParams.push(filters.minAmount)
+        paramIndex++
+      }
+      if (filters.maxAmount !== undefined) {
+        whereClauses.push(`t.amount <= $${paramIndex}`)
+        queryParams.push(filters.maxAmount)
+        paramIndex++
+      }
+      if (filters.dateRangePreset) {
+        const dateRange = getDateRangeFromPreset(filters.dateRangePreset)
+        if (filters.dateRangePreset === 'custom' && filters.startDate && filters.endDate) {
+          whereClauses.push(`t.date BETWEEN $${paramIndex} AND $${paramIndex + 1}`)
+          queryParams.push(formatDateForDatabase(filters.startDate), formatDateForDatabase(filters.endDate))
+          paramIndex += 2
+        } else if (dateRange) {
+          whereClauses.push(`t.date BETWEEN $${paramIndex} AND $${paramIndex + 1}`)
+          queryParams.push(formatDateForDatabase(dateRange.start), formatDateForDatabase(dateRange.end))
+          paramIndex += 2
+        }
+      }
+    }
+
+    const whereString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+    const limitClause = limit ? `LIMIT $${paramIndex}` : ''
+    if (limit) queryParams.push(limit)
+    
+    const offsetClause = offset ? `OFFSET $${paramIndex + (limit ? 1 : 0)}` : ''
+    if (offset) queryParams.push(offset)
+
+    const rows = await query<TransactionRowWithRelations>(`
       SELECT 
         t.*,
         -- Account data
@@ -297,22 +369,12 @@ export async function getTransactions(userId: string, limit?: number, offset?: n
       LEFT JOIN accounts ta ON t.to_account_id = ta.id
       LEFT JOIN payees p ON t.payee_id = p.id
       LEFT JOIN categories c ON t.category_id = c.id
-      WHERE t.user_id = $1 
-      ORDER BY t.date DESC, t.created_at DESC
-    `
-    const params = [userId]
+      ${whereString}
+      ORDER BY t.date DESC
+      ${limitClause}
+      ${offsetClause}
+    `, queryParams)
     
-    if (limit) {
-      sql += ` LIMIT $${params.length + 1}`
-      params.push(limit.toString())
-    }
-    
-    if (offset) {
-      sql += ` OFFSET $${params.length + 1}`
-      params.push(offset.toString())
-    }
-
-    const rows = await query<TransactionRowWithRelations>(sql, params)
     return rows.map(transformRowToTransactionWithRelations)
   } catch (error) {
     console.error('Error fetching transactions:', error)

@@ -52,12 +52,6 @@ const navigationItems = [
     description: "Manage your bank accounts and wallets"
   },
   {
-    title: "Credit Cards",
-    url: "/credit-cards",
-    icon: CalendarDays,
-    description: "Manage credit card bills and payments"
-  },
-  {
     title: "Transactions",
     url: "/transactions",
     icon: Receipt,

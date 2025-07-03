@@ -12,7 +12,7 @@ import { getTransactions, createTransaction } from '@/lib/services/transaction-s
  * @description Retrieves transactions for the authenticated user
  * @returns Response with transactions data
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession()
     
@@ -23,7 +23,10 @@ export async function GET() {
       )
     }
 
-    const transactions = await getTransactions(session.user.id)
+    const { searchParams } = new URL(request.url)
+    const filters = JSON.parse(searchParams.get('filters') || '{}')
+
+    const transactions = await getTransactions(session.user.id, undefined, undefined, filters)
     
     return NextResponse.json({ transactions }, { status: 200 })
   } catch (error) {
