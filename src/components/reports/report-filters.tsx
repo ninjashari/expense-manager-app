@@ -11,7 +11,7 @@ import { Calendar, X, ChevronDown, Search } from 'lucide-react'
 import { format } from 'date-fns'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -214,109 +214,70 @@ interface DateRangePickerProps {
 
 function DateRangePicker({ dateRange, startDate, endDate, onDateRangeChange }: DateRangePickerProps) {
   const [showCustom, setShowCustom] = useState(dateRange === 'custom')
-  const [tempStartDate, setTempStartDate] = useState<Date | undefined>(startDate)
-  const [tempEndDate, setTempEndDate] = useState<Date | undefined>(endDate)
+  const [month, setMonth] = useState<Date>(startDate || endDate || new Date())
+  const [popoverOpen, setPopoverOpen] = useState(false)
 
   useEffect(() => {
     setShowCustom(dateRange === 'custom')
   }, [dateRange])
 
-  // Update temp dates when external dates change
-  useEffect(() => {
-    setTempStartDate(startDate)
-  }, [startDate])
-
-  useEffect(() => {
-    setTempEndDate(endDate)
-  }, [endDate])
-
   const handlePresetChange = (preset: DateRangePreset) => {
     if (preset === 'custom') {
       setShowCustom(true)
-      onDateRangeChange(preset, tempStartDate, tempEndDate)
     } else {
       setShowCustom(false)
-      // Clear startDate and endDate for preset ranges
-      onDateRangeChange(preset, undefined, undefined)
+      onDateRangeChange(preset)
     }
   }
 
-  const handleCustomDateChange = () => {
-    if (tempStartDate && tempEndDate) {
-      onDateRangeChange('custom', tempStartDate, tempEndDate)
+  const handleDateSelect = (range: { from?: Date, to?: Date }) => {
+    onDateRangeChange('custom', range.from, range.to)
+    if (range.from && range.to) {
+      setPopoverOpen(false)
     }
   }
 
   return (
-    <div className="space-y-3">
-      <div>
-        <Label>Date Range</Label>
-        <Select value={dateRange} onValueChange={handlePresetChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select date range" />
-          </SelectTrigger>
-          <SelectContent>
-            {DATE_RANGE_PRESETS.map((preset) => (
-              <SelectItem key={preset.value} value={preset.value}>
-                {preset.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
+    <div className="space-y-2">
+      <Select value={dateRange} onValueChange={handlePresetChange}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select date range" />
+        </SelectTrigger>
+        <SelectContent>
+          {DATE_RANGE_PRESETS.map(preset => (
+            <SelectItem key={preset.value} value={preset.value}>
+              {preset.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {showCustom && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Start Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left font-normal">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {tempStartDate ? format(tempStartDate, 'MMM dd, yyyy') : 'Pick a date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="single"
-                  selected={tempStartDate}
-                  onSelect={(date) => {
-                    setTempStartDate(date)
-                    if (date && tempEndDate) {
-                      handleCustomDateChange()
-                    }
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div>
-            <Label>End Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left font-normal">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {tempEndDate ? format(tempEndDate, 'MMM dd, yyyy') : 'Pick a date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="single"
-                  selected={tempEndDate}
-                  onSelect={(date) => {
-                    setTempEndDate(date)
-                    if (tempStartDate && date) {
-                      handleCustomDateChange()
-                    }
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full justify-start text-left font-normal"
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              <span>
+                {startDate && endDate
+                  ? `${format(startDate, 'LLL dd, y')} - ${format(endDate, 'LLL dd, y')}`
+                  : 'Select custom date range'}
+              </span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarComponent
+              mode="range"
+              selected={{ from: startDate, to: endDate }}
+              onSelect={(range) => handleDateSelect(range || {})}
+              numberOfMonths={2}
+              month={month}
+              onMonthChange={setMonth}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
       )}
     </div>
   )
@@ -324,7 +285,7 @@ function DateRangePicker({ dateRange, startDate, endDate, onDateRangeChange }: D
 
 /**
  * ReportFilters component
- * @description Main report filters component with comprehensive filtering options
+ * @description Main component for rendering the entire filter section
  */
 export function ReportFilters({
   filters,
@@ -334,229 +295,193 @@ export function ReportFilters({
   onFiltersChange,
   showAdvanced = false
 }: ReportFiltersProps) {
-  const [localFilters, setLocalFilters] = useState(filters)
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(showAdvanced)
-
-  // Update local filters when external filters change
-  useEffect(() => {
-    setLocalFilters(filters)
-  }, [filters])
+  const [advanced, setAdvanced] = useState(showAdvanced)
 
   const updateFilter = <K extends keyof ReportFilters>(
     key: K,
     value: ReportFilters[K]
   ) => {
-    const newFilters = { ...localFilters, [key]: value }
-
-    if (key === 'dateRangePreset') {
-      const preset = value as DateRangePreset
-      if (preset !== 'custom') {
-        newFilters.startDate = undefined
-        newFilters.endDate = undefined
-      }
-    }
-
-    setLocalFilters(newFilters)
-    onFiltersChange(newFilters)
+    onFiltersChange({
+      ...filters,
+      [key]: value
+    })
   }
 
   const resetFilters = () => {
-    const defaultFilters = { ...DEFAULT_REPORT_FILTERS }
-    setLocalFilters(defaultFilters)
-    onFiltersChange(defaultFilters)
+    onFiltersChange(DEFAULT_REPORT_FILTERS)
   }
-  
-  const activeFilterCount = [
-    localFilters.accountIds.length > 0,
-    localFilters.categoryIds.length > 0,
-    localFilters.payeeIds.length > 0,
-    localFilters.transactionTypes.length > 0,
-    localFilters.transactionStatuses.length > 0,
-    localFilters.minAmount !== undefined,
-    localFilters.maxAmount !== undefined,
-    localFilters.searchTerm && localFilters.searchTerm.length > 0,
-    localFilters.dateRangePreset !== 'this_financial_year'
-  ].filter(Boolean).length
 
   return (
-    <Card className="bg-background/50 backdrop-blur-lg border-dashed">
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-foreground">Report Filters</h3>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center space-x-2">
-              <Label htmlFor="advanced-filters" className="text-sm font-normal">
-                Advanced
-              </Label>
-              <Switch
-                id="advanced-filters"
-                checked={isAdvancedOpen}
-                onCheckedChange={setIsAdvancedOpen}
-              />
-            </div>
-            <Button variant="ghost" size="sm" onClick={resetFilters} className="text-sm">
-              <X className="mr-2 h-4 w-4" />
-              Reset
-            </Button>
-          </div>
-        </div>
-        {activeFilterCount > 0 && (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Report Filters</CardTitle>
           <CardDescription>
-            {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} applied
+            {Object.values(filters).filter(v => Array.isArray(v) ? v.length > 0 : v).length} filters applied
           </CardDescription>
-        )}
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="advanced-filters" className="text-sm font-medium">Advanced</Label>
+            <Switch
+              id="advanced-filters"
+              checked={advanced}
+              onCheckedChange={setAdvanced}
+            />
+          </div>
+          <Button variant="ghost" size="sm" onClick={resetFilters} className="text-sm">
+            <X className="mr-2 h-4 w-4" />
+            Reset
+          </Button>
+        </div>
       </CardHeader>
-      
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Date Range */}
+
+          {/* Date Range Filter */}
           <div className="space-y-2">
             <Label>Date Range</Label>
             <DateRangePicker
-              dateRange={localFilters.dateRangePreset}
-              startDate={localFilters.startDate}
-              endDate={localFilters.endDate}
-              onDateRangeChange={(preset, start, end) => {
-                const newFilters: ReportFilters = {
-                  ...localFilters,
+              dateRange={filters.dateRangePreset}
+              startDate={filters.startDate}
+              endDate={filters.endDate}
+              onDateRangeChange={(preset, startDate, endDate) => {
+                onFiltersChange({
+                  ...filters,
                   dateRangePreset: preset,
-                  startDate: start,
-                  endDate: end,
-                }
-                setLocalFilters(newFilters)
-                onFiltersChange(newFilters)
+                  startDate: startDate,
+                  endDate: endDate,
+                })
               }}
             />
           </div>
 
-          {/* Transaction Type */}
+          {/* Transaction Types Filter */}
           <div className="space-y-2">
             <Label>Transaction Types</Label>
             <MultiSelect
               items={TRANSACTION_TYPE_OPTIONS}
-              selectedIds={localFilters.transactionTypes}
+              selectedIds={filters.transactionTypes}
               onSelectionChange={(types) => updateFilter('transactionTypes', types as TransactionType[])}
               getItemId={(option) => option.value}
               getItemLabel={(option) => option.label}
-              placeholder="All types"
+              placeholder="Select transaction types"
               searchPlaceholder="Search types..."
-              emptyMessage="No transaction types found"
+              emptyMessage="No transaction types found."
             />
           </div>
 
-          {/* Accounts */}
+          {/* Accounts Filter */}
           <div className="space-y-2">
             <Label>Accounts</Label>
             <MultiSelect
               items={accounts}
-              selectedIds={localFilters.accountIds}
+              selectedIds={filters.accountIds}
               onSelectionChange={(ids) => updateFilter('accountIds', ids)}
               getItemId={(account) => account.id}
               getItemLabel={(account) => account.name}
-              getItemDescription={(account) => account.type}
-              placeholder="All accounts"
+              placeholder="Select accounts"
               searchPlaceholder="Search accounts..."
-              emptyMessage="No accounts found"
+              emptyMessage="No accounts found."
             />
           </div>
 
-          {/* Categories */}
+          {/* Categories Filter */}
           <div className="space-y-2">
             <Label>Categories</Label>
             <MultiSelect
               items={categories}
-              selectedIds={localFilters.categoryIds}
+              selectedIds={filters.categoryIds}
               onSelectionChange={(ids) => updateFilter('categoryIds', ids)}
               getItemId={(category) => category.id}
               getItemLabel={(category) => category.displayName}
-              placeholder="All categories"
+              placeholder="Select categories"
               searchPlaceholder="Search categories..."
-              emptyMessage="No categories found"
+              emptyMessage="No categories found."
             />
           </div>
 
-          {/* Payees */}
-          <div className="space-y-2">
-            <Label>Payees</Label>
-            <MultiSelect
-              items={payees}
-              selectedIds={localFilters.payeeIds}
-              onSelectionChange={(ids) => updateFilter('payeeIds', ids)}
-              getItemId={(payee) => payee.id}
-              getItemLabel={(payee) => payee.displayName}
-              getItemDescription={(payee) => payee.category || ''}
-              placeholder="All payees"
-              searchPlaceholder="Search payees..."
-              emptyMessage="No payees found"
-            />
-          </div>
-
-          {/* Transaction Status */}
-          <div className="space-y-2">
-            <Label>Transaction Status</Label>
-            <MultiSelect
-              items={TRANSACTION_STATUS_OPTIONS}
-              selectedIds={localFilters.transactionStatuses}
-              onSelectionChange={(statuses) => updateFilter('transactionStatuses', statuses as TransactionStatus[])}
-              getItemId={(option) => option.value}
-              getItemLabel={(option) => option.label}
-              placeholder="All statuses"
-              searchPlaceholder="Search statuses..."
-              emptyMessage="No statuses found"
-            />
-          </div>
-
-          {/* Account Types */}
-          <div className="space-y-2">
-            <Label>Account Types</Label>
-            <MultiSelect
-              items={ACCOUNT_TYPE_OPTIONS}
-              selectedIds={localFilters.accountTypes}
-              onSelectionChange={(types) => updateFilter('accountTypes', types as AccountType[])}
-              getItemId={(option) => option.value}
-              getItemLabel={(option) => option.label}
-              placeholder="All account types"
-              searchPlaceholder="Search account types..."
-              emptyMessage="No account types found"
-            />
-          </div>
-
-          {/* Amount Range */}
-          <div className="space-y-2">
-            <Label>Amount Range</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Input
-                  type="number"
-                  placeholder="Min amount"
-                  value={localFilters.minAmount || ''}
-                  onChange={(e) => updateFilter('minAmount', e.target.value ? Number(e.target.value) : undefined)}
+          {advanced && (
+            <>
+              {/* Payees Filter */}
+              <div className="space-y-2">
+                <Label>Payees</Label>
+                <MultiSelect
+                  items={payees}
+                  selectedIds={filters.payeeIds}
+                  onSelectionChange={(ids) => updateFilter('payeeIds', ids)}
+                  getItemId={(payee) => payee.id}
+                  getItemLabel={(payee) => payee.displayName}
+                  placeholder="Select payees"
+                  searchPlaceholder="Search payees..."
+                  emptyMessage="No payees found."
                 />
               </div>
-              <div>
-                <Input
-                  type="number"
-                  placeholder="Max amount"
-                  value={localFilters.maxAmount || ''}
-                  onChange={(e) => updateFilter('maxAmount', e.target.value ? Number(e.target.value) : undefined)}
+
+              {/* Transaction Status Filter */}
+              <div className="space-y-2">
+                <Label>Transaction Status</Label>
+                <MultiSelect
+                  items={TRANSACTION_STATUS_OPTIONS}
+                  selectedIds={filters.transactionStatuses}
+                  onSelectionChange={(statuses) => updateFilter('transactionStatuses', statuses as TransactionStatus[])}
+                  getItemId={(option) => option.value}
+                  getItemLabel={(option) => option.label}
+                  placeholder="Select statuses"
+                  searchPlaceholder="Search statuses..."
+                  emptyMessage="No statuses found."
                 />
               </div>
-            </div>
-          </div>
 
-          {/* Search */}
-          <div className="space-y-2">
+              {/* Account Types Filter */}
+              <div className="space-y-2">
+                <Label>Account Types</Label>
+                <MultiSelect
+                  items={ACCOUNT_TYPE_OPTIONS}
+                  selectedIds={filters.accountTypes}
+                  onSelectionChange={(types) => updateFilter('accountTypes', types as AccountType[])}
+                  getItemId={(option) => option.value}
+                  getItemLabel={(option) => option.label}
+                  placeholder="Select account types"
+                  searchPlaceholder="Search account types..."
+                  emptyMessage="No account types found."
+                />
+              </div>
+
+              {/* Amount Range Filter */}
+              <div className="space-y-2">
+                <Label>Amount Range</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Min amount"
+                    value={filters.minAmount || ''}
+                    onChange={(e) => updateFilter('minAmount', e.target.value ? Number(e.target.value) : undefined)}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max amount"
+                    value={filters.maxAmount || ''}
+                    onChange={(e) => updateFilter('maxAmount', e.target.value ? Number(e.target.value) : undefined)}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Search Filter */}
+          <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-4">
             <Label>Search</Label>
             <div className="space-y-3">
               <Input
                 placeholder="Search transactions..."
-                value={localFilters.searchTerm || ''}
+                value={filters.searchTerm || ''}
                 onChange={(e) => updateFilter('searchTerm', e.target.value)}
               />
               <div className="flex items-center space-x-2">
                 <Switch
                   id="include-notes"
-                  checked={localFilters.includeNotes}
+                  checked={filters.includeNotes}
                   onCheckedChange={(checked) => updateFilter('includeNotes', checked)}
                 />
                 <Label htmlFor="include-notes" className="text-sm font-normal">
