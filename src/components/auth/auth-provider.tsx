@@ -6,8 +6,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { User, Session } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { User, Session } from '@/lib/types'
 
 /**
  * Authentication context type definition
@@ -39,25 +38,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    }
-
-    getSession()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    const initializeAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/session')
+        const data = await response.json()
+        const session = data.session
         setSession(session)
         setUser(session?.user ?? null)
+      } catch (error) {
+        console.error('Failed to load session:', error)
+        setSession(null)
+        setUser(null)
+      } finally {
         setLoading(false)
       }
-    )
+    }
 
-    return () => subscription.unsubscribe()
+    initializeAuth()
   }, [])
 
   /**
@@ -65,7 +62,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * @description Signs out the current user
    */
   const signOut = async () => {
-    await supabase.auth.signOut()
+    try {
+      await fetch('/api/auth/signout', {
+        method: 'POST',
+      })
+    } catch (error) {
+      console.error('Signout error:', error)
+    } finally {
+      setSession(null)
+      setUser(null)
+      window.location.href = '/'
+    }
   }
 
   const value = {

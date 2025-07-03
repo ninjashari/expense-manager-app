@@ -85,6 +85,7 @@ export function TransactionImport({
   const [importOptions, setImportOptions] = useState<ImportOptions>({
     createMissingCategories: true,
     createMissingPayees: true,
+    createMissingAccounts: true,
     skipDuplicates: false
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -179,6 +180,7 @@ export function TransactionImport({
    */
   const parseCSVContent = useCallback((csvContent: string): ParsedTransaction[] => {
     const lines = csvContent.split('\n').filter(line => line.trim())
+    
     if (lines.length < 2) {
       throw new Error('CSV file must have at least a header and one data row')
     }
@@ -190,6 +192,7 @@ export function TransactionImport({
 
     for (let i = 1; i < lines.length; i++) {
       const values = parseCSVLine(lines[i]).map(v => v.replace(/^"|"$/g, ''))
+      
       const row: Partial<CSVRow> = {}
       
       headers.forEach((header, index) => {
@@ -339,6 +342,8 @@ export function TransactionImport({
       return
     }
 
+
+
     setIsProcessing(true)
     setProgress(0)
 
@@ -361,6 +366,9 @@ export function TransactionImport({
 
       if (summary.successful > 0) {
         let message = `Successfully imported ${summary.successful} transactions`
+        if (summary.createdAccounts > 0) {
+          message += ` (created ${summary.createdAccounts} accounts)`
+        }
         if (summary.createdCategories > 0) {
           message += ` (created ${summary.createdCategories} categories)`
         }
@@ -377,7 +385,7 @@ export function TransactionImport({
       }
       
     } catch (error) {
-      console.error('Error during import:', error)
+      console.error('❌ Error during import:', error)
       toast.error('Import failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setIsProcessing(false)
@@ -466,7 +474,19 @@ export function TransactionImport({
               {/* Import Options */}
               <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
                 <h4 className="font-medium text-sm">Import Options</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="createAccounts"
+                      checked={importOptions.createMissingAccounts}
+                      onCheckedChange={(checked) =>
+                        setImportOptions(prev => ({ ...prev, createMissingAccounts: !!checked }))
+                      }
+                    />
+                    <Label htmlFor="createAccounts" className="text-sm">
+                      Create missing accounts
+                    </Label>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="createCategories"

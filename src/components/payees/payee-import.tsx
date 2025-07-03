@@ -161,7 +161,7 @@ export function PayeeImport({ onImportComplete, userId, isLoading = false }: Pay
 
     // Import payees using the service
     try {
-      const { importPayeesFromList } = await import('@/lib/services/supabase-payee-service')
+      const { importPayeesFromList } = await import('@/lib/services/payee-service')
       
       const displayNames = importItems
         .filter(item => item.status === 'pending')

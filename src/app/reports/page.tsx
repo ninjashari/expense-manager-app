@@ -5,20 +5,37 @@
  */
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Download } from "lucide-react"
 import { toast } from "sonner"
 
 import { ProtectedRoute } from "@/components/auth/protected-route"
+import { useAuth } from "@/components/auth/auth-provider"
 import { CustomReportBuilder } from "@/components/reports/custom-report-builder"
 
-// Import services and types
-import { getAccounts } from "@/lib/services/supabase-account-service"
-import { getCategories } from "@/lib/services/supabase-category-service"
-import { getPayees } from "@/lib/services/supabase-payee-service"
-import { supabase } from "@/lib/supabase"
+// API functions
+const getAccounts = async (): Promise<Account[]> => {
+  const res = await fetch('/api/accounts')
+  if (!res.ok) throw new Error('Failed to fetch accounts')
+  const data = await res.json()
+  return data.accounts
+}
+
+const getCategories = async (): Promise<Category[]> => {
+  const res = await fetch('/api/categories')
+  if (!res.ok) throw new Error('Failed to fetch categories')
+  const data = await res.json()
+  return data.categories
+}
+
+const getPayees = async (): Promise<Payee[]> => {
+  const res = await fetch('/api/payees')
+  if (!res.ok) throw new Error('Failed to fetch payees')
+  const data = await res.json()
+  return data.payees
+}
 
 import { Account } from "@/types/account"
 import { Category } from "@/types/category"
@@ -30,37 +47,35 @@ import { Payee } from "@/types/payee"
  * @returns JSX element containing the reports page content
  */
 export default function ReportsPage() {
+  // Authentication
+  const { user } = useAuth()
+  
   // Data state
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [payees, setPayees] = useState<Payee[]>([])
-  const [userId, setUserId] = useState<string>('')
 
   // Loading state
   const [isLoading, setIsLoading] = useState(true)
 
   /**
    * Load initial data for reports
-   * @description Fetches accounts, categories, payees, and user info
+   * @description Fetches accounts, categories, and payees
    */
-  const loadReportData = async () => {
+  const loadReportData = useCallback(async () => {
     try {
       setIsLoading(true)
       
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      if (!user?.id) {
         toast.error('Please sign in to view reports')
         return
       }
-      
-      setUserId(user.id)
 
       // Load all necessary data in parallel
       const [accountsData, categoriesData, payeesData] = await Promise.all([
-        getAccounts(user.id),
-        getCategories(user.id),
-        getPayees(user.id)
+        getAccounts(),
+        getCategories(),
+        getPayees()
       ])
 
       setAccounts(accountsData)
@@ -73,12 +88,14 @@ export default function ReportsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [user?.id])
 
-  // Load data on component mount
+  // Load data when user is available
   useEffect(() => {
-    loadReportData()
-  }, [])
+    if (user?.id) {
+      loadReportData()
+    }
+  }, [user?.id, loadReportData])
 
   if (isLoading) {
     return (
@@ -130,7 +147,6 @@ export default function ReportsPage() {
           accounts={accounts}
           categories={categories}
           payees={payees}
-          userId={userId}
         />
       </div>
     </ProtectedRoute>

@@ -12,24 +12,92 @@ import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AccountsList } from '@/components/accounts/accounts-list'
 import { AccountForm } from '@/components/accounts/account-form'
 import { AccountDetails } from '@/components/accounts/account-details'
+import { AccountImport } from '@/components/accounts/account-import'
 
 import { Account } from '@/types/account'
 import { AccountFormData } from '@/lib/validations/account'
-import { 
-  getAccounts, 
-  getAccountsWithFreshBalances,
-  recalculateAccountBalances,
-  createAccount, 
-  updateAccount, 
-  deleteAccount 
-} from '@/lib/services/supabase-account-service'
+import { formatDateForDatabase, parseDateFromDatabase } from '@/lib/utils'
+// Accounts API functions
+const getAccounts = async (): Promise<Account[]> => {
+  const res = await fetch('/api/accounts')
+  if (!res.ok) throw new Error('Failed to fetch accounts')
+  const data = await res.json()
+  
+  // Parse date strings back to Date objects
+  return data.accounts.map((account: Account & { 
+    accountOpeningDate: string; 
+    createdAt: string; 
+    updatedAt: string; 
+  }) => ({
+    ...account,
+    accountOpeningDate: parseDateFromDatabase(account.accountOpeningDate),
+    createdAt: new Date(account.createdAt),
+    updatedAt: new Date(account.updatedAt)
+  }))
+}
+
+const createAccount = async (formData: AccountFormData): Promise<Account> => {
+  // Format the date properly before sending to API
+  const requestData = {
+    ...formData,
+    accountOpeningDate: formatDateForDatabase(formData.accountOpeningDate)
+  }
+  
+  const res = await fetch('/api/accounts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestData)
+  })
+  if (!res.ok) throw new Error('Failed to create account')
+  const data = await res.json()
+  
+  // Parse date strings back to Date objects
+  return {
+    ...data.account,
+    accountOpeningDate: parseDateFromDatabase(data.account.accountOpeningDate),
+    createdAt: new Date(data.account.createdAt),
+    updatedAt: new Date(data.account.updatedAt)
+  }
+}
+
+const updateAccount = async (id: string, formData: AccountFormData): Promise<Account> => {
+  // Format the date properly before sending to API
+  const requestData = {
+    ...formData,
+    accountOpeningDate: formatDateForDatabase(formData.accountOpeningDate)
+  }
+  
+  const res = await fetch(`/api/accounts/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestData)
+  })
+  if (!res.ok) throw new Error('Failed to update account')
+  const data = await res.json()
+  
+  // Parse date strings back to Date objects
+  return {
+    ...data.account,
+    accountOpeningDate: parseDateFromDatabase(data.account.accountOpeningDate),
+    createdAt: new Date(data.account.createdAt),
+    updatedAt: new Date(data.account.updatedAt)
+  }
+}
+
+const deleteAccount = async (id: string): Promise<boolean> => {
+  const res = await fetch(`/api/accounts/${id}`, {
+    method: 'DELETE'
+  })
+  if (!res.ok) throw new Error('Failed to delete account')
+  return true
+}
 import { useAuth } from '@/components/auth/auth-provider'
 
 /**
  * View modes for the accounts page
  * @description Defines different views available in the accounts page
  */
-type ViewMode = 'list' | 'add' | 'edit' | 'details'
+type ViewMode = 'list' | 'add' | 'edit' | 'details' | 'import'
 
 /**
  * AccountsPage component
@@ -53,7 +121,7 @@ export default function AccountsPage() {
     
     try {
       setLoading(true)
-      const userAccounts = await getAccountsWithFreshBalances(user.id)
+      const userAccounts = await getAccounts()
       setAccounts(userAccounts)
     } catch (error) {
       console.error('Failed to load accounts:', error)
@@ -77,6 +145,14 @@ export default function AccountsPage() {
   const handleAdd = () => {
     setSelectedAccount(null)
     setViewMode('add')
+  }
+
+  /**
+   * Handle import accounts
+   * @description Opens the import accounts dialog
+   */
+  const handleImport = () => {
+    setViewMode('import')
   }
 
   /**
@@ -108,7 +184,7 @@ export default function AccountsPage() {
     if (!user) return
 
     try {
-      const success = await deleteAccount(accountId, user.id)
+      const success = await deleteAccount(accountId)
       if (success) {
         toast.success('Account deleted successfully')
         await loadAccounts() // Reload accounts list
@@ -134,12 +210,12 @@ export default function AccountsPage() {
       
       if (viewMode === 'add') {
         // Create new account
-        const newAccount = await createAccount(formData, user.id)
+        const newAccount = await createAccount(formData)
         toast.success('Account created successfully')
         setAccounts(prev => [...prev, newAccount])
       } else if (viewMode === 'edit' && selectedAccount) {
         // Update existing account
-        const updatedAccount = await updateAccount(selectedAccount.id, formData, user.id)
+        const updatedAccount = await updateAccount(selectedAccount.id, formData)
         if (updatedAccount) {
           toast.success('Account updated successfully')
           setAccounts(prev => 
@@ -172,6 +248,18 @@ export default function AccountsPage() {
   }
 
   /**
+   * Handle import completion
+   * @description Called when import process is completed
+   * @param result - Import result summary
+   */
+  const handleImportComplete = async (result: { successful: number; failed: number; duplicates: number }) => {
+    if (result.successful > 0) {
+      await loadAccounts() // Refresh the accounts list
+    }
+    setViewMode('list') // Return to list view
+  }
+
+  /**
    * Handle details edit button
    * @description Switches from details view to edit form
    */
@@ -197,21 +285,15 @@ export default function AccountsPage() {
     
     try {
       setLoading(true)
-      toast.info('Recalculating account balances...')
+      toast.info('Refreshing accounts...')
       
-      // Recalculate balances first
-      const success = await recalculateAccountBalances(user.id)
-      if (success) {
-        // Then reload accounts
-        const userAccounts = await getAccounts(user.id)
-        setAccounts(userAccounts)
-        toast.success('Account balances updated successfully')
-      } else {
-        toast.error('Failed to recalculate balances')
-      }
+      // Reload accounts
+      const userAccounts = await getAccounts()
+      setAccounts(userAccounts)
+      toast.success('Accounts refreshed successfully')
     } catch (error) {
-      console.error('Failed to refresh balances:', error)
-      toast.error('Failed to refresh balances')
+      console.error('Failed to refresh accounts:', error)
+      toast.error('Failed to refresh accounts')
     } finally {
       setLoading(false)
     }
@@ -245,12 +327,21 @@ export default function AccountsPage() {
           />
         ) : null
       
+      case 'import':
+        return (
+          <AccountImport
+            onImportComplete={handleImportComplete}
+            existingAccounts={accounts}
+          />
+        )
+      
       case 'list':
       default:
         return (
           <AccountsList
             accounts={accounts}
             onAdd={handleAdd}
+            onImport={handleImport}
             onEdit={handleEdit}
             onView={handleView}
             onDelete={handleDelete}

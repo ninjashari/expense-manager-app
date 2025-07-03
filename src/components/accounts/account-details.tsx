@@ -27,7 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 
 import { Account, getAccountTypeLabel, getAccountStatusLabel, getCurrencySymbol } from '@/types/account'
-import { formatAccountBalance } from '@/lib/services/supabase-account-service'
+import { formatCurrency } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 
 /**
@@ -138,7 +138,7 @@ export function AccountDetails({ account, onEdit, onClose }: AccountDetailsProps
                 Current Balance
               </div>
               <div className={cn("text-3xl font-bold", balanceColor)}>
-                {formatAccountBalance(account)}
+                {formatCurrency(account.currentBalance)}
               </div>
             </div>
             
@@ -147,7 +147,7 @@ export function AccountDetails({ account, onEdit, onClose }: AccountDetailsProps
                 Initial Balance
               </div>
               <div className="text-2xl font-semibold">
-                {formatAccountBalance({ ...account, currentBalance: account.initialBalance })}
+                {formatCurrency(account.initialBalance)}
               </div>
             </div>
           </div>
@@ -161,7 +161,7 @@ export function AccountDetails({ account, onEdit, onClose }: AccountDetailsProps
                     Credit Limit
                   </div>
                   <div className="text-xl font-semibold">
-                    {formatAccountBalance({ ...account, currentBalance: account.creditCardInfo.creditLimit })}
+                    {formatCurrency(account.creditCardInfo.creditLimit)}
                   </div>
                 </div>
                 
@@ -170,10 +170,7 @@ export function AccountDetails({ account, onEdit, onClose }: AccountDetailsProps
                     Available Credit
                   </div>
                   <div className="text-xl font-semibold text-green-600">
-                    {formatAccountBalance({ 
-                      ...account, 
-                      currentBalance: account.creditCardInfo.creditLimit + account.currentBalance 
-                    })}
+                    {formatCurrency(account.creditCardInfo.creditLimit + account.currentBalance)}
                   </div>
                 </div>
                 
@@ -183,7 +180,7 @@ export function AccountDetails({ account, onEdit, onClose }: AccountDetailsProps
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-xl font-semibold">
-                      {account.creditUsagePercentage?.toFixed(1) || '0.0'}%
+                      {(typeof account.creditUsagePercentage === 'number' ? account.creditUsagePercentage.toFixed(1) : '0.0')}%
                     </div>
                     <div className="flex-1 bg-muted rounded-full h-2 max-w-[120px]">
                       <div 

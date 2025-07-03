@@ -16,6 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Pagination, usePagination } from "@/components/ui/pagination"
 import { Category } from "@/types/category"
+import { formatDateSafely } from "@/lib/utils"
 
 /**
  * Props interface for CategoriesList component
@@ -108,19 +109,7 @@ export function CategoriesList({
     }
   }
 
-  /**
-   * Format date for display
-   * @description Formats a date object for user-friendly display
-   * @param date - Date to format
-   * @returns Formatted date string
-   */
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }).format(date)
-  }
+
 
   return (
     <>
@@ -182,7 +171,7 @@ export function CategoriesList({
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(category.createdAt)}
+                          {formatDateSafely(category.createdAt)}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>

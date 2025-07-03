@@ -14,14 +14,52 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { CategoryForm } from "@/components/categories/category-form"
 import { CategoryImport } from "@/components/categories/category-import"
 import { CategoriesList } from "@/components/categories/categories-list"
-import { 
-  getCategories, 
-  createCategory, 
-  updateCategory, 
-  deleteCategory, 
-  toggleCategoryStatus,
-  getCurrentUserId 
-} from "@/lib/services/supabase-category-service"
+// Categories API functions
+const getCategories = async (): Promise<Category[]> => {
+  const res = await fetch('/api/categories')
+  if (!res.ok) throw new Error('Failed to fetch categories')
+  const data = await res.json()
+  return data.categories
+}
+
+const createCategory = async (formData: CategoryFormData): Promise<Category> => {
+  const res = await fetch('/api/categories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  })
+  if (!res.ok) throw new Error('Failed to create category')
+  const data = await res.json()
+  return data.category
+}
+
+const updateCategory = async (id: string, formData: CategoryFormData): Promise<Category> => {
+  const res = await fetch(`/api/categories/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  })
+  if (!res.ok) throw new Error('Failed to update category')
+  const data = await res.json()
+  return data.category
+}
+
+const deleteCategory = async (id: string): Promise<void> => {
+  const res = await fetch(`/api/categories/${id}`, {
+    method: 'DELETE'
+  })
+  if (!res.ok) throw new Error('Failed to delete category')
+}
+
+const toggleCategoryStatus = async (id: string): Promise<Category> => {
+  const res = await fetch(`/api/categories/${id}`, {
+    method: 'PATCH'
+  })
+  if (!res.ok) throw new Error('Failed to toggle category status')
+  const data = await res.json()
+  return data.category
+}
+import { useAuth } from "@/components/auth/auth-provider"
 import { Category, CategoryFormData } from "@/types/category"
 
 /**
@@ -30,12 +68,14 @@ import { Category, CategoryFormData } from "@/types/category"
  * @returns JSX element containing the categories page content
  */
 export default function CategoriesPage() {
+  // Authentication
+  const { user } = useAuth()
+  
   const [categories, setCategories] = useState<Category[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
 
   /**
    * Load categories from database
@@ -43,43 +83,21 @@ export default function CategoriesPage() {
    */
   const loadCategories = useCallback(async () => {
     try {
-      if (!userId) return
-      const data = await getCategories(userId)
+      if (!user?.id) return
+      const data = await getCategories()
       setCategories(data)
     } catch (error) {
       console.error('Error loading categories:', error)
       toast.error('Failed to load categories')
     }
-  }, [userId])
+  }, [user?.id])
 
-  /**
-   * Initialize user and load categories
-   * @description Gets current user ID and loads their categories
-   */
+  // Load categories when user is available
   useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        const currentUserId = await getCurrentUserId()
-        if (currentUserId) {
-          setUserId(currentUserId)
-        } else {
-          toast.error('User not authenticated')
-        }
-      } catch (error) {
-        console.error('Error getting user ID:', error)
-        toast.error('Authentication error')
-      }
-    }
-
-    initializeUser()
-  }, [])
-
-  // Load categories when userId is available
-  useEffect(() => {
-    if (userId) {
+    if (user?.id) {
       loadCategories()
     }
-  }, [userId, loadCategories])
+  }, [user?.id, loadCategories])
 
   /**
    * Handle adding new category
@@ -114,7 +132,7 @@ export default function CategoriesPage() {
    * @param formData - Category form data
    */
   const handleFormSubmit = async (formData: CategoryFormData) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
@@ -123,11 +141,11 @@ export default function CategoriesPage() {
     try {
       if (editingCategory) {
         // Update existing category
-        await updateCategory(editingCategory.id, formData, userId)
+        await updateCategory(editingCategory.id, formData)
         toast.success('Category updated successfully')
       } else {
         // Create new category
-        await createCategory(formData, userId)
+        await createCategory(formData)
         toast.success('Category created successfully')
       }
       
@@ -148,13 +166,13 @@ export default function CategoriesPage() {
    * @param categoryId - ID of category to delete
    */
   const handleDeleteCategory = async (categoryId: string) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
 
     try {
-      await deleteCategory(categoryId, userId)
+      await deleteCategory(categoryId)
       toast.success('Category deleted successfully')
       await loadCategories()
     } catch (error) {
@@ -169,13 +187,13 @@ export default function CategoriesPage() {
    * @param categoryId - ID of category to toggle
    */
   const handleToggleStatus = async (categoryId: string) => {
-    if (!userId) {
+    if (!user?.id) {
       toast.error('User not authenticated')
       return
     }
 
     try {
-      await toggleCategoryStatus(categoryId, userId)
+      await toggleCategoryStatus(categoryId)
       toast.success('Category status updated')
       await loadCategories()
     } catch (error) {
@@ -260,9 +278,9 @@ export default function CategoriesPage() {
             <DialogHeader>
               <DialogTitle>Import Categories from CSV</DialogTitle>
             </DialogHeader>
-            {userId && (
+            {user?.id && (
               <CategoryImport
-                userId={userId}
+                userId={user.id}
                 onImportComplete={handleImportComplete}
                 isLoading={isSubmitting}
               />

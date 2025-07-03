@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 
 import { Transaction, getTransactionTypeLabel } from '@/types/transaction'
-import { formatCurrency } from '@/lib/supabase'
+import { formatCurrency } from '@/lib/currency'
 
 /**
  * Transaction icon component

@@ -7,6 +7,7 @@
 "use client"
 
 import { useForm } from "react-hook-form"
+import { useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,6 +48,17 @@ export function CategoryForm({ category, onSubmit, onCancel, isLoading = false }
       isActive: category?.isActive !== undefined ? category.isActive : true,
     },
   })
+
+  // Reset form when category prop changes (for editing vs new category)
+  useEffect(() => {
+    if (category) {
+      form.reset({
+        displayName: category.displayName,
+        description: category.description,
+        isActive: category.isActive,
+      })
+    }
+  }, [category, form])
 
   /**
    * Handle form submission

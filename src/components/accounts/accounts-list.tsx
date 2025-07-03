@@ -20,7 +20,8 @@ import {
   Banknote,
   DollarSign,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Upload
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -61,7 +62,7 @@ import {
 import { Pagination, usePagination } from '@/components/ui/pagination'
 
 import { Account, getAccountTypeLabel, getAccountStatusLabel, ACCOUNT_TYPE_OPTIONS, ACCOUNT_STATUS_OPTIONS } from '@/types/account'
-import { formatAccountBalance } from '@/lib/services/supabase-account-service'
+import { formatCurrency } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 
 /**
@@ -74,6 +75,7 @@ interface AccountsListProps {
   onDelete: (accountId: string) => void
   onView: (account: Account) => void
   onAdd: () => void
+  onImport?: () => void
   onRefresh?: () => void
   isLoading?: boolean
 }
@@ -136,6 +138,7 @@ export function AccountsList({
   onDelete, 
   onView, 
   onAdd, 
+  onImport,
   onRefresh,
   isLoading = false 
 }: AccountsListProps) {
@@ -244,6 +247,12 @@ export function AccountsList({
                 <Button variant="outline" onClick={onRefresh} disabled={isLoading}>
                   <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                   Refresh Balances
+                </Button>
+              )}
+              {onImport && (
+                <Button variant="outline" onClick={onImport}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import CSV
                 </Button>
               )}
               <Button onClick={onAdd}>
@@ -366,15 +375,15 @@ export function AccountsList({
                             "font-medium",
                             account.currentBalance < 0 ? "text-destructive" : "text-foreground"
                           )}>
-                            {formatAccountBalance(account)}
+                            {formatCurrency(account.currentBalance)}
                           </div>
                           {account.type === 'credit_card' && account.creditCardInfo && (
                             <div className="text-sm text-muted-foreground space-y-1">
                               <div>
-                                Limit: {formatAccountBalance({ ...account, currentBalance: account.creditCardInfo.creditLimit })}
+                                Limit: {formatCurrency(account.creditCardInfo.creditLimit)}
                               </div>
                               <div className="flex items-center gap-2">
-                                <span>Usage: {account.creditUsagePercentage?.toFixed(1) || '0.0'}%</span>
+                                <span>Usage: {(typeof account.creditUsagePercentage === 'number' ? account.creditUsagePercentage.toFixed(1) : '0.0')}%</span>
                                 <div className="flex-1 bg-muted rounded-full h-1.5 max-w-[60px]">
                                   <div 
                                     className={cn(
