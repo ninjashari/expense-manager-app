@@ -322,11 +322,7 @@ export async function getTransactions(
       }
       if (filters.dateRangePreset) {
         const dateRange = getDateRangeFromPreset(filters.dateRangePreset)
-        if (filters.dateRangePreset === 'custom' && filters.startDate && filters.endDate) {
-          whereClauses.push(`t.date BETWEEN $${paramIndex} AND $${paramIndex + 1}`)
-          queryParams.push(formatDateForDatabase(filters.startDate), formatDateForDatabase(filters.endDate))
-          paramIndex += 2
-        } else if (dateRange) {
+        if (dateRange) {
           whereClauses.push(`t.date BETWEEN $${paramIndex} AND $${paramIndex + 1}`)
           queryParams.push(formatDateForDatabase(dateRange.start), formatDateForDatabase(dateRange.end))
           paramIndex += 2

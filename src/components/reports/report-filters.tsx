@@ -6,9 +6,8 @@
 
 "use client"
 
-import React, { useState, useEffect } from 'react'
-import { Calendar, X, ChevronDown, Search } from 'lucide-react'
-import { format } from 'date-fns'
+import React, { useState } from 'react'
+import { X, ChevronDown, Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,7 +17,6 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
-import { Calendar as CalendarComponent } from '@/components/ui/calendar'
 import { Switch } from '@/components/ui/switch'
 
 import { Account, ACCOUNT_TYPE_OPTIONS, AccountType } from '@/types/account'
@@ -207,79 +205,23 @@ function MultiSelect<T>({
  */
 interface DateRangePickerProps {
   dateRange: DateRangePreset
-  startDate?: Date
-  endDate?: Date
-  onDateRangeChange: (preset: DateRangePreset, startDate?: Date, endDate?: Date) => void
+  onDateRangeChange: (preset: DateRangePreset) => void
 }
 
-function DateRangePicker({ dateRange, startDate, endDate, onDateRangeChange }: DateRangePickerProps) {
-  const [showCustom, setShowCustom] = useState(dateRange === 'custom')
-  const [month, setMonth] = useState<Date>(startDate || endDate || new Date())
-  const [popoverOpen, setPopoverOpen] = useState(false)
-
-  useEffect(() => {
-    setShowCustom(dateRange === 'custom')
-  }, [dateRange])
-
-  const handlePresetChange = (preset: DateRangePreset) => {
-    if (preset === 'custom') {
-      setShowCustom(true)
-    } else {
-      setShowCustom(false)
-      onDateRangeChange(preset)
-    }
-  }
-
-  const handleDateSelect = (range: { from?: Date, to?: Date }) => {
-    onDateRangeChange('custom', range.from, range.to)
-    if (range.from && range.to) {
-      setPopoverOpen(false)
-    }
-  }
-
+function DateRangePicker({ dateRange, onDateRangeChange }: DateRangePickerProps) {
   return (
-    <div className="space-y-2">
-      <Select value={dateRange} onValueChange={handlePresetChange}>
-        <SelectTrigger>
-          <SelectValue placeholder="Select date range" />
-        </SelectTrigger>
-        <SelectContent>
-          {DATE_RANGE_PRESETS.map(preset => (
-            <SelectItem key={preset.value} value={preset.value}>
-              {preset.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {showCustom && (
-        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full justify-start text-left font-normal"
-            >
-              <Calendar className="mr-2 h-4 w-4" />
-              <span>
-                {startDate && endDate
-                  ? `${format(startDate, 'LLL dd, y')} - ${format(endDate, 'LLL dd, y')}`
-                  : 'Select custom date range'}
-              </span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <CalendarComponent
-              mode="range"
-              selected={{ from: startDate, to: endDate }}
-              onSelect={(range) => handleDateSelect(range || {})}
-              numberOfMonths={2}
-              month={month}
-              onMonthChange={setMonth}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-      )}
-    </div>
+    <Select value={dateRange} onValueChange={onDateRangeChange}>
+      <SelectTrigger>
+        <SelectValue placeholder="Select date range" />
+      </SelectTrigger>
+      <SelectContent>
+        {DATE_RANGE_PRESETS.map(preset => (
+          <SelectItem key={preset.value} value={preset.value}>
+            {preset.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -343,14 +285,12 @@ export function ReportFilters({
             <Label>Date Range</Label>
             <DateRangePicker
               dateRange={filters.dateRangePreset}
-              startDate={filters.startDate}
-              endDate={filters.endDate}
-              onDateRangeChange={(preset, startDate, endDate) => {
+              onDateRangeChange={(preset) => {
                 onFiltersChange({
                   ...filters,
                   dateRangePreset: preset,
-                  startDate: startDate,
-                  endDate: endDate,
+                  startDate: undefined,
+                  endDate: undefined,
                 })
               }}
             />

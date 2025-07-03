@@ -28,7 +28,6 @@ export type DateRangePreset =
   | 'this_financial_year'
   | 'last_financial_year'
   | 'all_time'
-  | 'custom'
 
 /**
  * Report filter configuration
@@ -227,7 +226,6 @@ export const DATE_RANGE_PRESETS = [
   { value: 'this_financial_year', label: 'This Financial Year' },
   { value: 'last_financial_year', label: 'Last Financial Year' },
   { value: 'all_time', label: 'All Time' },
-  { value: 'custom', label: 'Custom Range' },
 ] as const
 
 /**
@@ -382,7 +380,6 @@ export function getDateRangeFromPreset(preset: DateRangePreset): { start: Date; 
       // Return a very early date as start
       return { start: new Date(2000, 0, 1), end: now }
     
-    case 'custom':
     default:
       return null
   }

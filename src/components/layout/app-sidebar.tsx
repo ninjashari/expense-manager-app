@@ -17,7 +17,6 @@ import {
   Settings,
   Tag,
   Wallet,
-  CalendarDays,
 } from "lucide-react"
 
 import {

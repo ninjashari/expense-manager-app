@@ -33,11 +33,7 @@ export function filterTransactions(transactions: Transaction[], filters: ReportF
     const dateRange = getDateRangeFromPreset(filters.dateRangePreset)
     const transactionDate = new Date(transaction.date)
     
-    if (filters.dateRangePreset === 'custom' && filters.startDate && filters.endDate) {
-      if (transactionDate < filters.startDate || transactionDate > filters.endDate) {
-        return false
-      }
-    } else if (dateRange) {
+    if (dateRange) {
       if (transactionDate < dateRange.start || transactionDate > dateRange.end) {
         return false
       }
@@ -149,10 +145,7 @@ export function generateTransactionSummary(transactions: Transaction[], filters:
   let start = new Date()
   let end = new Date()
 
-  if (filters.dateRangePreset === 'custom' && filters.startDate && filters.endDate) {
-    start = filters.startDate
-    end = filters.endDate
-  } else if (dateRange) {
+  if (dateRange) {
     start = dateRange.start
     end = dateRange.end
   }
